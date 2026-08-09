@@ -5,6 +5,8 @@ let coffee=0;
 let trendDays=30;
 let duplicateDraft=null;
 let duplicateSource=null;
+let importText='';
+let importPreview=null;
 
 const $=s=>document.querySelector(s);
 const load=()=>JSON.parse(localStorage.getItem(KEY)||'[]');
@@ -96,54 +98,54 @@ function trend(){
 
 
 function showImport(){
-  const text=prompt(`Incolla qui lo storico copiato dalle Note iOS.
-
-Puoi incollare direttamente la tabella con intestazione:
-Giorno, gg/sett, Peso, +/-, caffè, Colazione, Spuntino, Pranzo, Spuntino, Cena, Sport/note.
-
-Le righe con "/" vengono importate come campi vuoti.
-Le date 07-09, 08-09 e 09-09 vengono corrette automaticamente in agosto 2026.`);
-  if(!text)return;
-  importHistoryText(text);
+  importText='';
+  importPreview=null;
+  page='import';
+  render();
+  scrollTo(0,0);
 }
 
-function importHistoryText(text){
-  const lines=text.replace(/\r/g,'').split('\n').map(x=>x.trimEnd()).filter(x=>x.trim());
-  if(!lines.length)return alert('Nessun dato trovato.');
+function importPage(){
+  const preview=importPreview;
+  return `<div class="page-title"><button class="back" onclick="cancelImport()">‹</button><div><div class="eyebrow">CARICAMENTO DATI</div><h1>Importa storico</h1></div></div>
+  <section class="card import-card">
+    <p class="muted import-help">Apri le Note iOS, seleziona e copia tutta la tabella del diario, poi incollala qui sotto. Puoi includere anche la riga delle intestazioni.</p>
+    <label for="historyImport">Storico da Note iOS</label>
+    <textarea id="historyImport" class="import-textarea" placeholder="Incolla qui tutto lo storico…">${escapeHtml(importText)}</textarea>
+    <div class="import-actions"><button class="secondary" onclick="analyzeImport()">Analizza dati</button>${preview&&preview.validRows.length?'<button class="primary" onclick="confirmImport()">Importa '+preview.validRows.length+' giornate</button>':''}</div>
+    ${preview?importPreviewHtml(preview):''}
+  </section>
+  <section class="card"><h2>Come vengono gestiti i dati</h2><p class="muted import-help">Il simbolo <b>/</b> diventa un campo vuoto. Le giornate senza peso vengono conservate. Se una data esiste già, viene aggiornata anziché duplicata. La colonna +/- non viene importata perché il Diario ricalcola automaticamente la variazione.</p></section>`;
+}
 
+function escapeHtml(s){
+  return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function parseHistoryText(text){
+  const lines=String(text||'').replace(/\r/g,'').split('\n').map(x=>x.trimEnd()).filter(x=>x.trim());
   let start=0;
-  if(/^Giorno[\t;]/i.test(lines[0]) || /^Giorno\s+/i.test(lines[0])) start=1;
-
-  const current=load();
-  const byDate=new Map(current.map(x=>[x.date,x]));
-  let imported=0, updated=0, skipped=0, errors=[];
-
-  const clean=v=>{
-    v=(v??'').trim();
-    return v==='/'?'':v;
-  };
+  if(lines[0] && (/^Giorno[\t;]/i.test(lines[0]) || /^Giorno\s+/i.test(lines[0]))) start=1;
+  const validRows=[];
+  const errors=[];
+  const clean=v=>{v=(v??'').trim();return v==='/'?'':v;};
 
   for(let i=start;i<lines.length;i++){
     let cols=lines[i].split('\t');
+    if(cols.length<10) cols=lines[i].split(';');
     if(cols.length<10){
-      // fallback for semicolon-separated exports
-      cols=lines[i].split(';');
-    }
-    if(cols.length<10){
-      errors.push(`Riga ${i+1}: colonne non riconosciute`);
+      errors.push(`Riga ${i+1}: non riconosco le colonne. Verifica che la riga sia stata copiata insieme alla tabella.`);
       continue;
     }
-
     let [d,weekday,weight,delta,coffee,breakfast,snack1,lunch,snack2,dinner,...notesParts]=cols;
     d=clean(d);
     const m=d.match(/^(\d{1,2})-(\d{1,2})$/);
-    if(!m){errors.push(`Riga ${i+1}: data "${d}" non valida`);continue;}
-
+    if(!m){errors.push(`Riga ${i+1}: data "${d}" non valida.`);continue;}
     let day=+m[1], month=+m[2];
-    // Correzione concordata per le tre righe finali del diario.
+    // Correzione concordata per lo storico 2026: le tre righe finali erano state digitate come settembre.
     if(month===9 && [7,8,9].includes(day)) month=8;
+    if(month<1||month>12||day<1||day>31){errors.push(`Riga ${i+1}: data "${d}" non valida.`);continue;}
     const date=`2026-${String(month).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
-
     const w=clean(weight).replace(',','.');
     const c=clean(coffee);
     const row={
@@ -157,28 +159,49 @@ function importHistoryText(text){
       dinner:clean(dinner),
       notes:clean(notesParts.join('\t'))
     };
-
-    if(w!=='' && !Number.isFinite(row.weight)){
-      errors.push(`Riga ${i+1}: peso "${weight}" non valido`);
-      continue;
-    }
-
-    if(byDate.has(date)){ updated++; } else { imported++; }
-    byDate.set(date,row);
+    if(w!==''&&!Number.isFinite(row.weight)){errors.push(`Riga ${i+1}: peso "${weight}" non valido.`);continue;}
+    validRows.push(row);
   }
-
-  const merged=[...byDate.values()].sort((a,b)=>a.date.localeCompare(b.date));
-  save(merged);
-  page='trend';
-  editDate=null;
-  duplicateDraft=null;
-  duplicateSource=null;
-  render();
-
-  let msg=`Importazione completata.\n\nNuove giornate: ${imported}\nGiornate aggiornate: ${updated}\nTotale diario: ${merged.length}`;
-  if(errors.length) msg+=`\n\nRighe non importate: ${errors.length}\n${errors.slice(0,5).join('\n')}`;
-  alert(msg);
+  validRows.sort((a,b)=>a.date.localeCompare(b.date));
+  return {validRows,errors,totalLines:Math.max(0,lines.length-start)};
 }
+
+function importPreviewHtml(p){
+  if(!p.validRows.length){
+    return `<div class="import-result bad"><b>Nessuna giornata riconosciuta.</b><span>${p.errors[0]||'Controlla il testo incollato.'}</span></div>`;
+  }
+  const first=p.validRows[0],last=p.validRows.at(-1);
+  return `<div class="import-result ok"><b>${p.validRows.length} giornate riconosciute</b><span>Dal ${fmtShort(first.date)} al ${fmtShort(last.date)}</span><span>${p.validRows.filter(x=>x.weight!=='').length} rilevazioni di peso</span>${p.errors.length?`<span class="import-warn">${p.errors.length} righe da controllare</span>`:'<span>Nessun errore rilevato</span>'}</div>${p.errors.length?`<details class="import-errors"><summary>Mostra righe non riconosciute</summary>${p.errors.slice(0,12).map(x=>`<div>${escapeHtml(x)}</div>`).join('')}</details>`:''}`;
+}
+
+window.analyzeImport=()=>{
+  const box=$('#historyImport');
+  importText=box?box.value:'';
+  importPreview=parseHistoryText(importText);
+  render();
+  setTimeout(()=>$('#historyImport')?.focus(),0);
+};
+
+window.confirmImport=()=>{
+  if(!importPreview||!importPreview.validRows.length)return alert('Prima analizza i dati da importare.');
+  const current=load();
+  const byDate=new Map(current.map(x=>[x.date,x]));
+  let inserted=0,updated=0;
+  for(const row of importPreview.validRows){
+    if(byDate.has(row.date))updated++;else inserted++;
+    byDate.set(row.date,row);
+  }
+  const merged=[...byDate.values()].sort((a,b)=>a.date.localeCompare(b.date));
+  const ok=confirm(`Importare ${importPreview.validRows.length} giornate?\n\nNuove: ${inserted}\nDa aggiornare: ${updated}\nTotale dopo l'importazione: ${merged.length}`);
+  if(!ok)return;
+  save(merged);
+  importText='';importPreview=null;
+  page='trend';editDate=null;duplicateDraft=null;duplicateSource=null;
+  render();scrollTo(0,0);
+  alert(`Importazione completata. ${merged.length} giornate presenti nel Diario.`);
+};
+
+window.cancelImport=()=>{importText='';importPreview=null;page='trend';render();scrollTo(0,0)};
 
 
 function exportBackup(){
@@ -231,12 +254,12 @@ function restoreBackup(event){
 }
 
 function render(){
-  $('#app').innerHTML=page==='home'?home():page==='add'?add():trend();
+  $('#app').innerHTML=page==='home'?home():page==='add'?add():page==='import'?importPage():trend();
 }
 
 function go(p){
   page=p;
-  if(p!=='add'){editDate=null;duplicateDraft=null;duplicateSource=null;}
+  if(p!=='add'){editDate=null;duplicateDraft=null;duplicateSource=null;} if(p!=='import'){importText='';importPreview=null;}
   render();scrollTo(0,0);
 }
 window.go=go;

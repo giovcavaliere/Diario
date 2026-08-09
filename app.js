@@ -1,4 +1,5 @@
 const KEY='diario-v1';
+const PROFILE_KEY='diario-profile-v2';
 let page='home';
 let editDate=null;
 let coffee=0;
@@ -7,10 +8,18 @@ let duplicateDraft=null;
 let duplicateSource=null;
 let importText='';
 let importPreview=null;
+let historySearch='';
+let showMovingAverage=false;
+let bmiDays=30;
 
 const $=s=>document.querySelector(s);
 const load=()=>JSON.parse(localStorage.getItem(KEY)||'[]');
 const save=d=>localStorage.setItem(KEY,JSON.stringify(d));
+const loadProfile=()=>{
+  const p=JSON.parse(localStorage.getItem(PROFILE_KEY)||'{}');
+  return {name:p.name||'',height:Number(p.height)||'',sex:p.sex||'',goal:Number(p.goal)||''};
+};
+const saveProfile=p=>localStorage.setItem(PROFILE_KEY,JSON.stringify(p));
 const isoToday=()=>{let d=new Date(),z=d.getTimezoneOffset()*60000;return new Date(d-z).toISOString().slice(0,10)};
 const fmt=d=>new Date(d+'T12:00:00').toLocaleDateString('it-IT',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
 const fmtShort=d=>new Date(d+'T12:00:00').toLocaleDateString('it-IT',{day:'2-digit',month:'2-digit',year:'numeric'});
@@ -19,16 +28,44 @@ const kg=v=>Number.isFinite(+v)&&v!==''?`${(+v).toFixed(1).replace('.',',')} kg`
 function sorted(){return load().sort((a,b)=>a.date.localeCompare(b.date))}
 function weighted(){return sorted().filter(x=>Number.isFinite(+x.weight)&&x.weight!=='')}
 
-function chart(items,days){
-  let w=items.filter(x=>x.weight!=='');
-  if(days&&w.length){
-    let end=new Date(w.at(-1).date+'T12:00:00');
-    let start=new Date(end);start.setDate(end.getDate()-(days-1));
-    w=w.filter(x=>new Date(x.date+'T12:00:00')>=start);
+function bmiFor(weight,heightCm){
+  const w=Number(weight),h=Number(heightCm)/100;
+  return Number.isFinite(w)&&h>0?w/(h*h):null;
+}
+function bmiLabel(v){
+  if(!Number.isFinite(v))return '';
+  if(v<18.5)return 'Sottopeso';
+  if(v<25)return 'Normopeso';
+  if(v<30)return 'Sovrappeso';
+  if(v<35)return 'Obesità I';
+  if(v<40)return 'Obesità II';
+  return 'Obesità III';
+}
+function movingAverageSeries(items,windowSize=7){
+  const w=items.filter(x=>x.weight!=='');
+  return w.map((x,i)=>{
+    const slice=w.slice(Math.max(0,i-windowSize+1),i+1);
+    const avg=slice.reduce((s,r)=>s+Number(r.weight),0)/slice.length;
+    return {...x,avg};
+  });
+}
+function filteredByDays(items,days){
+  let a=[...items];
+  if(days&&a.length){
+    const end=new Date(a.at(-1).date+'T12:00:00');
+    const start=new Date(end); start.setDate(end.getDate()-(days-1));
+    a=a.filter(x=>new Date(x.date+'T12:00:00')>=start);
   }
+  return a;
+}
+
+function chart(items,days){
+  let w=filteredByDays(items.filter(x=>x.weight!==''),days);
   if(!w.length)return '<p class="muted">Nessun peso registrato.</p>';
 
+  const avgSeries=movingAverageSeries(items).filter(x=>w.some(y=>y.date===x.date));
   let vals=w.map(x=>+x.weight);
+  if(showMovingAverage) vals.push(...avgSeries.map(x=>x.avg));
   let rawMin=Math.min(...vals),rawMax=Math.max(...vals);
   let pad=Math.max(.5,(rawMax-rawMin)*.12);
   let min=Math.floor((rawMin-pad)*2)/2;
@@ -37,31 +74,68 @@ function chart(items,days){
   let range=max-min;
 
   const left=14,right=98,top=8,bottom=86;
-  let pts=w.map((x,i)=>{
-    let xx=w.length===1?(left+right)/2:left+i/(w.length-1)*(right-left);
-    let yy=bottom-((+x.weight-min)/range)*(bottom-top);
-    return `${xx.toFixed(2)},${yy.toFixed(2)}`;
-  }).join(' ');
+  const xFor=(date)=>{
+    const idx=w.findIndex(x=>x.date===date);
+    return w.length===1?(left+right)/2:left+idx/(w.length-1)*(right-left);
+  };
+  const yFor=v=>bottom-((v-min)/range)*(bottom-top);
+  const pts=w.map(x=>`${xFor(x.date).toFixed(2)},${yFor(+x.weight).toFixed(2)}`).join(' ');
+  const avgPts=avgSeries.map(x=>`${xFor(x.date).toFixed(2)},${yFor(x.avg).toFixed(2)}`).join(' ');
 
   let tickCount=5;
   let ticks=Array.from({length:tickCount},(_,i)=>max-(range/(tickCount-1))*i);
   let grid=ticks.map(v=>{
-    let y=bottom-((v-min)/range)*(bottom-top);
+    let y=yFor(v);
     return `<line x1="${left}" y1="${y}" x2="${right}" y2="${y}" class="chart-grid"/><text x="${left-2}" y="${y+1.5}" text-anchor="end" class="chart-y-label">${v.toFixed(1).replace('.',',')}</text>`;
   }).join('');
 
-  return `<div class="chart-wrap"><svg class="chart" viewBox="0 0 100 100" preserveAspectRatio="none">${grid}<line x1="${left}" y1="${top}" x2="${left}" y2="${bottom}" class="chart-axis"/><line x1="${left}" y1="${bottom}" x2="${right}" y2="${bottom}" class="chart-axis"/><polyline points="${pts}" class="chart-line" fill="none" vector-effect="non-scaling-stroke"/>${w.map((x,i)=>{let xx=w.length===1?(left+right)/2:left+i/(w.length-1)*(right-left);let yy=bottom-((+x.weight-min)/range)*(bottom-top);return `<circle cx="${xx}" cy="${yy}" r="0.55" class="chart-point" vector-effect="non-scaling-stroke"/>`}).join('')}</svg><span class="chart-unit">kg</span></div><div class="chart-dates"><span>${fmt(w[0].date).replace(/^[^ ]+ /,'')}</span><span>${fmt(w.at(-1).date).replace(/^[^ ]+ /,'')}</span></div>`;
+  return `<div class="chart-wrap"><svg class="chart" viewBox="0 0 100 100" preserveAspectRatio="none">${grid}<line x1="${left}" y1="${top}" x2="${left}" y2="${bottom}" class="chart-axis"/><line x1="${left}" y1="${bottom}" x2="${right}" y2="${bottom}" class="chart-axis"/><polyline points="${pts}" class="chart-line" fill="none" vector-effect="non-scaling-stroke"/>${w.map(x=>`<circle cx="${xFor(x.date)}" cy="${yFor(+x.weight)}" r="0.55" class="chart-point" vector-effect="non-scaling-stroke"/>`).join('')}${showMovingAverage&&avgPts?`<polyline points="${avgPts}" class="chart-average" fill="none" vector-effect="non-scaling-stroke"/>`:''}</svg><span class="chart-unit">kg</span></div><div class="chart-dates"><span>${fmt(w[0].date).replace(/^[^ ]+ /,'')}</span><span>${fmt(w.at(-1).date).replace(/^[^ ]+ /,'')}</span></div>`;
 }
+
+function bmiChart(items,days){
+  const profile=loadProfile();
+  if(!profile.height)return '<p class="muted">Inserisci l’altezza nel Profilo per calcolare il BMI.</p>';
+  let data=items.filter(x=>x.weight!=='').map(x=>({...x,bmi:bmiFor(x.weight,profile.height)})).filter(x=>Number.isFinite(x.bmi));
+  data=filteredByDays(data,days);
+  if(!data.length)return '<p class="muted">Nessun dato BMI disponibile.</p>';
+
+  let vals=data.map(x=>x.bmi);
+  let rawMin=Math.min(...vals),rawMax=Math.max(...vals);
+  let pad=Math.max(.4,(rawMax-rawMin)*.12);
+  let min=Math.floor((rawMin-pad)*2)/2;
+  let max=Math.ceil((rawMax+pad)*2)/2;
+  if(max===min)max=min+1;
+  const range=max-min,left=14,right=98,top=8,bottom=86;
+  const xFor=i=>data.length===1?(left+right)/2:left+i/(data.length-1)*(right-left);
+  const yFor=v=>bottom-((v-min)/range)*(bottom-top);
+  const pts=data.map((x,i)=>`${xFor(i).toFixed(2)},${yFor(x.bmi).toFixed(2)}`).join(' ');
+  const ticks=Array.from({length:5},(_,i)=>max-(range/4)*i);
+  const grid=ticks.map(v=>{
+    const y=yFor(v);
+    return `<line x1="${left}" y1="${y}" x2="${right}" y2="${y}" class="chart-grid"/><text x="${left-2}" y="${y+1.5}" text-anchor="end" class="chart-y-label">${v.toFixed(1).replace('.',',')}</text>`;
+  }).join('');
+  return `<div class="chart-wrap"><svg class="chart" viewBox="0 0 100 100" preserveAspectRatio="none">${grid}<line x1="${left}" y1="${top}" x2="${left}" y2="${bottom}" class="chart-axis"/><line x1="${left}" y1="${bottom}" x2="${right}" y2="${bottom}" class="chart-axis"/><polyline points="${pts}" class="chart-bmi-line" fill="none" vector-effect="non-scaling-stroke"/>${data.map((x,i)=>`<circle cx="${xFor(i)}" cy="${yFor(x.bmi)}" r="0.55" class="chart-bmi-point" vector-effect="non-scaling-stroke"/>`).join('')}</svg><span class="chart-unit">BMI</span></div><div class="chart-dates"><span>${fmt(data[0].date).replace(/^[^ ]+ /,'')}</span><span>${fmt(data.at(-1).date).replace(/^[^ ]+ /,'')}</span></div>`;
+}
+
 function home(){
+  const profile=loadProfile();
   let w=weighted(),last=w.at(-1),first=w[0];
   let delta=last&&first?(+last.weight)-(+first.weight):null;
   let deltaClass=delta<0?'good':delta>0?'up':'';
-  return `<div class="hero-title"><div><div class="eyebrow">IL MIO PERCORSO</div><h1>Diario</h1></div><div class="hero-icon">✓</div></div>
-  <section class="card highlight"><div class="muted caps">ULTIMA RILEVAZIONE</div>${last?`<div class="weight">${(+last.weight).toFixed(1).replace('.',',')} <small>kg</small></div><div class="delta ${deltaClass}">${delta>0?'+':''}${delta.toFixed(1).replace('.',',')} kg dall'inizio</div><p class="muted">${fmt(last.date)}</p>`:'<p class="muted">Inserisci la prima giornata per iniziare.</p>'}</section>
+  const currentBmi=last&&profile.height?bmiFor(last.weight,profile.height):null;
+  let goalHtml='';
+  if(first&&last&&profile.goal&&profile.goal<Number(first.weight)){
+    const total=Number(first.weight)-Number(profile.goal);
+    const done=Math.max(0,Math.min(total,Number(first.weight)-Number(last.weight)));
+    const pct=Math.round(done/total*100);
+    goalHtml=`<section class="card goal-card"><div class="section-head"><h2>Obiettivo</h2><span class="pill">${pct}%</span></div><div class="goal-row"><b>${kg(last.weight)}</b><span>→</span><b>${kg(profile.goal)}</b></div><div class="progress"><span style="width:${pct}%"></span></div><p class="muted">${Math.max(0,Number(last.weight)-Number(profile.goal)).toFixed(1).replace('.',',')} kg al traguardo</p></section>`;
+  }
+  return `<div class="hero-title"><div><div class="eyebrow">IL MIO PERCORSO</div><h1>${profile.name?`Diario di ${escapeHtml(profile.name)}`:'Diario'}</h1></div><div class="hero-icon">✓</div></div>
+  <section class="card highlight"><div class="muted caps">ULTIMA RILEVAZIONE</div>${last?`<div class="weight">${(+last.weight).toFixed(1).replace('.',',')} <small>kg</small></div><div class="delta ${deltaClass}">${delta>0?'+':''}${delta.toFixed(1).replace('.',',')} kg dall'inizio</div>${currentBmi?`<div class="bmi-now"><span>BMI</span><b>${currentBmi.toFixed(1).replace('.',',')}</b><small>${bmiLabel(currentBmi)}</small></div>`:''}<p class="muted">${fmt(last.date)}</p>`:'<p class="muted">Inserisci la prima giornata per iniziare.</p>'}</section>
+  ${goalHtml}
   <section class="card chart-card"><div class="section-head"><h2>Ultimi 7 giorni</h2><span class="pill">Peso</span></div>${chart(w,7)}</section>
   <div class="grid actions"><button class="primary" onclick="newDay()">＋ Aggiungi giornata</button><button class="secondary" onclick="go('trend')">📈 Andamento</button></div>`;
 }
-
 function formDataFromDOM(){
   let weight=$('#weight')?.value.trim().replace(',','.')??'';
   return {
@@ -88,13 +162,57 @@ function add(){
   <div class="form-actions"><button class="primary" onclick="saveDay()" ${targetExists?'disabled':''}>${duplicateDraft?'Salva copia':isEdit?'Aggiorna giornata':'Salva giornata'}</button>${isEdit?`<button class="secondary" onclick="startDuplicate()">⧉ Duplica giornata</button><button class="danger" onclick="deleteDay()">Elimina giornata</button>`:''}</div></section>`;
 }
 
+
+function profilePage(){
+  const p=loadProfile();
+  return `<div class="page-title"><button class="back" onclick="go('home')">‹</button><div><div class="eyebrow">DATI PERSONALI</div><h1>Profilo</h1></div></div>
+  <section class="card form-card">
+    <label>Nome</label><input id="profileName" type="text" placeholder="es. Giovanni" value="${escapeHtml(p.name)}">
+    <label>Altezza (cm)</label><input id="profileHeight" inputmode="decimal" placeholder="es. 180" value="${p.height||''}">
+    <label>Sesso</label><select id="profileSex"><option value="">Non specificato</option><option value="M" ${p.sex==='M'?'selected':''}>Maschile</option><option value="F" ${p.sex==='F'?'selected':''}>Femminile</option><option value="X" ${p.sex==='X'?'selected':''}>Altro / preferisco non specificare</option></select>
+    <label>Peso obiettivo (kg)</label><input id="profileGoal" inputmode="decimal" placeholder="es. 85" value="${p.goal||''}">
+    <div class="profile-preview">${p.height&&weighted().at(-1)?(()=>{const b=bmiFor(weighted().at(-1).weight,p.height);return `<span>BMI attuale</span><b>${b.toFixed(1).replace('.',',')}</b><small>${bmiLabel(b)}</small>`})():`<span>Il BMI verrà calcolato automaticamente dopo aver inserito l’altezza.</span>`}</div>
+    <button class="primary profile-save" onclick="saveProfileForm()">Salva profilo</button>
+  </section>
+  <section class="card"><p class="muted import-help">Il sesso viene salvato nel profilo ma non modifica il calcolo del BMI. Il BMI dipende da peso e altezza.</p></section>`;
+}
+
+window.saveProfileForm=()=>{
+  const height=($('#profileHeight')?.value||'').trim().replace(',','.');
+  const goal=($('#profileGoal')?.value||'').trim().replace(',','.');
+  const p={
+    name:($('#profileName')?.value||'').trim(),
+    height:height===''?'':Number(height),
+    sex:$('#profileSex')?.value||'',
+    goal:goal===''?'':Number(goal)
+  };
+  if(p.height!==''&&(!Number.isFinite(p.height)||p.height<80||p.height>250))return alert('Controlla l’altezza inserita.');
+  if(p.goal!==''&&(!Number.isFinite(p.goal)||p.goal<30||p.goal>300))return alert('Controlla il peso obiettivo.');
+  saveProfile(p);
+  page='home'; render(); scrollTo(0,0);
+};
+
 function trend(){
   let all=weighted(),first=all[0],last=all.at(-1),delta=first&&last?(+last.weight)-(+first.weight):null;
+  const p=loadProfile();
+  const currentBmi=last&&p.height?bmiFor(last.weight,p.height):null;
+  const q=historySearch.trim().toLowerCase();
+  const history=sorted().reverse().filter(x=>!q||[x.date,x.breakfast,x.snack1,x.lunch,x.snack2,x.dinner,x.notes,String(x.weight),String(x.coffee)].join(' ').toLowerCase().includes(q));
   return `<div class="hero-title"><div><div class="eyebrow">STATISTICHE</div><h1>Andamento</h1></div><button class="pdf-btn" onclick="exportPDF()">PDF</button></div>
-  <section class="card chart-card"><div class="tabs">${[[7,'7 giorni'],[30,'30 giorni'],[90,'3 mesi'],[0,'Tutto']].map(([n,l])=>`<button class="${trendDays===n?'active':''}" onclick="trendDays=${n};render()">${l}</button>`).join('')}</div>${chart(all,trendDays)}</section>
-  <section class="card summary"><div class="section-head"><h2>Riepilogo</h2><span class="pill">Totale</span></div>${first?`<div class="stats"><div><span>Peso iniziale</span><b>${kg(first.weight)}</b></div><div><span>Ultimo peso</span><b>${kg(last.weight)}</b></div><div><span>Variazione</span><b class="${delta<0?'good':delta>0?'up':''}">${delta>0?'+':''}${delta.toFixed(1).replace('.',',')} kg</b></div></div>`:'<p class="muted">Nessun dato.</p>'}</section>
-  <section class="card"><div class="section-head"><h2>Storico</h2><div class="head-actions"><button class="mini" onclick="showImport()">↑ Importa storico</button><button class="mini" onclick="exportBackup()">↓ Backup</button><button class="mini" onclick="document.getElementById('backupFile').click()">↑ Ripristina</button><input id="backupFile" type="file" accept=".json,application/json" style="display:none" onchange="restoreBackup(event)"><button class="mini" onclick="exportPDF()">↓ Esporta PDF</button></div></div>${sorted().reverse().map(x=>`<div class="listitem" onclick="edit('${x.date}')"><span><b>${fmtShort(x.date)}</b><small>${fmt(x.date).split(' ')[0]}</small></span><b>${kg(x.weight)}</b></div>`).join('')||'<p class="muted">Nessuna giornata registrata.</p>'}</section>`;
+  <section class="card chart-card"><div class="section-head"><h2>Peso</h2><label class="toggle"><input type="checkbox" ${showMovingAverage?'checked':''} onchange="showMovingAverage=this.checked;render()"><span>Media 7 gg</span></label></div><div class="tabs">${[[7,'7 giorni'],[30,'30 giorni'],[90,'3 mesi'],[0,'Tutto']].map(([n,l])=>`<button class="${trendDays===n?'active':''}" onclick="trendDays=${n};render()">${l}</button>`).join('')}</div>${chart(all,trendDays)}</section>
+  <section class="card summary"><div class="section-head"><h2>Riepilogo peso</h2><span class="pill">Totale</span></div>${first?`<div class="stats"><div><span>Peso iniziale</span><b>${kg(first.weight)}</b></div><div><span>Ultimo peso</span><b>${kg(last.weight)}</b></div><div><span>Variazione</span><b class="${delta<0?'good':delta>0?'up':''}">${delta>0?'+':''}${delta.toFixed(1).replace('.',',')} kg</b></div></div>`:'<p class="muted">Nessun dato.</p>'}</section>
+  <section class="card chart-card"><div class="section-head"><h2>BMI</h2>${currentBmi?`<span class="pill">${currentBmi.toFixed(1).replace('.',',')} · ${bmiLabel(currentBmi)}</span>`:'<span class="pill">Profilo</span>'}</div><div class="tabs">${[[7,'7 giorni'],[30,'30 giorni'],[90,'3 mesi'],[0,'Tutto']].map(([n,l])=>`<button class="${bmiDays===n?'active':''}" onclick="bmiDays=${n};render()">${l}</button>`).join('')}</div>${bmiChart(all,bmiDays)}</section>
+  <section class="card"><div class="section-head"><h2>Storico</h2><div class="head-actions"><button class="mini" onclick="showImport()">↑ Importa storico</button><button class="mini" onclick="exportBackup()">↓ Backup</button><button class="mini" onclick="document.getElementById('backupFile').click()">↑ Ripristina</button><input id="backupFile" type="file" accept=".json,application/json" style="display:none" onchange="restoreBackup(event)"><button class="mini" onclick="exportPDF()">↓ Esporta PDF</button></div></div>
+  <div class="search-wrap"><input id="historySearch" type="search" placeholder="Cerca nello storico…" value="${escapeHtml(historySearch)}" oninput="historySearch=this.value;renderPreserveSearch()"></div>
+  ${history.map(x=>`<div class="listitem" onclick="edit('${x.date}')"><span><b>${fmtShort(x.date)}</b><small>${fmt(x.date).split(' ')[0]}</small></span><div class="history-right"><b>${kg(x.weight)}</b>${p.height&&x.weight!==''?`<small>BMI ${bmiFor(x.weight,p.height).toFixed(1).replace('.',',')}</small>`:''}</div></div>`).join('')||'<p class="muted">Nessuna giornata trovata.</p>'}</section>`;
 }
+window.renderPreserveSearch=()=>{
+  const pos=document.scrollingElement?.scrollTop||0;
+  const val=$('#historySearch')?.value||historySearch;
+  historySearch=val;
+  render();
+  requestAnimationFrame(()=>{window.scrollTo(0,pos);const el=$('#historySearch');if(el){el.focus();el.setSelectionRange(el.value.length,el.value.length)}});
+};
 
 
 function showImport(){
@@ -210,6 +328,7 @@ function exportBackup(){
     app:"Diario",
     version:1,
     exportedAt:new Date().toISOString(),
+    profile:loadProfile(),
     entries:entries
   };
   const blob=new Blob([JSON.stringify(payload,null,2)],{type:"application/json"});
@@ -232,12 +351,14 @@ function restoreBackup(event){
     try{
       const parsed=JSON.parse(reader.result);
       const entries=Array.isArray(parsed)?parsed:parsed.entries;
+      const profile=Array.isArray(parsed)?null:parsed.profile;
       if(!Array.isArray(entries))throw new Error("Formato backup non valido");
       const valid=entries.every(x=>x && typeof x.date==="string");
       if(!valid)throw new Error("Il file non contiene giornate valide");
       const ok=confirm(`Ripristinare ${entries.length} giornate?\n\nI dati attualmente presenti nel Diario verranno sostituiti.`);
       if(!ok)return;
       save(entries.sort((a,b)=>a.date.localeCompare(b.date)));
+      if(profile&&typeof profile==='object')saveProfile(profile);
       editDate=null;
       duplicateDraft=null;
       duplicateSource=null;
@@ -254,7 +375,7 @@ function restoreBackup(event){
 }
 
 function render(){
-  $('#app').innerHTML=page==='home'?home():page==='add'?add():page==='import'?importPage():trend();
+  $('#app').innerHTML=page==='home'?home():page==='add'?add():page==='import'?importPage():page==='profile'?profilePage():trend();
 }
 
 function go(p){

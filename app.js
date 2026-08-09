@@ -125,10 +125,15 @@ function home(){
   const currentBmi=last&&profile.height?bmiFor(last.weight,profile.height):null;
   let goalHtml='';
   if(first&&last&&profile.goal&&profile.goal<Number(first.weight)){
-    const total=Number(first.weight)-Number(profile.goal);
-    const done=Math.max(0,Math.min(total,Number(first.weight)-Number(last.weight)));
-    const pct=Math.round(done/total*100);
-    goalHtml=`<section class="card goal-card"><div class="section-head"><h2>Obiettivo</h2><span class="pill">${pct}%</span></div><div class="goal-row"><b>${kg(last.weight)}</b><span>→</span><b>${kg(profile.goal)}</b></div><div class="progress"><span style="width:${pct}%"></span></div><p class="muted">${Math.max(0,Number(last.weight)-Number(profile.goal)).toFixed(1).replace('.',',')} kg al traguardo</p></section>`;
+    const startWeight=Number(first.weight);
+    const currentWeight=Number(last.weight);
+    const goalWeight=Number(profile.goal);
+    const totalJourney=startWeight-goalWeight;
+    const completedJourney=startWeight-currentWeight;
+    const pct=totalJourney>0
+      ? Math.round(Math.max(0,Math.min(1,completedJourney/totalJourney))*100)
+      : 0;
+    goalHtml=`<section class="card goal-card"><div class="section-head"><h2>Obiettivo</h2><span class="pill">${pct}%</span></div><div class="goal-row"><b>${kg(startWeight)}</b><span>→</span><b>${kg(goalWeight)}</b></div><div class="progress"><span style="width:${pct}%"></span></div><p class="muted">Peso attuale: ${kg(currentWeight)} · ${Math.max(0,currentWeight-goalWeight).toFixed(1).replace('.',',')} kg al traguardo</p></section>`;
   }
   return `<div class="hero-title"><div><div class="eyebrow">IL MIO PERCORSO</div><h1>${profile.name?`Diario di ${escapeHtml(profile.name)}`:'Diario'}</h1></div><div class="hero-icon">✓</div></div>
   <section class="card highlight"><div class="muted caps">ULTIMA RILEVAZIONE</div>${last?`<div class="weight">${(+last.weight).toFixed(1).replace('.',',')} <small>kg</small></div><div class="delta ${deltaClass}">${delta>0?'+':''}${delta.toFixed(1).replace('.',',')} kg dall'inizio</div>${currentBmi?`<div class="bmi-now"><span>BMI</span><b>${currentBmi.toFixed(1).replace('.',',')}</b><small>${bmiLabel(currentBmi)}</small></div>`:''}<p class="muted">${fmt(last.date)}</p>`:'<p class="muted">Inserisci la prima giornata per iniziare.</p>'}</section>

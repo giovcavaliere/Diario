@@ -31,3 +31,23 @@ select:focus{border-color:#55aeb4;box-shadow:0 0 0 3px #55aeb41c}
   nav{gap:2px}
   nav button{padding:9px 8px;font-size:12px}
 }
+
+.measure-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.measure-note{margin:10px 0 0}
+.measure-table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+.measure-table{width:100%;border-collapse:collapse;min-width:680px;font-size:12px}
+.measure-table th,.measure-table td{padding:10px 8px;border-bottom:1px solid #e5ecee;text-align:left;vertical-align:top}
+.measure-table th{font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:#6f8088;background:#f8fbfb}
+.measure-table tbody tr{cursor:pointer}
+.measure-table tbody tr:active{background:#eef7f7}
+.form-card h2{margin:0 0 12px}
+@media(max-width:480px){
+  .measure-grid{grid-template-columns:1fr 1fr}
+  nav{overflow-x:auto;justify-content:flex-start}
+  nav button{min-width:max-content}
+}
+
+.measure-filter{display:flex;align-items:center;gap:9px;margin:10px 0 0;font-weight:700;color:#52656e}
+.measure-filter input{width:auto;margin:0;accent-color:var(--accent)}
+.filter-help{margin:6px 0 12px}
+.empty-cell{text-align:center!important;color:#839099;padding:18px!important}

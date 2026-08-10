@@ -1,5 +1,6 @@
 const KEY='diario-v1';
 const PROFILE_KEY='diario-profile-v2';
+const MEASURE_KEY='diario-measurements-v24';
 let page='home';
 let editDate=null;
 let coffee=0;
@@ -11,15 +12,31 @@ let importPreview=null;
 let historySearch='';
 let showMovingAverage=false;
 let bmiDays=30;
+let measuresCompleteOnly=false;
 
 const $=s=>document.querySelector(s);
 const load=()=>JSON.parse(localStorage.getItem(KEY)||'[]');
 const save=d=>localStorage.setItem(KEY,JSON.stringify(d));
 const loadProfile=()=>{
   const p=JSON.parse(localStorage.getItem(PROFILE_KEY)||'{}');
-  return {name:p.name||'',height:Number(p.height)||'',sex:p.sex||'',goal:Number(p.goal)||''};
+  return {
+    name:p.name||'',
+    birth:p.birth||'',
+    height:Number(p.height)||'',
+    sex:p.sex||'',
+    goal:Number(p.goal)||'',
+    minWeight:p.minWeight??'',
+    maxWeight:p.maxWeight??'',
+    reasonableWeight:p.reasonableWeight??'',
+    work:p.work||'',
+    activity:p.activity||'',
+    smoking:p.smoking||'',
+    alcohol:p.alcohol||''
+  };
 };
 const saveProfile=p=>localStorage.setItem(PROFILE_KEY,JSON.stringify(p));
+const loadMeasures=()=>{try{return JSON.parse(localStorage.getItem(MEASURE_KEY)||'[]')}catch(e){return []}};
+const saveMeasures=d=>localStorage.setItem(MEASURE_KEY,JSON.stringify(d));
 const isoToday=()=>{let d=new Date(),z=d.getTimezoneOffset()*60000;return new Date(d-z).toISOString().slice(0,10)};
 const fmt=d=>new Date(d+'T12:00:00').toLocaleDateString('it-IT',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
 const fmtShort=d=>new Date(d+'T12:00:00').toLocaleDateString('it-IT',{day:'2-digit',month:'2-digit',year:'numeric'});
@@ -172,31 +189,264 @@ function profilePage(){
   const p=loadProfile();
   return `<div class="page-title"><button class="back" onclick="go('home')">‹</button><div><div class="eyebrow">DATI PERSONALI</div><h1>Profilo</h1></div></div>
   <section class="card form-card">
+    <h2>Dati personali</h2>
     <label>Nome</label><input id="profileName" type="text" placeholder="es. Giovanni" value="${escapeHtml(p.name)}">
+    <label>Data di nascita</label><input id="profileBirth" type="date" value="${p.birth||''}">
     <label>Altezza (cm)</label><input id="profileHeight" inputmode="decimal" placeholder="es. 180" value="${p.height||''}">
     <label>Sesso</label><select id="profileSex"><option value="">Non specificato</option><option value="M" ${p.sex==='M'?'selected':''}>Maschile</option><option value="F" ${p.sex==='F'?'selected':''}>Femminile</option><option value="X" ${p.sex==='X'?'selected':''}>Altro / preferisco non specificare</option></select>
     <label>Peso obiettivo (kg)</label><input id="profileGoal" inputmode="decimal" placeholder="es. 85" value="${p.goal||''}">
-    <div class="profile-preview">${p.height&&weighted().at(-1)?(()=>{const b=bmiFor(weighted().at(-1).weight,p.height);return `<span>BMI attuale</span><b>${b.toFixed(1).replace('.',',')}</b><small>${bmiLabel(b)}</small>`})():`<span>Il BMI verrà calcolato automaticamente dopo aver inserito l’altezza.</span>`}</div>
-    <button class="primary profile-save" onclick="saveProfileForm()">Salva profilo</button>
   </section>
-  <section class="card"><p class="muted import-help">Il sesso viene salvato nel profilo ma non modifica il calcolo del BMI. Il BMI dipende da peso e altezza.</p></section>`;
+  <section class="card form-card">
+    <h2>Storia del peso</h2>
+    <label>Peso minimo storico (kg)</label><input id="profileMinWeight" inputmode="decimal" placeholder="Facoltativo" value="${p.minWeight??''}">
+    <label>Peso massimo storico (kg)</label><input id="profileMaxWeight" inputmode="decimal" placeholder="Facoltativo" value="${p.maxWeight??''}">
+    <label>Peso ragionevole / concordato (kg)</label><input id="profileReasonableWeight" inputmode="decimal" placeholder="Facoltativo" value="${p.reasonableWeight??''}">
+    <p class="muted">Il peso iniziale del percorso viene sempre ricavato automaticamente dalla prima registrazione del Diario.</p>
+  </section>
+  <section class="card form-card">
+    <h2>Stile di vita</h2>
+    <label>Attività lavorativa</label><textarea id="profileWork" rows="2" placeholder="Campo libero">${escapeHtml(p.work||'')}</textarea>
+    <label>Attività fisica abituale</label><textarea id="profileActivity" rows="2" placeholder="es. tennis 1 volta/settimana, camminate">${escapeHtml(p.activity||'')}</textarea>
+    <label>Fumo</label><input id="profileSmoking" type="text" placeholder="Campo libero" value="${escapeHtml(p.smoking||'')}">
+    <label>Alcol</label><input id="profileAlcohol" type="text" placeholder="Campo libero" value="${escapeHtml(p.alcohol||'')}">
+  </section>
+  <section class="card form-card">
+    ${p.height&&weighted().at(-1)?(()=>{const b=bmiFor(weighted().at(-1).weight,p.height);return `<div class="profile-preview"><span>BMI attuale</span><b>${b.toFixed(1).replace('.',',')}</b><small>${bmiLabel(b)}</small></div>`})():`<div class="profile-preview"><span>Il BMI verrà calcolato automaticamente dopo aver inserito l’altezza.</span></div>`}
+    <button class="primary profile-save" onclick="saveProfileForm()">Salva profilo</button>
+  </section>`;
 }
-
 window.saveProfileForm=()=>{
-  const height=($('#profileHeight')?.value||'').trim().replace(',','.');
-  const goal=($('#profileGoal')?.value||'').trim().replace(',','.');
+  const num=id=>{
+    const v=($(id)?.value||'').trim().replace(',','.');
+    return v===''?'':Number(v);
+  };
   const p={
     name:($('#profileName')?.value||'').trim(),
-    height:height===''?'':Number(height),
+    birth:$('#profileBirth')?.value||'',
+    height:num('#profileHeight'),
     sex:$('#profileSex')?.value||'',
-    goal:goal===''?'':Number(goal)
+    goal:num('#profileGoal'),
+    minWeight:num('#profileMinWeight'),
+    maxWeight:num('#profileMaxWeight'),
+    reasonableWeight:num('#profileReasonableWeight'),
+    work:($('#profileWork')?.value||'').trim(),
+    activity:($('#profileActivity')?.value||'').trim(),
+    smoking:($('#profileSmoking')?.value||'').trim(),
+    alcohol:($('#profileAlcohol')?.value||'').trim()
   };
   if(p.height!==''&&(!Number.isFinite(p.height)||p.height<80||p.height>250))return alert('Controlla l’altezza inserita.');
-  if(p.goal!==''&&(!Number.isFinite(p.goal)||p.goal<30||p.goal>300))return alert('Controlla il peso obiettivo.');
+  for(const k of ['goal','minWeight','maxWeight','reasonableWeight']){
+    if(p[k]!==''&&(!Number.isFinite(p[k])||p[k]<30||p[k]>300))return alert('Controlla i valori di peso inseriti.');
+  }
   saveProfile(p);
-  page='home'; render(); scrollTo(0,0);
+  page='home';
+  render();
+  scrollTo(0,0);
 };
 
+
+function mergedMeasures(){
+  const diary=sorted();
+  const measures=loadMeasures();
+  const dates=new Set([
+    ...diary.filter(x=>x.weight!=='').map(x=>x.date),
+    ...measures.map(x=>x.date)
+  ]);
+  return [...dates].sort().map(date=>{
+    const d=diary.find(x=>x.date===date)||{};
+    const m=measures.find(x=>x.date===date)||{};
+    return {
+      date,
+      weight:d.weight??'',
+      waist:m.waist??'',
+      hips:m.hips??'',
+      notes:m.notes??''
+    };
+  });
+}
+
+function visibleMeasures(){
+  const rows=mergedMeasures();
+  return measuresCompleteOnly ? rows.filter(r=>r.waist!==''&&r.hips!=='') : rows;
+}
+
+function measuresPage(){
+  const p=loadProfile();
+  const allRows=mergedMeasures();
+  const completeCount=allRows.filter(r=>r.waist!==''&&r.hips!=='').length;
+  const weightCount=allRows.filter(r=>r.weight!=='').length;
+  const rows=visibleMeasures().slice().reverse();
+
+  return `<div class="hero-title"><div><div class="eyebrow">EVOLUZIONE CORPOREA</div><h1>Misurazioni</h1></div><button class="pdf-btn" onclick="exportMeasuresPDF()">PDF</button></div>
+  <section class="card">
+    <div class="section-head"><h2>Nuova misurazione</h2><span class="pill">Facoltativa</span></div>
+    <label>Data</label><input id="measureDate" type="date" value="${isoToday()}">
+    <div class="measure-grid">
+      <div><label>Vita (cm)</label><input id="measureWaist" inputmode="decimal" placeholder="es. 105"></div>
+      <div><label>Fianchi (cm)</label><input id="measureHips" inputmode="decimal" placeholder="es. 112"></div>
+    </div>
+    <label>Note</label><textarea id="measureNotes" rows="2" placeholder="Note sulla misurazione"></textarea>
+    <button class="primary" onclick="saveMeasureForm()">Salva misurazione</button>
+    <p class="muted measure-note">Il peso non si inserisce qui: viene recuperato automaticamente dal Diario della stessa data. Se correggi il peso nel Diario, si aggiorna anche qui.</p>
+  </section>
+
+  <section class="card">
+    <div class="section-head"><h2>Storico misurazioni</h2><span class="pill">${completeCount} complete · ${weightCount} pesate</span></div>
+    <label class="measure-filter">
+      <input type="checkbox" ${measuresCompleteOnly?'checked':''} onchange="measuresCompleteOnly=this.checked;render()">
+      <span>Visualizza solo misurazioni complete</span>
+    </label>
+    <p class="muted filter-help">${measuresCompleteOnly?'Sono mostrate solo le date con Vita e Fianchi compilati. Anche il PDF userà questo filtro.':'Sono mostrate tutte le pesate e le eventuali circonferenze. Anche il PDF userà questa vista.'}</p>
+    <div class="measure-table-wrap">
+      <table class="measure-table">
+        <thead><tr><th>Data</th><th>Peso</th><th>BMI</th><th>Vita</th><th>Fianchi</th><th>Note</th></tr></thead>
+        <tbody>
+          ${rows.map(r=>`<tr onclick="editMeasure('${r.date}')"><td>${fmtShort(r.date)}</td><td>${r.weight!==''?kg(r.weight):'—'}</td><td>${r.weight!==''&&p.height?bmiFor(r.weight,p.height).toFixed(1).replace('.',','):'—'}</td><td>${r.waist!==''?String(r.waist).replace('.',',')+' cm':'—'}</td><td>${r.hips!==''?String(r.hips).replace('.',',')+' cm':'—'}</td><td>${escapeHtml(r.notes||'')}</td></tr>`).join('') || `<tr><td colspan="6" class="empty-cell">Nessuna misurazione da mostrare.</td></tr>`}
+        </tbody>
+      </table>
+    </div>
+  </section>`;
+}
+window.saveMeasureForm=()=>{
+  const date=$('#measureDate')?.value;
+  if(!date)return alert('Inserisci la data.');
+  const parse=id=>{
+    const v=($(id)?.value||'').trim().replace(',','.');
+    return v===''?'':Number(v);
+  };
+  const waist=parse('#measureWaist');
+  const hips=parse('#measureHips');
+  const notes=($('#measureNotes')?.value||'').trim();
+  if(waist!==''&&(!Number.isFinite(waist)||waist<30||waist>250))return alert('Controlla la circonferenza vita.');
+  if(hips!==''&&(!Number.isFinite(hips)||hips<30||hips>250))return alert('Controlla la circonferenza fianchi.');
+  let arr=loadMeasures().filter(x=>x.date!==date);
+  arr.push({date,waist,hips,notes});
+  saveMeasures(arr.sort((a,b)=>a.date.localeCompare(b.date)));
+  render();
+  alert('Misurazione salvata.');
+};
+
+window.editMeasure=date=>{
+  const m=loadMeasures().find(x=>x.date===date)||{};
+  $('#measureDate').value=date;
+  $('#measureWaist').value=m.waist??'';
+  $('#measureHips').value=m.hips??'';
+  $('#measureNotes').value=m.notes??'';
+  scrollTo({top:0,behavior:'smooth'});
+};
+
+function makeMeasuresPdfBlob(){
+  const p=loadProfile();
+  const rows=visibleMeasures().map(r=>[
+    fmtShort(r.date),
+    r.weight!==''&&r.weight!=null?Number(r.weight).toFixed(1).replace('.',','):'',
+    r.weight!==''&&p.height?bmiFor(r.weight,p.height).toFixed(1).replace('.',','):'',
+    r.waist!==''&&r.waist!=null?Number(r.waist).toFixed(1).replace('.',','):'',
+    r.hips!==''&&r.hips!=null?Number(r.hips).toFixed(1).replace('.',','):'',
+    r.notes||''
+  ]);
+
+  const headers=['Data','Peso (kg)','BMI','Vita (cm)','Fianchi (cm)','Note'];
+  const widths=[70,70,60,75,85,390];
+  const x0=22,pageW=842,pageH=595,top=525,bottom=28;
+  const fontSize=7,lineH=9,pad=4;
+  let pages=[],current=[],y=top;
+
+  function prepareRow(cells,isHeader=false){
+    const wrapped=cells.map((c,i)=>wrapCell(c,Math.max(4,Math.floor((widths[i]-pad*2)/(fontSize*.50)))));
+    const lines=Math.max(...wrapped.map(a=>a.length));
+    const h=Math.max(isHeader?23:19,lines*lineH+pad*2);
+    return {wrapped,h,isHeader};
+  }
+
+  const head=prepareRow(headers,true);
+  function newPage(){
+    current=[];
+    pages.push(current);
+    y=top;
+    current.push({...head,y:y-head.h});
+    y-=head.h;
+  }
+
+  newPage();
+  rows.forEach(row=>{
+    const pr=prepareRow(row,false);
+    if(y-pr.h<bottom)newPage();
+    current.push({...pr,y:y-pr.h});
+    y-=pr.h;
+  });
+
+  let objects=[];
+  const add=o=>{objects.push(o);return objects.length};
+  const fontRegular=add('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>');
+  const fontBold=add('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>');
+  const pagesObj=add('PAGES_PLACEHOLDER');
+  let pageIds=[];
+
+  pages.forEach((items,pageIndex)=>{
+    let stream='';
+    const title=p.name?`Misurazioni - ${p.name}`:'Misurazioni';
+    const filterLabel=measuresCompleteOnly?'Solo misurazioni complete':'Tutte le rilevazioni';
+    const detail=[
+      p.height?`Altezza: ${p.height} cm`:'',
+      p.goal?`Obiettivo: ${Number(p.goal).toFixed(1).replace('.',',')} kg`:'',
+      rows.length?`Periodo: ${rows[0][0]} / ${rows.at(-1)[0]}`:'',
+      filterLabel
+    ].filter(Boolean).join('   ');
+
+    stream+=`BT /F2 13 Tf 22 566 Td (${pdfEscape(title)}) Tj ET\n`;
+    if(detail)stream+=`BT /F1 7 Tf 22 550 Td (${pdfEscape(detail)}) Tj ET\n`;
+
+    items.forEach(item=>{
+      let x=x0,yBottom=item.y;
+      item.wrapped.forEach((cellLines,i)=>{
+        const w=widths[i];
+        if(item.isHeader)stream+=`0.91 0.96 0.96 rg ${x} ${yBottom} ${w} ${item.h} re f 0 0 0 rg\n`;
+        stream+=`0.72 G 0.35 w ${x} ${yBottom} ${w} ${item.h} re S 0 G\n`;
+        cellLines.forEach((line,li)=>{
+          const ty=yBottom+item.h-pad-fontSize-li*lineH;
+          if(ty>yBottom+1)stream+=`BT /${item.isHeader?'F2':'F1'} ${fontSize} Tf ${x+pad} ${ty} Td (${pdfEscape(line)}) Tj ET\n`;
+        });
+        x+=w;
+      });
+    });
+
+    stream+=`BT /F1 6 Tf 760 12 Td (Pagina ${pageIndex+1}/${pages.length}) Tj ET\n`;
+    const contentId=add(`<< /Length ${stream.length} >>\nstream\n${stream}endstream`);
+    const pageId=add(`<< /Type /Page /Parent ${pagesObj} 0 R /MediaBox [0 0 ${pageW} ${pageH}] /Resources << /Font << /F1 ${fontRegular} 0 R /F2 ${fontBold} 0 R >> >> /Contents ${contentId} 0 R >>`);
+    pageIds.push(pageId);
+  });
+
+  objects[pagesObj-1]=`<< /Type /Pages /Count ${pageIds.length} /Kids [${pageIds.map(id=>`${id} 0 R`).join(' ')}] >>`;
+  const catalog=add(`<< /Type /Catalog /Pages ${pagesObj} 0 R >>`);
+
+  let pdf='%PDF-1.4\n%Measurements\n',offsets=[0];
+  objects.forEach((obj,i)=>{
+    offsets[i+1]=pdf.length;
+    pdf+=`${i+1} 0 obj\n${obj}\nendobj\n`;
+  });
+
+  const xref=pdf.length;
+  pdf+=`xref\n0 ${objects.length+1}\n0000000000 65535 f \n`;
+  for(let i=1;i<=objects.length;i++)pdf+=String(offsets[i]).padStart(10,'0')+' 00000 n \n';
+  pdf+=`trailer\n<< /Size ${objects.length+1} /Root ${catalog} 0 R >>\nstartxref\n${xref}\n%%EOF`;
+
+  return new Blob([pdf],{type:'application/pdf'});
+}
+
+window.exportMeasuresPDF=()=>{
+  const rows=visibleMeasures();
+  if(!rows.length)return alert(measuresCompleteOnly?'Nessuna misurazione completa da esportare.':'Nessuna misurazione da esportare.');
+  const blob=makeMeasuresPdfBlob();
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;
+  a.download=`Misurazioni_${rows[0].date}_${rows.at(-1).date}.pdf`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),1500);
+};
 function trend(){
   let all=weighted(),first=all[0],last=all.at(-1),delta=first&&last?(+last.weight)-(+first.weight):null;
   const p=loadProfile();
@@ -334,6 +584,7 @@ function exportBackup(){
     version:1,
     exportedAt:new Date().toISOString(),
     profile:loadProfile(),
+    measurements:loadMeasures(),
     entries:entries
   };
   const blob=new Blob([JSON.stringify(payload,null,2)],{type:"application/json"});
@@ -357,6 +608,7 @@ function restoreBackup(event){
       const parsed=JSON.parse(reader.result);
       const entries=Array.isArray(parsed)?parsed:parsed.entries;
       const profile=Array.isArray(parsed)?null:parsed.profile;
+      const measurements=Array.isArray(parsed)?null:parsed.measurements;
       if(!Array.isArray(entries))throw new Error("Formato backup non valido");
       const valid=entries.every(x=>x && typeof x.date==="string");
       if(!valid)throw new Error("Il file non contiene giornate valide");
@@ -364,6 +616,7 @@ function restoreBackup(event){
       if(!ok)return;
       save(entries.sort((a,b)=>a.date.localeCompare(b.date)));
       if(profile&&typeof profile==='object')saveProfile(profile);
+      if(Array.isArray(measurements))saveMeasures(measurements);
       editDate=null;
       duplicateDraft=null;
       duplicateSource=null;
@@ -380,7 +633,7 @@ function restoreBackup(event){
 }
 
 function render(){
-  $('#app').innerHTML=page==='home'?home():page==='add'?add():page==='import'?importPage():page==='profile'?profilePage():trend();
+  $('#app').innerHTML=page==='home'?home():page==='add'?add():page==='import'?importPage():page==='profile'?profilePage():page==='measures'?measuresPage():trend();
 }
 
 function go(p){

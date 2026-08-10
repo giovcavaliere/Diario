@@ -51,3 +51,7 @@ select:focus{border-color:#55aeb4;box-shadow:0 0 0 3px #55aeb41c}
 .measure-filter input{width:auto;margin:0;accent-color:var(--accent)}
 .filter-help{margin:6px 0 12px}
 .empty-cell{text-align:center!important;color:#839099;padding:18px!important}
+
+.next-visit-card{display:flex;align-items:center;gap:12px}
+.next-visit-card .next-visit-icon{font-size:25px;line-height:1}
+.next-visit-card b{display:block;margin-top:3px;font-size:18px}

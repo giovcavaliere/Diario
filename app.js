@@ -30,6 +30,7 @@ const loadProfile=()=>{
     height:storedNumber('height'),
     sex:p.sex||'',
     goal:storedNumber('goal'),
+    nextVisit:p.nextVisit||'',
     minWeight:storedNumber('minWeight'),
     maxWeight:storedNumber('maxWeight'),
     reasonableWeight:storedNumber('reasonableWeight'),
@@ -141,6 +142,14 @@ function bmiChart(items,days){
 
 function home(){
   const profile=loadProfile();
+  let visitHtml='';
+  if(profile.nextVisit){
+    const d=new Date(profile.nextVisit+'T12:00:00');
+    if(!Number.isNaN(d.getTime())){
+      const visitDate=d.toLocaleDateString('it-IT',{day:'numeric',month:'long',year:'numeric'});
+      visitHtml=`<section class="card next-visit-card"><div class="next-visit-icon">📅</div><div><div class="muted">Prossima visita</div><b>${visitDate}</b></div></section>`;
+    }
+  }
   let w=weighted(),last=w.at(-1),first=w[0];
   let delta=last&&first?(+last.weight)-(+first.weight):null;
   let deltaClass=delta<0?'good':delta>0?'up':'';
@@ -159,7 +168,7 @@ function home(){
   }
   return `<div class="hero-title"><div><div class="eyebrow">IL MIO PERCORSO</div><h1>${profile.name?`Diario di ${escapeHtml(profile.name)}`:'Diario'}</h1></div><div class="hero-icon">✓</div></div>
   <section class="card highlight"><div class="muted caps">ULTIMA RILEVAZIONE</div>${last?`<div class="weight">${(+last.weight).toFixed(1).replace('.',',')} <small>kg</small></div><div class="delta ${deltaClass}">${delta>0?'+':''}${delta.toFixed(1).replace('.',',')} kg dall'inizio</div>${currentBmi?`<div class="bmi-now"><span>BMI</span><b>${currentBmi.toFixed(1).replace('.',',')}</b><small>${bmiLabel(currentBmi)}</small></div>`:''}<p class="muted">${fmt(last.date)}</p>`:'<p class="muted">Inserisci la prima giornata per iniziare.</p>'}</section>
-  ${goalHtml}
+  ${visitHtml}${goalHtml}
   <section class="card chart-card"><div class="section-head"><h2>Ultimi 7 giorni</h2><span class="pill">Peso</span></div>${chart(w,7)}</section>
   <div class="grid actions"><button class="primary" onclick="newDay()">＋ Aggiungi giornata</button><button class="secondary" onclick="go('trend')">📈 Andamento</button></div>`;
 }
@@ -200,6 +209,8 @@ function profilePage(){
     <label>Altezza (cm)</label><input id="profileHeight" inputmode="decimal" placeholder="es. 180" value="${p.height||''}">
     <label>Sesso</label><select id="profileSex"><option value="">Non specificato</option><option value="M" ${p.sex==='M'?'selected':''}>Maschile</option><option value="F" ${p.sex==='F'?'selected':''}>Femminile</option><option value="X" ${p.sex==='X'?'selected':''}>Altro / preferisco non specificare</option></select>
     <label>Peso obiettivo (kg)</label><input id="profileGoal" inputmode="decimal" placeholder="es. 85" value="${p.goal||''}">
+    <label>Data prossima visita</label><input id="profileNextVisit" type="date" value="${p.nextVisit||''}">
+    <p class="muted">Facoltativa. Se compilata, verrà mostrata nella Home.</p>
   </section>
   <section class="card form-card">
     <h2>Storia del peso</h2>
@@ -231,6 +242,7 @@ window.saveProfileForm=()=>{
     height:num('#profileHeight'),
     sex:$('#profileSex')?.value||'',
     goal:num('#profileGoal'),
+    nextVisit:$('#profileNextVisit')?.value||'',
     minWeight:num('#profileMinWeight'),
     maxWeight:num('#profileMaxWeight'),
     reasonableWeight:num('#profileReasonableWeight'),

@@ -1,5 +1,5 @@
-const CACHE='diario-v2.4.4';
-const FILES=['./','./index.html','./style.css?v=2.4.4','./app.js?v=2.4.4','./manifest.json'];
+const CACHE='diario-v2.5';
+const FILES=['./','./index.html','./style.css?v=2.5','./app.js?v=2.5','./manifest.json'];
 
 self.addEventListener('install',e=>{
   self.skipWaiting();

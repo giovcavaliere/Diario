@@ -18,16 +18,21 @@ const $=s=>document.querySelector(s);
 const load=()=>JSON.parse(localStorage.getItem(KEY)||'[]');
 const save=d=>localStorage.setItem(KEY,JSON.stringify(d));
 const loadProfile=()=>{
-  const p=JSON.parse(localStorage.getItem(PROFILE_KEY)||'{}');
+  let p={};
+  try{p=JSON.parse(localStorage.getItem(PROFILE_KEY)||'{}')||{}}catch(e){p={}}
+  const storedNumber=(key)=>{
+    const v=p[key];
+    return v===undefined||v===null||v===''?'':Number(v);
+  };
   return {
     name:p.name||'',
     birth:p.birth||'',
-    height:Number(p.height)||'',
+    height:storedNumber('height'),
     sex:p.sex||'',
-    goal:Number(p.goal)||'',
-    minWeight:p.minWeight??'',
-    maxWeight:p.maxWeight??'',
-    reasonableWeight:p.reasonableWeight??'',
+    goal:storedNumber('goal'),
+    minWeight:storedNumber('minWeight'),
+    maxWeight:storedNumber('maxWeight'),
+    reasonableWeight:storedNumber('reasonableWeight'),
     work:p.work||'',
     activity:p.activity||'',
     smoking:p.smoking||'',

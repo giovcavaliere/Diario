@@ -259,3 +259,52 @@ select:focus{border-color:#55aeb4;box-shadow:0 0 0 3px #55aeb41c}
  .lab-review-actions button{width:100%;min-width:0}
  .lab-review-actions #confirmLabReview{grid-column:1/-1}
 }
+
+/* Step 20N — stima calorie guidata */
+
+
+
+
+/* Step 20O — calorie live + BMR in alto */
+.diary-top-metrics{
+ display:grid;
+ grid-template-columns:1fr 1fr;
+ gap:10px;
+ margin:14px 0 8px;
+}
+.diary-top-metrics>div{
+ padding:12px 14px;
+ border:1px solid #dfe8ea;
+ border-radius:14px;
+ background:#f8fbfb;
+}
+.diary-top-metrics span,
+.diary-top-metrics b,
+.diary-top-metrics small{display:block}
+.diary-top-metrics span{
+ font-size:11px;
+ color:#71838a;
+ text-transform:uppercase;
+ letter-spacing:.04em;
+}
+.diary-top-metrics b{font-size:20px;margin-top:4px}
+.diary-top-metrics small{font-size:11px;color:#7b8b91;margin-top:3px}
+.calorie-writing-tip-single{
+ margin:0 2px 16px;
+ color:#6f8088;
+ font-size:11px;
+ line-height:1.45;
+}
+@media(max-width:480px){
+ .diary-top-metrics{grid-template-columns:1fr 1fr;gap:8px}
+ .diary-top-metrics>div{padding:10px}
+ .diary-top-metrics b{font-size:17px}
+}
+
+/* Step 20R — controllo prima della registrazione giornata */
+.calorie-review-overlay{position:fixed;inset:0;z-index:9999;background:rgba(20,35,40,.42);display:flex;align-items:center;justify-content:center;padding:18px}
+.calorie-review-modal{width:min(430px,100%);background:#fff;border-radius:18px;padding:20px;box-shadow:0 18px 55px rgba(0,0,0,.22)}
+.calorie-review-modal h3{margin:0 0 12px}
+.calorie-review-message{font-size:14px;line-height:1.6;color:#465a62;white-space:normal}
+.calorie-review-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:18px}
+.calorie-review-actions button{width:100%}

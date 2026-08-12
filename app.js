@@ -66,27 +66,101 @@ function dateControl(id,isoValue='',onChange=''){
 
 
 const CALORIE_TABLE=[
- ['pan bauletto',265],['pane',265],['pasta',350],['riso',360],['biscotti',450],['gocciole',470],['cereali',370],
- ['yogurt greco',90],['yogurt',70],['latte',50],['cappuccino',70],['mozzarella',250],['parmigiano',400],
- ['pollo',165],['tacchino',135],['salmone',210],['tonno',190],['bresaola',150],['prosciutto',220],['cozze',85],
- ['verdure',35],['iceberg',14],['insalata',20],['pomodor',18],['funghi',22],['banana',89],['fragole',32],['anguria',30],
- ['melone',34],['mela',52],['frutta',55],['piselli',81],['olio',884],['crostata',400],['barretta',390],['succo',45]
+ ['yogurt greco',90],
+ ['pan bauletto',265],
+ ['biscotti',450],
+ ['gocciole',470],
+ ['cereali',370],
+ ['pasta',350],
+ ['riso',360],
+ ['pane',265],
+ ['yogurt',70],
+ ['latte',50],
+ ['zymil',46],
+ ['cappuccino',70],
+ ['fiocchi',100],
+ ['mozzarella',250],
+ ['pollo',165],
+ ['tacchino',135],
+ ['salmone',210],
+ ['tonno',190],
+ ['bresaola',150],
+ ['prosciutto',220],
+ ['cozze',85],
+ ['verdure',35],
+ ['iceberg',14],
+ ['insalata',20],
+ ['pomodor',18],
+ ['funghi',22],
+ ['banana',89],
+ ['fragole',32],
+ ['anguria',30],
+ ['melone',34],
+ ['mela',52],
+ ['frutta',55],
+ ['piselli',81],
+ ['olio',884],
+ ['crostata',400],
+ ['barretta',390],
+ ['succo',45]
 ];
-function estimateTextCalories(text){
-  const s=String(text||'').toLowerCase(); if(!s.trim())return 0;
-  let total=0;
-  for(const [name,k100] of CALORIE_TABLE){
-    const at=s.indexOf(name); if(at<0)continue;
-    const around=s.slice(Math.max(0,at-35),Math.min(s.length,at+name.length+35));
-    const grams=around.match(/(\d+(?:[.,]\d+)?)\s*(?:g|gr|grammi)\b/i);
-    if(grams)total+=Number(grams[1].replace(',','.'))*k100/100;
-    else if(name==='cappuccino')total+=70;
-    else if(name==='banana'||name==='mela')total+=85;
-    else if(name==='barretta')total+=110;
-    else total+=k100*.75;
+
+function estimateLineCalories(line){
+  let s=String(line||'').toLowerCase().trim();
+  if(!s)return 0;
+
+  // Normalizza separatori e spazi, ma mantiene la riga indipendente.
+  s=s.replace(/\s+/g,' ');
+
+  // Cerca prima gli alimenti più specifici/lunghi, evitando doppi conteggi
+  // come "yogurt greco" + "yogurt".
+  const foods=[...CALORIE_TABLE].sort((a,b)=>b[0].length-a[0].length);
+
+  for(const [name,kcal100] of foods){
+    if(!s.includes(name))continue;
+
+    // Quantità: accetta "150 gr", "150 g", "150 grammi"
+    // e anche forme tipo "150 di yogurt greco".
+    let grams=null;
+
+    // Prima prova a leggere il numero immediatamente prima del nome alimento.
+    const idx=s.indexOf(name);
+    const before=s.slice(0,idx).trim();
+
+    let m=before.match(/(\d+(?:[.,]\d+)?)\s*(?:g|gr|grammi)?\s*(?:di)?\s*$/i);
+    if(m) grams=Number(m[1].replace(',','.'));
+
+    // In alternativa cerca una quantità esplicita nella stessa riga.
+    if(grams==null){
+      m=s.match(/(\d+(?:[.,]\d+)?)\s*(?:g|gr|grammi)\b/i);
+      if(m) grams=Number(m[1].replace(',','.'));
+    }
+
+    if(grams!=null && Number.isFinite(grams))
+      return Math.round(grams*kcal100/100);
+
+    // Fallback solo per porzioni non espresse in grammi.
+    if(name==='cappuccino')return 70;
+    if(name==='banana'||name==='mela')return 85;
+    if(name==='barretta')return 110;
+
+    // Se manca la quantità, meglio non inventare una porzione enorme.
+    return 0;
   }
-  return Math.round(total);
+
+  return 0;
 }
+
+function estimateTextCalories(text){
+  const lines=String(text||'')
+    .replace(/\r/g,'')
+    .split(/\n|[;]+/)
+    .map(x=>x.trim())
+    .filter(Boolean);
+
+  return lines.reduce((sum,line)=>sum+estimateLineCalories(line),0);
+}
+
 function estimateDiaryCalories(entry){
   if(!entry)return null;
   const total=['breakfast','snack1','lunch','snack2','dinner'].reduce((sum,k)=>sum+estimateTextCalories(entry[k]),0);

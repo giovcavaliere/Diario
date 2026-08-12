@@ -270,7 +270,74 @@ async function extractPdfText(file){
  }
  return t;
 }
-window.uploadBloodTests=async input=>{const f=input.files?.[0];if(!f)return;if(f.type!=='application/pdf'&&!f.name.toLowerCase().endsWith('.pdf'))return alert('Seleziona un PDF.');const id=activePatientId()||'main',key='lab-'+id+'-'+Date.now();let values={},note='';try{values=parseLabValues(await extractPdfText(f));if(!Object.keys(values).some(k=>k!=='date'))note='Nessun valore riconosciuto automaticamente.'}catch(e){console.error('PDF iOS extraction error',e);values={date:isoToday()};note='Lettura automatica non riuscita su questo dispositivo: controlla il PDF e completa i valori manualmente.'}await storeLabPdf(key,await f.arrayBuffer());const m=pendingLabMap();m[key]={key,patientId:id,filename:f.name,uploadedAt:new Date().toISOString(),status:'Da verificare',values,note};localStorage.setItem(PENDING_LABS_KEY,JSON.stringify(m));input.value='';alert('Analisi inviate al professionista per la verifica.');render()};
+window.uploadBloodTests=async input=>{
+ const f=input.files?.[0];
+ if(!f)return;
+ if(f.type!=='application/pdf'&&!f.name.toLowerCase().endsWith('.pdf'))return alert('Seleziona un PDF.');
+
+ const id=activePatientId()||'main';
+ const key='lab-'+id+'-'+Date.now();
+
+ let values={};
+ let note='';
+ let extractionStatus='non avviata';
+ let extractionChars=0;
+ let extractionPreview='';
+ let extractionError='';
+
+ try{
+   extractionStatus='lettura PDF avviata';
+   const extracted=await extractPdfText(f);
+   extractionChars=String(extracted||'').length;
+   extractionPreview=String(extracted||'').replace(/\s+/g,' ').trim().slice(0,700);
+   extractionStatus=extractionChars>0?'testo estratto':'PDF aperto ma testo vuoto';
+
+   values=parseLabValues(extracted);
+   const recognized=Object.keys(values).filter(k=>k!=='date'&&values[k]!==''&&values[k]!=null).length;
+
+   if(!recognized){
+     note='PDF letto, ma nessun valore ematico è stato riconosciuto automaticamente.';
+   }else{
+     note=`PDF letto correttamente: ${recognized} valori riconosciuti.`;
+   }
+ }catch(e){
+   console.error('PDF iOS extraction error',e);
+   values={date:isoToday()};
+   extractionStatus='errore estrazione';
+   extractionError=String(e?.stack||e?.message||e||'Errore sconosciuto').slice(0,1200);
+   note='Lettura automatica non riuscita su questo dispositivo: controlla la diagnostica nella pagina professionista.';
+ }
+
+ await storeLabPdf(key,await f.arrayBuffer());
+
+ const m=pendingLabMap();
+ m[key]={
+   key,
+   patientId:id,
+   filename:f.name,
+   uploadedAt:new Date().toISOString(),
+   status:'Da verificare',
+   values,
+   note,
+   diagnostic:{
+     userAgent:navigator.userAgent,
+     standalone:!!(window.matchMedia&&window.matchMedia('(display-mode: standalone)').matches),
+     extractionStatus,
+     extractionChars,
+     extractionPreview,
+     extractionError
+   }
+ };
+ localStorage.setItem(PENDING_LABS_KEY,JSON.stringify(m));
+ input.value='';
+
+ if(extractionStatus==='testo estratto'){
+   alert(`Analisi inviate. Diagnostica: ${extractionChars} caratteri estratti dal PDF.`);
+ }else{
+   alert(`Analisi inviate. Diagnostica: ${extractionStatus}.`);
+ }
+ render();
+};
 function bloodUploadCard(){const id=activePatientId()||'main',n=Object.values(pendingLabMap()).filter(x=>x.patientId===id&&x.status==='Da verificare').length;return `<section class="card"><div class="section-head"><h2>Analisi del sangue</h2><span class="pill">${n?n+' in verifica':'PDF'}</span></div><p class="muted">Carica il referto. I valori riconosciuti vengono proposti al professionista, che deve confermarli.</p><label class="secondary upload-button">Carica analisi PDF<input type="file" accept="application/pdf,.pdf" onchange="uploadBloodTests(this)" hidden></label></section>`}
 
 function home(){

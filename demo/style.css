@@ -248,3 +248,17 @@ select:focus{border-color:#55aeb4;box-shadow:0 0 0 3px #55aeb41c}
     font-size:12px;
   }
 }
+
+/* Step 20K — diagnostica temporanea PDF iOS */
+.lab-diagnostic{margin:16px 0;padding:12px;border:1px solid #dde7e9;border-radius:14px;background:#f8fbfb}
+.lab-diagnostic summary{cursor:pointer;font-weight:800}
+.lab-diagnostic-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:10px}
+.lab-diagnostic-grid>div{padding:9px;border:1px solid #e4ebed;border-radius:10px;background:#fff}
+.lab-diagnostic-grid span,.lab-diagnostic-grid b{display:block}
+.lab-diagnostic-grid span{font-size:11px;color:#71818a}
+.lab-diagnostic pre,.lab-diagnostic code{white-space:pre-wrap;overflow-wrap:anywhere;word-break:break-word;font-size:11px;line-height:1.35}
+.lab-diagnostic pre{max-height:220px;overflow:auto;padding:10px;border-radius:10px;background:#fff;border:1px solid #e4ebed}
+@media(max-width:480px){
+ .lab-diagnostic-grid{grid-template-columns:1fr}
+ .lab-diagnostic{padding:10px}
+}

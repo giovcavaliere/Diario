@@ -11,7 +11,7 @@ const NOTES_KEY='diario-pro-notes-recovery-v1';
 const EXTRA_PATIENTS_KEY='diario-pro-extra-patients-v1';
 const DEMO_MEASURES_KEY='diario-pro-demo-measures-overrides-v1';
 const DELETED_PATIENTS_KEY='diario-pro-deleted-patients-v1';
-const LABS_KEY='diario-pro-labs-v1',PLAN_META_KEY='diario-pro-plan-meta-v1',PLAN_DB='diario-pro-documents-v1',PLAN_STORE='plans';
+const LABS_KEY='diario-pro-labs-v1',PLAN_META_KEY='diario-pro-plan-meta-v1',PLAN_DB='diario-pro-documents-v1',PLAN_STORE='plans',ACCOUNT_KEY='diario-pro-accounts-v1',PRIVACY_META_KEY='diario-pro-privacy-meta-v1',PENDING_LABS_KEY='diario-pro-pending-labs-v1';
 
 const el=id=>document.getElementById(id);
 const load=(k,d)=>{try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}};
@@ -60,7 +60,24 @@ let selected='main';
 let selectedBmiCategory='';
 let tab='summary';
 let editing=null;
+let eventReturnToPatient=false;
 let weekDate=new Date(today()+'T12:00:00');
+
+
+function proDateControl(id,isoValue=''){return `<div class="date-entry"><input id="${id}" inputmode="numeric" placeholder="GG-MM-AAAA" value="${isoValue?fmt(isoValue):''}"><label class="date-picker-btn">📅<input type="date" data-date-target="${id}" value="${isoValue||''}"></label></div>`}
+function readProDate(id,required=false){const v=parseIt(el(id)?.value||'');if(required&&!v)alert('Inserisci una data valida nel formato GG-MM-AAAA.');return v}
+function accountMapPro(){return load(ACCOUNT_KEY,{})}function accountFor(id){return accountMapPro()[id]||null}function saveAccountFor(id,v){const m=accountMapPro();if(v)m[id]=v;else delete m[id];save(ACCOUNT_KEY,m)}
+function privacyMetaMap(){return load(PRIVACY_META_KEY,{})}function privacyMetaFor(id){return privacyMetaMap()[id]||null}function savePrivacyMeta(id,v){const m=privacyMetaMap();if(v)m[id]=v;else delete m[id];save(PRIVACY_META_KEY,m)}
+function pendingLabs(){return load(PENDING_LABS_KEY,{})}function savePendingLabs(v){save(PENDING_LABS_KEY,v)}
+function ageYears(birth){if(!birth)return null;const b=new Date(birth+'T12:00:00'),n=new Date();if(Number.isNaN(b.getTime()))return null;let a=n.getFullYear()-b.getFullYear();if(n.getMonth()<b.getMonth()||(n.getMonth()===b.getMonth()&&n.getDate()<b.getDate()))a--;return a}
+function currentPatientWeight(p){
+ const items=(p.entries||p.diary||[]).filter(x=>x&&x.weight!==''&&x.weight!=null&&Number.isFinite(Number(x.weight))).sort((a,b)=>String(a.date).localeCompare(String(b.date)));
+ if(items.length)return Number(items.at(-1).weight);
+ if(Array.isArray(p.weights)&&p.weights.length)return Number(p.weights.at(-1)?.[1]);
+ return p.last!=null?Number(p.last):null;
+}
+function bmrMifflin(p){const w=currentPatientWeight(p),h=Number(p.height),a=ageYears(p.birth);if(!w||!h||a==null||!['M','F'].includes(p.sex))return null;return 10*w+6.25*h-5*a+(p.sex==='M'?5:-161)}
+function energyEstimate(p){const b=bmrMifflin(p),f=Number(p.activityFactor);return b&&f?b*f:null}
 
 function settings(){return {...SETTINGS_DEFAULT,...load(SETTINGS_KEY,{})}}
 function appointments(){
@@ -69,7 +86,7 @@ function appointments(){
   return a;
 }
 
-function labsFor(id){const m=load(LABS_KEY,{});return Array.isArray(m[id])?m[id]:[]}function saveLabsFor(id,r){const m=load(LABS_KEY,{});m[id]=r;save(LABS_KEY,m)}function planMetaFor(id){return load(PLAN_META_KEY,{})[id]||null}function savePlanMeta(id,v){const m=load(PLAN_META_KEY,{});if(v)m[id]=v;else delete m[id];save(PLAN_META_KEY,m)}function openPlanDb(){return new Promise((res,rej)=>{const r=indexedDB.open(PLAN_DB,1);r.onupgradeneeded=()=>{if(!r.result.objectStoreNames.contains(PLAN_STORE))r.result.createObjectStore(PLAN_STORE)};r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)})}async function writePlanPdf(id,b){const db=await openPlanDb();return new Promise((res,rej)=>{const tx=db.transaction(PLAN_STORE,'readwrite');tx.objectStore(PLAN_STORE).put(b,id);tx.oncomplete=res;tx.onerror=()=>rej(tx.error)})}async function readPlanPdf(id){const db=await openPlanDb();return new Promise((res,rej)=>{const r=db.transaction(PLAN_STORE,'readonly').objectStore(PLAN_STORE).get(id);r.onsuccess=()=>res(r.result||null);r.onerror=()=>rej(r.error)})}async function deletePlanPdf(id){const db=await openPlanDb();return new Promise((res,rej)=>{const tx=db.transaction(PLAN_STORE,'readwrite');tx.objectStore(PLAN_STORE).delete(id);tx.oncomplete=res;tx.onerror=()=>rej(tx.error)})}
+function labsFor(id){const m=load(LABS_KEY,{});return Array.isArray(m[id])?m[id]:[]}function saveLabsFor(id,r){const m=load(LABS_KEY,{});m[id]=r;save(LABS_KEY,m)}function planMetaFor(id){return load(PLAN_META_KEY,{})[id]||null}function savePlanMeta(id,v){const m=load(PLAN_META_KEY,{});if(v)m[id]=v;else delete m[id];save(PLAN_META_KEY,m)}function openPlanDb(){return new Promise((res,rej)=>{const r=indexedDB.open(PLAN_DB,2);r.onupgradeneeded=()=>{if(!r.result.objectStoreNames.contains(PLAN_STORE))r.result.createObjectStore(PLAN_STORE);if(!r.result.objectStoreNames.contains('privacy'))r.result.createObjectStore('privacy');if(!r.result.objectStoreNames.contains('labUploads'))r.result.createObjectStore('labUploads')};r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)})}async function writePlanPdf(id,b){const db=await openPlanDb();return new Promise((res,rej)=>{const tx=db.transaction(PLAN_STORE,'readwrite');tx.objectStore(PLAN_STORE).put(b,id);tx.oncomplete=res;tx.onerror=()=>rej(tx.error)})}async function readPlanPdf(id){const db=await openPlanDb();return new Promise((res,rej)=>{const r=db.transaction(PLAN_STORE,'readonly').objectStore(PLAN_STORE).get(id);r.onsuccess=()=>res(r.result||null);r.onerror=()=>rej(r.error)})}async function deletePlanPdf(id){const db=await openPlanDb();return new Promise((res,rej)=>{const tx=db.transaction(PLAN_STORE,'readwrite');tx.objectStore(PLAN_STORE).delete(id);tx.oncomplete=res;tx.onerror=()=>rej(tx.error)})}
 function extraPatients(){
  return load(EXTRA_PATIENTS_KEY,[]);
 }
@@ -109,6 +126,7 @@ function mainPatient(){
    reasonableWeight:profile.reasonableWeight||'',
    work:profile.work||'',
    activity:profile.activity||'',
+   activityFactor:profile.activityFactor||'',
    smoking:profile.smoking||'',
    alcohol:profile.alcohol||'', diagnosis:profile.diagnosis||'', theoreticalWeight:profile.theoreticalWeight||'', bowel:profile.bowel||'', metabolism:profile.metabolism||'', feeg:profile.feeg||'', impedance:profile.impedance||'', famObesity:!!profile.famObesity, famDiabetes:!!profile.famDiabetes, famHypertension:!!profile.famHypertension, famCardiovascular:!!profile.famCardiovascular, famDyslipidemia:!!profile.famDyslipidemia, famThyroid:!!profile.famThyroid, famGestational:!!profile.famGestational, previousDiets:profile.previousDiets||'', allergies:profile.allergies||'', medications:profile.medications||'', giIssues:profile.giIssues||'', pastConditions:profile.pastConditions||'', observations:profile.observations||'', objectives:profile.objectives||'',
    entries,measures,weights,first,last,
@@ -285,7 +303,8 @@ function dashboard(){
    ${studioSummaryChart()}
   </section>
  </div>
- ${bmiPieCard()}`;
+ ${bmiPieCard()}
+ ${(()=>{const q=Object.values(pendingLabs()).filter(x=>x.status==='Da verificare');return q.length?`<section class="card alert-card"><div class="section-head"><h2>Analisi da verificare</h2><span class="pill">${q.length}</span></div>${q.map(x=>{const pp=patient(x.patientId);return `<button class="pro3-patient" data-review-lab="${x.key}" style="width:100%;margin-top:7px"><div class="patient-avatar">🧪</div><div><b>${esc(pp?.name||'Paziente')}</b><span>${esc(x.filename||'Referto PDF')}</span></div><strong>Verifica</strong></button>`}).join('')}</section>`:''})()}`;
 }
 function eventRow(a){
  const p=a.patientId?patient(a.patientId):null;
@@ -410,7 +429,7 @@ function proWeightChart(items,days){
   const ticks=Array.from({length:tickCount},(_,i)=>max-(range/(tickCount-1))*i);
   const grid=ticks.map(v=>{
     const y=yFor(v);
-    return `<line x1="${left}" y1="${y}" x2="${right}" y2="${y}" class="chart-grid"/><text x="${left-2}" y="${y+1.5}" text-anchor="end" class="chart-y-label">${v.toFixed(1).replace('.',',')}</text>`;
+    return `<line x1="${left}" y1="${y}" x2="${right}" y2="${y}" class="chart-grid"/><text x="${left-2}" y="${y}" text-anchor="end" dominant-baseline="middle" class="chart-y-label">${v.toFixed(1).replace('.',',')}</text>`;
   }).join('');
 
   return `<div class="chart-wrap"><svg class="chart" viewBox="0 0 100 100" preserveAspectRatio="none">${grid}<line x1="${left}" y1="${top}" x2="${left}" y2="${bottom}" class="chart-axis"/><line x1="${left}" y1="${bottom}" x2="${right}" y2="${bottom}" class="chart-axis"/><polyline points="${pts}" class="chart-line" fill="none" vector-effect="non-scaling-stroke"/>${w.map(x=>`<circle cx="${xFor(x.date)}" cy="${yFor(+x.weight)}" r="0.55" class="chart-point" vector-effect="non-scaling-stroke"/>`).join('')}${proShowMovingAverage&&avgPts?`<polyline points="${avgPts}" class="chart-average" fill="none" vector-effect="non-scaling-stroke"/>`:''}</svg><span class="chart-unit">kg</span></div><div class="chart-dates"><span>${fmt(w[0].date)}</span><span>${fmt(w.at(-1).date)}</span></div>`;
@@ -435,7 +454,7 @@ function proBmiChart(items,days,height){
   const ticks=Array.from({length:5},(_,i)=>max-(range/4)*i);
   const grid=ticks.map(v=>{
     const y=yFor(v);
-    return `<line x1="${left}" y1="${y}" x2="${right}" y2="${y}" class="chart-grid"/><text x="${left-2}" y="${y+1.5}" text-anchor="end" class="chart-y-label">${v.toFixed(1).replace('.',',')}</text>`;
+    return `<line x1="${left}" y1="${y}" x2="${right}" y2="${y}" class="chart-grid"/><text x="${left-2}" y="${y}" text-anchor="end" dominant-baseline="middle" class="chart-y-label">${v.toFixed(1).replace('.',',')}</text>`;
   }).join('');
 
   return `<div class="chart-wrap"><svg class="chart" viewBox="0 0 100 100" preserveAspectRatio="none">${grid}<line x1="${left}" y1="${top}" x2="${left}" y2="${bottom}" class="chart-axis"/><line x1="${left}" y1="${bottom}" x2="${right}" y2="${bottom}" class="chart-axis"/><polyline points="${pts}" class="chart-bmi-line" fill="none" vector-effect="non-scaling-stroke"/>${data.map((x,i)=>`<circle cx="${xFor(i)}" cy="${yFor(x.bmi)}" r="0.55" class="chart-bmi-point" vector-effect="non-scaling-stroke"/>`).join('')}</svg><span class="chart-unit">BMI</span></div><div class="chart-dates"><span>${fmt(data[0].date)}</span><span>${fmt(data.at(-1).date)}</span></div>`;
@@ -586,6 +605,7 @@ function proDiaryHistory(p){
      <div class="history-right">
        <b>${w!=null?w.toFixed(1).replace('.',',')+' kg':'—'}</b>
        ${b!=null?`<small>BMI ${b.toFixed(1).replace('.',',')}</small>`:''}
+       ${dayEstimatedCalories(x)?`<small>${dayEstimatedCalories(x)} kcal stimate</small>`:''}
      </div>
    </div>`;
  }).join('')||'<p class="muted">Nessuna giornata trovata.</p>'}`;
@@ -615,7 +635,9 @@ function proDiaryDayView(){
    <div class="pro3-detail">
      <div><span>Peso</span><b>${weight!=null?weight.toFixed(1).replace('.',',')+' kg':'—'}</b></div>
      <div><span>BMI</span><b>${currentBmi!=null?currentBmi.toFixed(1).replace('.',','):'—'}</b></div>
-     <div><span>Caffè</span><b>${d.coffee!==''&&d.coffee!=null?esc(d.coffee):'—'}</b></div><div><span>Zucchero / dolcificante</span><b>${esc(d.sweetener||'—')}</b></div>
+     <div><span>Caffè</span><b>${d.coffee!==''&&d.coffee!=null?esc(d.coffee):'—'}</b></div>
+     <div><span>Zucchero / dolcificante</span><b>${esc(d.sweetener||'—')}</b></div>
+     <div><span>Calorie stimate</span><b>${dayEstimatedCalories(d)?dayEstimatedCalories(d)+' kcal':'—'}</b></div>
    </div>
  </section>
 
@@ -643,15 +665,79 @@ function details(){
   <div><span>BMI</span><b>${b?b.toFixed(1).replace('.',','):'—'}</b></div>
  </div>
  <section class="card"><div class="pro3-tabs">
-  ${[['summary','Riepilogo'],['anamnesis','Anamnesi'],['labs','Esami'],['plan','Piano'],['diary','Diario'],['trend','Andamento'],['measures','Misure'],['visits','Visite'],['notes','Note']].map(([k,l])=>`<button data-tab="${k}" class="${tab===k?'active':''}">${l}</button>`).join('')}
+  ${[['summary','Riepilogo'],['anamnesis','Anamnesi'],['labs','Esami'],['plan','Piano'],['privacy','Privacy'],['account','Account'],['diary','Diario'],['trend','Andamento'],['measures','Misure'],['visits','Visite'],['notes','Note']].map(([k,l])=>`<button data-tab="${k}" class="${tab===k?'active':''}">${l}</button>`).join('')}
  </div>${tabContent(p)}</section>`;
 }
-function ageFromBirth(b){if(!b)return '—';const d=new Date(b+'T12:00:00'),n=new Date();let a=n.getFullYear()-d.getFullYear();if(n.getMonth()<d.getMonth()||(n.getMonth()===d.getMonth()&&n.getDate()<d.getDate()))a--;return a}function latestMeasure(p){return (p.measures||[]).slice().sort((a,b)=>String(a.date).localeCompare(String(b.date))).at(-1)||null}function proSummary2(p){const m=latestMeasure(p),wh=m&&+m.waist&&+m.hips?+m.waist/+m.hips:null;return `<div class="section-head"><h2>Riepilogo clinico-nutrizionale</h2>${(p.id==='main'||p.id.startsWith('patient-'))?'<button class="mini" id="editPatientProfile">Modifica scheda</button>':''}</div><div class="patient-summary-grid"><div class="summary-hero"><span>Paziente</span><b>${esc(p.name||'—')}</b><small>${p.birth?fmt(p.birth)+' · '+ageFromBirth(p.birth)+' anni':'Età non disponibile'}</small></div><div><span>Diagnosi / motivo</span><b>${esc(p.diagnosis||'—')}</b></div><div><span>Ultimo peso</span><b>${p.last!=null?p.last.toFixed(1).replace('.',',')+' kg':'—'}</b></div><div><span>BMI</span><b>${p.last&&p.height?bmi(p.last,p.height).toFixed(1).replace('.',','):'—'}</b></div><div><span>Obiettivo</span><b>${p.goal?p.goal+' kg':'—'}</b></div><div><span>Vita / Fianchi</span><b>${m?`${m.waist||'—'} / ${m.hips||'—'} cm`:'—'}</b><small>${wh?'W/H '+wh.toFixed(2).replace('.',','):''}</small></div><div><span>Piano alimentare</span><b>${planMetaFor(p.id)?'Disponibile':'Non caricato'}</b></div></div>`}function proAnamnesis(p){return `<div class="section-head"><h2>Anamnesi</h2>${(p.id==='main'||p.id.startsWith('patient-'))?'<button class="mini" id="editPatientProfile">Modifica scheda</button>':''}</div><details class="pro-accordion" open><summary>Dati e stile di vita</summary><div class="pro-read-grid"><div><span>Diagnosi / motivo</span><b>${esc(p.diagnosis||'—')}</b></div><div><span>Peso teorico</span><b>${p.theoreticalWeight?p.theoreticalWeight+' kg':'—'}</b></div><div><span>Lavoro</span><b>${esc(p.work||'—')}</b></div><div><span>Attività fisica</span><b>${esc(p.activity||'—')}</b></div><div><span>Alvo</span><b>${esc(p.bowel||'—')}</b></div><div><span>Fumo</span><b>${esc(p.smoking||'—')}</b></div><div><span>Alcol</span><b>${esc(p.alcohol||'—')}</b></div><div><span>Metabolismo basale</span><b>${esc(p.metabolism||'—')}</b></div><div><span>FEEG</span><b>${esc(p.feeg||'—')}</b></div><div><span>Impedenziometria</span><b>${esc(p.impedance||'—')}</b></div></div></details><details class="pro-accordion"><summary>Familiarità</summary><div class="pro-read-grid"><div><span>Obesità</span><b>${p.famObesity?'Sì':'No'}</b></div><div><span>Diabete</span><b>${p.famDiabetes?'Sì':'No'}</b></div><div><span>Ipertensione</span><b>${p.famHypertension?'Sì':'No'}</b></div><div><span>Cardiovascolare</span><b>${p.famCardiovascular?'Sì':'No'}</b></div><div><span>Dislipidemie</span><b>${p.famDyslipidemia?'Sì':'No'}</b></div><div><span>Tiroide</span><b>${p.famThyroid?'Sì':'No'}</b></div></div></details><details class="pro-accordion"><summary>Anamnesi patologica</summary><div class="pro-read-grid"><div><span>Diete pregresse</span><b>${esc(p.previousDiets||'—')}</b></div><div><span>Allergie</span><b>${esc(p.allergies||'—')}</b></div><div><span>Farmaci</span><b>${esc(p.medications||'—')}</b></div><div><span>Disturbi GI</span><b>${esc(p.giIssues||'—')}</b></div><div><span>Patologie / interventi</span><b>${esc(p.pastConditions||'—')}</b></div><div><span>Osservazioni</span><b>${esc(p.observations||'—')}</b></div><div><span>Obiettivi</span><b>${esc(p.objectives||'—')}</b></div></div></details>`}function proLabs(p){const r=labsFor(p.id),f=[['glucose','Glicemia'],['cholesterol','Colesterolo'],['hdl','HDL'],['ldl','LDL'],['triglycerides','Trigliceridi'],['got','GOT'],['gpt','GPT'],['uricAcid','Acido urico'],['creatinine','Creatinina'],['ggt','γGT']];return `<div class="section-head"><h2>Esami ematici</h2><button class="mini" id="newLab">＋ Aggiungi esami</button></div>${r.length?`<div class="labs-table-desktop"><table class="labs-table"><thead><tr><th>Data</th>${f.map(x=>`<th>${x[1]}</th>`).join('')}<th></th></tr></thead><tbody>${r.slice().sort((a,b)=>b.date.localeCompare(a.date)).map(x=>`<tr><td>${fmt(x.date)}</td>${f.map(y=>`<td>${esc(x[y[0]]||'—')}</td>`).join('')}<td><button class="mini" data-edit-lab="${x.id}">Modifica</button></td></tr>`).join('')}</tbody></table></div><div class="labs-cards-mobile">${r.map(x=>`<div class="lab-card"><div class="section-head"><b>${fmt(x.date)}</b><button class="mini" data-edit-lab="${x.id}">Modifica</button></div><div class="lab-values">${f.map(y=>`<div><span>${y[1]}</span><b>${esc(x[y[0]]||'—')}</b></div>`).join('')}</div></div>`).join('')}</div>`:'<p class="muted">Nessun esame registrato.</p>'}`}function proPlan(p){const m=planMetaFor(p.id);return `<div class="section-head"><h2>Piano alimentare</h2><span class="pill">${m?'Attivo':'Non caricato'}</span></div><div class="plan-pro-card">${m?`<b>${esc(m.filename)}</b><div class="plan-actions"><button class="secondary" id="openProPlan">Apri PDF</button><button class="mini" id="replacePlan">Sostituisci</button><button class="mini danger-text" id="deletePlan">Elimina</button></div>`:`<p class="muted">Il professionista carica il PDF; il paziente può solo consultarlo.</p><button class="primary" id="uploadPlan">Carica PDF dieta</button>`}<input id="planFile" type="file" accept=".pdf,application/pdf" style="display:none"><label>Data piano</label><input id="planDate" type="date" value="${m?.planDate||today()}"></div>`}
+function ageFromBirth(b){if(!b)return '—';const d=new Date(b+'T12:00:00'),n=new Date();let a=n.getFullYear()-d.getFullYear();if(n.getMonth()<d.getMonth()||(n.getMonth()===d.getMonth()&&n.getDate()<d.getDate()))a--;return a}function latestMeasure(p){return (p.measures||[]).slice().sort((a,b)=>String(a.date).localeCompare(String(b.date))).at(-1)||null}
+const CALORIE_TABLE=[
+ ['pan bauletto',265],['pane',265],['pasta',350],['riso',360],['biscotti',450],['gocciole',470],['cereali',370],
+ ['yogurt greco',90],['yogurt',70],['latte',50],['zymil',46],['cappuccino',70],['fiocchi',100],['mozzarella',250],
+ ['pollo',165],['tacchino',135],['salmone',210],['tonno',190],['bresaola',150],['prosciutto',220],['cozze',85],
+ ['verdure',35],['iceberg',14],['insalata',20],['pomodor',18],['funghi',22],['banana',89],['fragole',32],['anguria',30],['melone',34],
+ ['mela',52],['frutta',55],['piselli',81],['olio',884],['crostata',400],['barretta',390],['succo',45]
+];
+function estimateTextCalories(text){
+ const s=String(text||'').toLowerCase();if(!s.trim())return 0;let total=0;
+ for(const [name,k100] of CALORIE_TABLE){
+  let at=s.indexOf(name);if(at<0)continue;
+  const around=s.slice(Math.max(0,at-35),Math.min(s.length,at+name.length+35));
+  const grams=around.match(/(\d+(?:[.,]\d+)?)\s*(?:g|gr|grammi)\b/i);
+  if(grams)total+=Number(grams[1].replace(',','.'))*k100/100;
+  else if(name==='cappuccino')total+=70;
+  else if(name==='banana'||name==='mela')total+=85;
+  else if(name==='barretta')total+=110;
+  else total+=k100*.75;
+ }
+ return Math.round(total);
+}
+function dayEstimatedCalories(entry){
+ if(!entry)return null;
+ const stored=Number(entry.estimatedCalories);
+ return Number.isFinite(stored)&&stored>0?Math.round(stored):estimateDiaryCalories(entry);
+}
+function estimateDiaryCalories(entry){
+ if(!entry)return null;const total=['breakfast','snack1','lunch','snack2','dinner'].reduce((s,k)=>s+estimateTextCalories(entry[k]),0);
+ return total>0?total:null;
+}
+function latestDiaryCalories(p){
+ const a=(p.entries||p.diary||[]).slice().sort((x,y)=>String(x.date).localeCompare(String(y.date)));
+ for(let i=a.length-1;i>=0;i--){const c=dayEstimatedCalories(a[i]);if(c)return {date:a[i].date,calories:c}}
+ return null;
+}
+function proSummary2(p){
+ const m=latestMeasure(p),wh=m&&+m.waist&&+m.hips?+m.waist/+m.hips:null,bmrVal=bmrMifflin(p),daily=energyEstimate(p),food=latestDiaryCalories(p);
+ return `<div class="section-head"><h2>Riepilogo clinico-nutrizionale</h2>${(p.id==='main'||p.id.startsWith('patient-'))?'<button class="mini" id="editPatientProfile">Modifica scheda</button>':''}</div>
+ <div class="patient-summary-grid">
+  <div class="summary-hero"><span>Paziente</span><b>${esc(p.name||'—')}</b><small>${p.birth?fmt(p.birth)+' · '+ageFromBirth(p.birth)+' anni':'Età non disponibile'}</small></div>
+  <div><span>Diagnosi / motivo</span><b>${esc(p.diagnosis||'—')}</b></div>
+  <div><span>Ultimo peso</span><b>${currentPatientWeight(p)!=null?currentPatientWeight(p).toFixed(1).replace('.',',')+' kg':'—'}</b></div>
+  <div><span>BMI</span><b>${currentPatientWeight(p)&&p.height?bmi(currentPatientWeight(p),p.height).toFixed(1).replace('.',','):'—'}</b></div>
+  <div><span>Obiettivo</span><b>${p.goal?p.goal+' kg':'—'}</b></div>
+  <div><span>Vita / Fianchi</span><b>${m?`${m.waist||'—'} / ${m.hips||'—'} cm`:'—'}</b><small>${wh?'W/H '+wh.toFixed(2).replace('.',','):''}</small></div>
+  <div><span>BMR stimato</span><b>${bmrVal?Math.round(bmrVal)+' kcal/giorno':'—'}</b><small>${bmrVal?'Metabolismo basale, senza attività':'Servono peso, altezza, nascita e sesso'}</small></div>
+  <div><span>Dispendio giornaliero indicativo</span><b>${daily?Math.round(daily)+' kcal/giorno':'—'}</b><small>${daily?'BMR × livello di attività':p.activityFactor?'Completa i dati necessari al BMR':'Imposta il livello di attività'}</small></div>
+  <div><span>Calorie stimate dal diario</span><b>${food?food.calories+' kcal':'—'}</b><small>${food?fmt(food.date)+' · stima indicativa':'Nessun pasto interpretabile'}</small></div>
+  <div><span>Piano alimentare</span><b>${planMetaFor(p.id)?'Disponibile':'Non caricato'}</b></div>
+ </div>`;
+}
+function proAnamnesis(p){return `<div class="section-head"><h2>Anamnesi</h2>${(p.id==='main'||p.id.startsWith('patient-'))?'<button class="mini" id="editPatientProfile">Modifica scheda</button>':''}</div><details class="pro-accordion" open><summary>Dati e stile di vita</summary><div class="pro-read-grid"><div><span>Diagnosi / motivo</span><b>${esc(p.diagnosis||'—')}</b></div><div><span>Peso teorico</span><b>${p.theoreticalWeight?p.theoreticalWeight+' kg':'—'}</b></div><div><span>Lavoro</span><b>${esc(p.work||'—')}</b></div><div><span>Attività fisica</span><b>${esc(p.activity||'—')}</b></div><div><span>Alvo</span><b>${esc(p.bowel||'—')}</b></div><div><span>Fumo</span><b>${esc(p.smoking||'—')}</b></div><div><span>Alcol</span><b>${esc(p.alcohol||'—')}</b></div><div><span>Metabolismo basale</span><b>${esc(p.metabolism||'—')}</b></div><div><span>FEEG</span><b>${esc(p.feeg||'—')}</b></div><div><span>Impedenziometria</span><b>${esc(p.impedance||'—')}</b></div></div></details><details class="pro-accordion"><summary>Familiarità</summary><div class="pro-read-grid"><div><span>Obesità</span><b>${p.famObesity?'Sì':'No'}</b></div><div><span>Diabete</span><b>${p.famDiabetes?'Sì':'No'}</b></div><div><span>Ipertensione</span><b>${p.famHypertension?'Sì':'No'}</b></div><div><span>Cardiovascolare</span><b>${p.famCardiovascular?'Sì':'No'}</b></div><div><span>Dislipidemie</span><b>${p.famDyslipidemia?'Sì':'No'}</b></div><div><span>Tiroide</span><b>${p.famThyroid?'Sì':'No'}</b></div></div></details><details class="pro-accordion"><summary>Anamnesi patologica</summary><div class="pro-read-grid"><div><span>Diete pregresse</span><b>${esc(p.previousDiets||'—')}</b></div><div><span>Allergie</span><b>${esc(p.allergies||'—')}</b></div><div><span>Farmaci</span><b>${esc(p.medications||'—')}</b></div><div><span>Disturbi GI</span><b>${esc(p.giIssues||'—')}</b></div><div><span>Patologie / interventi</span><b>${esc(p.pastConditions||'—')}</b></div><div><span>Osservazioni</span><b>${esc(p.observations||'—')}</b></div><div><span>Obiettivi</span><b>${esc(p.objectives||'—')}</b></div></div></details>`}function proLabs(p){const r=labsFor(p.id),f=[['glucose','Glicemia'],['cholesterol','Colesterolo'],['hdl','HDL'],['ldl','LDL'],['triglycerides','Trigliceridi'],['got','GOT'],['gpt','GPT'],['uricAcid','Acido urico'],['creatinine','Creatinina'],['ggt','γGT']];return `<div class="section-head"><h2>Esami ematici</h2><button class="mini" id="newLab">＋ Aggiungi esami</button></div>${r.length?`<div class="labs-table-desktop"><table class="labs-table"><thead><tr><th>Data</th>${f.map(x=>`<th>${x[1]}</th>`).join('')}<th></th></tr></thead><tbody>${r.slice().sort((a,b)=>b.date.localeCompare(a.date)).map(x=>`<tr><td>${fmt(x.date)}</td>${f.map(y=>`<td>${esc(x[y[0]]||'—')}</td>`).join('')}<td><button class="mini" data-edit-lab="${x.id}">Modifica</button></td></tr>`).join('')}</tbody></table></div><div class="labs-cards-mobile">${r.map(x=>`<div class="lab-card"><div class="section-head"><b>${fmt(x.date)}</b><button class="mini" data-edit-lab="${x.id}">Modifica</button></div><div class="lab-values">${f.map(y=>`<div><span>${y[1]}</span><b>${esc(x[y[0]]||'—')}</b></div>`).join('')}</div></div>`).join('')}</div>`:'<p class="muted">Nessun esame registrato.</p>'}`}function proPlan(p){const m=planMetaFor(p.id);return `<div class="section-head"><h2>Piano alimentare</h2><span class="pill">${m?'Attivo':'Non caricato'}</span></div><div class="plan-pro-card">${m?`<b>${esc(m.filename)}</b><div class="plan-actions"><button class="secondary" id="openProPlan">Apri PDF</button><button class="mini" id="replacePlan">Sostituisci</button><button class="mini danger-text" id="deletePlan">Elimina</button></div>`:`<p class="muted">Il professionista carica il PDF; il paziente può solo consultarlo.</p><button class="primary" id="uploadPlan">Carica PDF dieta</button>`}<input id="planFile" type="file" accept=".pdf,application/pdf" style="display:none"><label>Data piano</label>${proDateControl('planDate',m?.planDate||today())}</div>`}
+
+function proAccount(p){const a=accountFor(p.id);return `<div class="section-head"><h2>Account paziente</h2><span class="pill">${a?'Attivo':'Non attivo'}</span></div><p class="muted">Credenziali demo locali. Dopo averle salvate, vai in Area Paziente e premi <b>Esci</b>: comparirà la schermata login dove puoi provare username e password.</p><label>Username</label><input id="accUser" value="${esc(a?.username||'')}"><label>Password demo</label><input id="accPass" value="${esc(a?.password||'')}"><div class="pro3-actions"><button class="primary" id="savePatientAccount">${a?'Aggiorna account':'Crea account'}</button>${a?'<button class="secondary" id="deletePatientAccount">Disattiva account</button>':''}</div>`}
+function privacyPdfBlob(p){const lines=['INFORMATIVA E CONSENSO - DEMO','',`Paziente: ${p.name||''}`,`Data di nascita: ${p.birth?fmt(p.birth):''}`,`Diagnosi/motivo: ${p.diagnosis||''}`,'','Modulo dimostrativo precompilato con i dati della scheda.','Il testo privacy definitivo dovra essere validato per il prodotto reale.','','Firma paziente: ______________________________','Data: __________________'];const ep=s=>String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^\x20-\x7E]/g,' ').replace(/\\/g,'\\\\').replace(/\(/g,'\\(').replace(/\)/g,'\\)');let st='BT /F1 11 Tf 50 800 Td '+lines.map((l,i)=>`${i?'0 -24 Td ':''}(${ep(l)}) Tj`).join('\n')+' ET\n',o=['<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>'];const add=x=>(o.push(x),o.length),pages=add('P'),content=add(`<< /Length ${st.length} >>\nstream\n${st}endstream`),page=add(`<< /Type /Page /Parent ${pages} 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 1 0 R >> >> /Contents ${content} 0 R >>`);o[pages-1]=`<< /Type /Pages /Count 1 /Kids [${page} 0 R] >>`;const cat=add(`<< /Type /Catalog /Pages ${pages} 0 R >>`);let pdf='%PDF-1.4\n',off=[0];o.forEach((x,i)=>{off[i+1]=pdf.length;pdf+=`${i+1} 0 obj\n${x}\nendobj\n`});const xr=pdf.length;pdf+=`xref\n0 ${o.length+1}\n0000000000 65535 f \n`;for(let i=1;i<=o.length;i++)pdf+=String(off[i]).padStart(10,'0')+' 00000 n \n';pdf+=`trailer\n<< /Size ${o.length+1} /Root ${cat} 0 R >>\nstartxref\n${xr}\n%%EOF`;return new Blob([pdf],{type:'application/pdf'})}
+async function storePrivacyPdf(id,b){const db=await openPlanDb();return new Promise((res,rej)=>{const tx=db.transaction('privacy','readwrite');tx.objectStore('privacy').put(b,id);tx.oncomplete=res;tx.onerror=()=>rej(tx.error)})}
+async function readPrivacyPdf(id){const db=await openPlanDb();return new Promise((res,rej)=>{const r=db.transaction('privacy','readonly').objectStore('privacy').get(id);r.onsuccess=()=>res(r.result||null);r.onerror=()=>rej(r.error)})}
+function proPrivacy(p){const m=privacyMetaFor(p.id);return `<div class="section-head"><h2>Privacy</h2><span class="pill">${m?'PDF firmato presente':'Da completare'}</span></div><div class="pro-read-grid"><div><span>Paziente</span><b>${esc(p.name||'—')}</b></div><div><span>Data di nascita</span><b>${p.birth?fmt(p.birth):'—'}</b></div><div><span>Diagnosi / motivo</span><b>${esc(p.diagnosis||'—')}</b></div></div><p class="muted">Modulo demo precompilato. Il testo legale definitivo dovrà essere validato.</p><div class="pro3-actions"><button class="secondary" id="downloadPrivacyForm">↓ Scarica modulo PDF</button><button class="secondary" id="uploadSignedPrivacy">↑ Carica PDF firmato</button>${m?'<button class="secondary" id="openSignedPrivacy">Apri firmato</button>':''}</div><input id="signedPrivacyFile" type="file" accept="application/pdf,.pdf" style="display:none">`}
+
+async function readLabUploadPdf(key){const db=await openPlanDb();return new Promise((res,rej)=>{const r=db.transaction('labUploads','readonly').objectStore('labUploads').get(key);r.onsuccess=()=>res(r.result||null);r.onerror=()=>rej(r.error)})}
+function labReview(){const item=pendingLabs()[window.reviewLabKey];if(!item)return `${top('Referto non trovato')}`;const p=patient(item.patientId);selected=item.patientId;const f=(id,l)=>`<label>${l}<input id="rev${id}" value="${esc(item.values?.[id]||'')}"></label>`;return `${top('Verifica analisi')}<section class="card"><div class="section-head"><h2>${esc(p?.name||'Paziente')}</h2><span class="pill">Da verificare</span></div><p class="muted">${esc(item.filename||'')} · ${esc(item.note||'Controlla i valori estratti.')}</p><div class="form-grid"><label>Data${proDateControl('revDate',item.values?.date||today())}</label>${f('glucose','Glicemia')}${f('cholesterol','Colesterolo')}${f('hdl','HDL')}${f('ldl','LDL')}${f('triglycerides','Trigliceridi')}${f('got','GOT')}${f('gpt','GPT')}${f('uricAcid','Acido urico')}${f('creatinine','Creatinina')}${f('ggt','γGT')}</div><div class="pro3-actions"><button class="secondary" id="openLabReviewPdf">Apri PDF</button><button class="secondary" id="cancelLabReview">Annulla</button><button class="primary" id="confirmLabReview">Conferma e inserisci</button></div></section>`}
+
 function tabContent(p){
  if(tab==='summary')return proSummary2(p);
  if(tab==='anamnesis')return proAnamnesis(p);
  if(tab==='labs')return proLabs(p);
  if(tab==='plan')return proPlan(p);
+ if(tab==='privacy')return proPrivacy(p);
+ if(tab==='account')return proAccount(p);
  if(tab==='diary')return proDiaryHistory(p);
  if(tab==='trend')return proTrendContent(p);
  if(tab==='measures')return `<div class="section-head"><h2>Misure</h2><button class="mini" id="newPatientMeasure">＋ Aggiungi misura</button></div>
@@ -661,7 +747,7 @@ function tabContent(p){
    <td><button class="mini" data-edit-measure="${m.date}">Modifica</button></td>
  </tr>`).join('')||'<tr><td colspan="5">Nessuna misura.</td></tr>'}
  </tbody></table></div>`;
- if(tab==='visits')return appointments().filter(a=>a.patientId===p.id&&a.type!=='personal').sort((a,b)=>(b.date+b.time).localeCompare(a.date+a.time)).map(a=>`<div class="pro3-event ${typeClass(a.type)}"><b>${fmt(a.date)} · ${a.time}</b><span>${typeLabel(a.type)} · ${a.duration} min</span></div>`).join('')||'<p class="muted">Nessuna visita.</p>';
+ if(tab==='visits')return appointments().filter(a=>a.patientId===p.id&&a.type!=='personal').sort((a,b)=>(b.date+b.time).localeCompare(a.date+a.time)).map(a=>`<button class="pro3-event ${typeClass(a.type)} pro3-event-clickable" data-edit-visit="${a.id}"><b>${fmt(a.date)} · ${a.time}</b><span>${typeLabel(a.type)} · ${a.duration} min</span></button>`).join('')||'<p class="muted">Nessuna visita.</p>';
  const notes=load(NOTES_KEY,{});
  return `<textarea id="noteText" rows="7" placeholder="Note professionista">${esc(notes[p.id]||'')}</textarea><button class="primary" id="saveNote">Salva nota</button>`;
 }
@@ -679,7 +765,7 @@ function newPatientForm(){
    <input id="npSurname" type="text" placeholder="es. Rossi">
 
    <label>Data di nascita</label>
-   <input id="npBirth" type="date">
+   ${proDateControl('npBirth','')}
 
    <label>Sesso</label>
    <select id="npSex">
@@ -696,7 +782,7 @@ function newPatientForm(){
    <input id="npGoal" type="number" min="30" max="300" step="0.1" placeholder="Facoltativo">
 
    <label>Data prossima visita</label>
-   <input id="npNextVisit" type="date">
+   ${proDateControl('npNextVisit','')}
 
    <h2 style="margin-top:22px">Storia del peso</h2>
    <label>Peso minimo storico (kg)</label>
@@ -714,6 +800,7 @@ function newPatientForm(){
 
    <label>Attività fisica abituale</label>
    <textarea id="npActivity" rows="2" placeholder="es. camminate, palestra, sport"></textarea>
+   <label>Livello attività per stima energetica</label><select id="npActivityFactor"><option value="">Non impostato</option><option value="1.2">Sedentario</option><option value="1.375">Leggermente attivo</option><option value="1.55">Moderatamente attivo</option><option value="1.725">Molto attivo</option><option value="1.9">Estremamente attivo</option></select>
 
    <label>Fumo</label>
    <input id="npSmoking" type="text" placeholder="Campo libero">
@@ -756,16 +843,16 @@ function saveNewPatient(){
    name:`${name} ${surname}`,
    firstName:name,
    surname,
-   birth:el('npBirth')?.value||'',
+   birth:readProDate('npBirth')||'',
    sex:el('npSex')?.value||'',
    height,
    goal,
-   nextVisit:el('npNextVisit')?.value||'',
+   nextVisit:readProDate('npNextVisit')||'',
    minWeight,
    maxWeight,
    reasonableWeight,
    work:(el('npWork')?.value||'').trim(),
-   activity:(el('npActivity')?.value||'').trim(),
+   activity:(el('npActivity')?.value||'').trim(),activityFactor:el('npActivityFactor')?.value||'',
    smoking:(el('npSmoking')?.value||'').trim(),
    alcohol:(el('npAlcohol')?.value||'').trim(), diagnosis:(el('npDiagnosis')?.value||'').trim(), theoreticalWeight:num('npTheoreticalWeight'), bowel:(el('npBowel')?.value||'').trim(), metabolism:(el('npMetabolism')?.value||'').trim(), feeg:(el('npFeeg')?.value||'').trim(), impedance:(el('npImpedance')?.value||'').trim(), famObesity:!!el('npFamObesity')?.checked, famDiabetes:!!el('npFamDiabetes')?.checked, famHypertension:!!el('npFamHypertension')?.checked, famCardiovascular:!!el('npFamCardiovascular')?.checked, famDyslipidemia:!!el('npFamDyslipidemia')?.checked, famThyroid:!!el('npFamThyroid')?.checked, previousDiets:(el('npPreviousDiets')?.value||'').trim(), allergies:(el('npAllergies')?.value||'').trim(), medications:(el('npMedications')?.value||'').trim(), giIssues:(el('npGiIssues')?.value||'').trim(), pastConditions:(el('npPastConditions')?.value||'').trim(), observations:(el('npObservations')?.value||'').trim(), objectives:(el('npObjectives')?.value||'').trim(),
    weights:[],
@@ -798,7 +885,7 @@ function editPatientProfileForm(){
    <h2>Dati personali</h2>
    <label>Nome</label><input id="epName" value="${esc(first)}">
    <label>Cognome</label><input id="epSurname" value="${esc(surname)}">
-   <label>Data di nascita</label><input id="epBirth" type="date" value="${p.birth||''}">
+   <label>Data di nascita</label>${proDateControl('epBirth',p.birth||'')}
    <label>Sesso</label>
    <select id="epSex">
      <option value="" ${!p.sex?'selected':''}>Non specificato</option>
@@ -808,7 +895,7 @@ function editPatientProfileForm(){
    </select>
    <label>Altezza (cm)</label><input id="epHeight" type="number" min="80" max="250" step="1" value="${p.height||''}">
    <label>Peso obiettivo (kg)</label><input id="epGoal" type="number" min="30" max="300" step="0.1" value="${p.goal||''}">
-   <label>Data prossima visita</label><input id="epNextVisit" type="date" value="${p.nextVisit||''}">
+   <label>Data prossima visita</label>${proDateControl('epNextVisit',p.nextVisit||'')}
 
    <h2 style="margin-top:22px">Storia del peso</h2>
    <label>Peso minimo storico (kg)</label><input id="epMinWeight" type="number" min="30" max="300" step="0.1" value="${p.minWeight||''}">
@@ -817,7 +904,7 @@ function editPatientProfileForm(){
 
    <h2 style="margin-top:22px">Stile di vita</h2>
    <label>Attività lavorativa</label><textarea id="epWork" rows="2">${esc(p.work||'')}</textarea>
-   <label>Attività fisica abituale</label><textarea id="epActivity" rows="2">${esc(p.activity||'')}</textarea>
+   <label>Attività fisica abituale</label><textarea id="epActivity" rows="2">${esc(p.activity||'')}</textarea><label>Livello attività per stima energetica</label><select id="epActivityFactor"><option value="">Non impostato</option><option value="1.2" ${String(p.activityFactor)==='1.2'?'selected':''}>Sedentario</option><option value="1.375" ${String(p.activityFactor)==='1.375'?'selected':''}>Leggermente attivo</option><option value="1.55" ${String(p.activityFactor)==='1.55'?'selected':''}>Moderatamente attivo</option><option value="1.725" ${String(p.activityFactor)==='1.725'?'selected':''}>Molto attivo</option><option value="1.9" ${String(p.activityFactor)==='1.9'?'selected':''}>Estremamente attivo</option></select>
    <label>Fumo</label><input id="epSmoking" value="${esc(p.smoking||'')}">
    <label>Alcol</label><input id="epAlcohol" value="${esc(p.alcohol||'')}">
 
@@ -855,16 +942,16 @@ function saveEditedPatientProfile(){
  const patch={
    name:first,
    surname,
-   birth:el('epBirth')?.value||'',
+   birth:readProDate('epBirth')||'',
    sex:el('epSex')?.value||'',
    height,
    goal,
-   nextVisit:el('epNextVisit')?.value||'',
+   nextVisit:readProDate('epNextVisit')||'',
    minWeight,
    maxWeight,
    reasonableWeight,
    work:(el('epWork')?.value||'').trim(),
-   activity:(el('epActivity')?.value||'').trim(),
+   activity:(el('epActivity')?.value||'').trim(),activityFactor:el('epActivityFactor')?.value||'',
    smoking:(el('epSmoking')?.value||'').trim(),
    alcohol:(el('epAlcohol')?.value||'').trim(), diagnosis:(el('epDiagnosis')?.value||'').trim(), theoreticalWeight:num('epTheoreticalWeight'), bowel:(el('epBowel')?.value||'').trim(), metabolism:(el('epMetabolism')?.value||'').trim(), feeg:(el('epFeeg')?.value||'').trim(), impedance:(el('epImpedance')?.value||'').trim(), famObesity:!!el('epFamObesity')?.checked, famDiabetes:!!el('epFamDiabetes')?.checked, famHypertension:!!el('epFamHypertension')?.checked, famCardiovascular:!!el('epFamCardiovascular')?.checked, famDyslipidemia:!!el('epFamDyslipidemia')?.checked, famThyroid:!!el('epFamThyroid')?.checked, previousDiets:(el('epPreviousDiets')?.value||'').trim(), allergies:(el('epAllergies')?.value||'').trim(), medications:(el('epMedications')?.value||'').trim(), giIssues:(el('epGiIssues')?.value||'').trim(), pastConditions:(el('epPastConditions')?.value||'').trim(), observations:(el('epObservations')?.value||'').trim(), objectives:(el('epObjectives')?.value||'').trim()
  };
@@ -886,14 +973,14 @@ function saveEditedPatientProfile(){
 }
 
 
-function labForm(){const p=patient(selected),r=labsFor(p.id),x=window.editLabId?r.find(y=>y.id===window.editLabId):null,f=(id,l)=>`<label>${l}<input id="lab${id}" value="${esc(x?.[id]||'')}"></label>`;return `${top(x?'Modifica esami':'Nuovi esami')}<section class="card"><div class="form-grid"><label>Data<input id="labDate" type="date" value="${x?.date||today()}"></label>${f('glucose','Glicemia')}${f('cholesterol','Colesterolo')}${f('hdl','HDL')}${f('ldl','LDL')}${f('triglycerides','Trigliceridi')}${f('got','GOT')}${f('gpt','GPT')}${f('uricAcid','Acido urico')}${f('creatinine','Creatinina')}${f('ggt','γGT')}</div><div class="pro3-actions">${x?'<button class="mini danger-text" id="deleteLab">Elimina</button>':''}<button class="secondary" id="cancelLab">Annulla</button><button class="primary" id="saveLab">Salva</button></div></section>`}function saveLab(){const p=patient(selected),o={id:window.editLabId||'lab-'+Date.now(),date:el('labDate')?.value||today()};['glucose','cholesterol','hdl','ldl','triglycerides','got','gpt','uricAcid','creatinine','ggt'].forEach(k=>o[k]=(el('lab'+k)?.value||'').trim());let r=labsFor(p.id),i=r.findIndex(x=>x.id===o.id);if(i>=0)r[i]=o;else r.push(o);saveLabsFor(p.id,r);window.editLabId='';tab='labs';view='details';render()}function deleteLab(){const p=patient(selected);if(!confirm('Eliminare questi esami?'))return;saveLabsFor(p.id,labsFor(p.id).filter(x=>x.id!==window.editLabId));window.editLabId='';tab='labs';view='details';render()}
+function labForm(){const p=patient(selected),r=labsFor(p.id),x=window.editLabId?r.find(y=>y.id===window.editLabId):null,f=(id,l)=>`<label>${l}<input id="lab${id}" value="${esc(x?.[id]||'')}"></label>`;return `${top(x?'Modifica esami':'Nuovi esami')}<section class="card"><div class="form-grid"><label>Data${proDateControl('labDate',x?.date||today())}</label>${f('glucose','Glicemia')}${f('cholesterol','Colesterolo')}${f('hdl','HDL')}${f('ldl','LDL')}${f('triglycerides','Trigliceridi')}${f('got','GOT')}${f('gpt','GPT')}${f('uricAcid','Acido urico')}${f('creatinine','Creatinina')}${f('ggt','γGT')}</div><div class="pro3-actions">${x?'<button class="mini danger-text" id="deleteLab">Elimina</button>':''}<button class="secondary" id="cancelLab">Annulla</button><button class="primary" id="saveLab">Salva</button></div></section>`}function saveLab(){const p=patient(selected),o={id:window.editLabId||'lab-'+Date.now(),date:readProDate('labDate')||today()};['glucose','cholesterol','hdl','ldl','triglycerides','got','gpt','uricAcid','creatinine','ggt'].forEach(k=>o[k]=(el('lab'+k)?.value||'').trim());let r=labsFor(p.id),i=r.findIndex(x=>x.id===o.id);if(i>=0)r[i]=o;else r.push(o);saveLabsFor(p.id,r);window.editLabId='';tab='labs';view='details';render()}function deleteLab(){const p=patient(selected);if(!confirm('Eliminare questi esami?'))return;saveLabsFor(p.id,labsFor(p.id).filter(x=>x.id!==window.editLabId));window.editLabId='';tab='labs';view='details';render()}
 function patientMeasureForm(){
  const p=patient(selected);
  if(!p)return `${top('Paziente non trovato')}`;
  const existing=window.editMeasureDate?(p.measures||[]).find(x=>x.date===window.editMeasureDate):null;
  return `${top(existing?'Modifica misurazione':'Nuova misurazione')}
  <section class="card">
-   <label>Data</label><input id="pmDate" type="date" value="${existing?.date||today()}">
+   <label>Data</label>${proDateControl('pmDate',existing?.date||today())}
    <label>Circonferenza vita (cm)</label><input id="pmWaist" type="number" min="20" max="300" step="0.1" value="${existing?.waist??''}">
    <label>Circonferenza fianchi (cm)</label><input id="pmHips" type="number" min="20" max="300" step="0.1" value="${existing?.hips??''}">
    <label>Note</label><textarea id="pmNotes" rows="3">${esc(existing?.notes||'')}</textarea>
@@ -902,7 +989,7 @@ function patientMeasureForm(){
 }
 function savePatientMeasure(){
  const p=patient(selected); if(!p)return;
- const date=el('pmDate')?.value||''; if(!date)return alert('Inserisci la data.');
+ const date=readProDate('pmDate',true); if(!date)return;
  const num=id=>{const v=(el(id)?.value||'').trim().replace(',','.');return v===''?'':Number(v)};
  const waist=num('pmWaist'),hips=num('pmHips');
  for(const [label,v] of [['vita',waist],['fianchi',hips]])if(v!==''&&(!Number.isFinite(v)||v<20||v>300))return alert(`Controlla il valore ${label}.`);
@@ -1011,7 +1098,7 @@ function proBackupData(){
      labs:load(LABS_KEY,{}),
      notes:load(NOTES_KEY,{}),
      appointments:load(APPT_KEY,[]),
-     settings:load(SETTINGS_KEY,{})
+     settings:load(SETTINGS_KEY,{}),accounts:load(ACCOUNT_KEY,{}),privacyMeta:load(PRIVACY_META_KEY,{}),pendingLabs:load(PENDING_LABS_KEY,{})
    }
  };
 }
@@ -1041,7 +1128,7 @@ async function importProBackupFile(file){
  save(LABS_KEY,d.labs&&typeof d.labs==='object'?d.labs:{});
  save(NOTES_KEY,d.notes&&typeof d.notes==='object'?d.notes:{});
  save(APPT_KEY,Array.isArray(d.appointments)?d.appointments:[]);
- save(SETTINGS_KEY,d.settings&&typeof d.settings==='object'?d.settings:{});
+ save(SETTINGS_KEY,d.settings&&typeof d.settings==='object'?d.settings:{});save(ACCOUNT_KEY,d.accounts&&typeof d.accounts==='object'?d.accounts:{});save(PRIVACY_META_KEY,d.privacyMeta&&typeof d.privacyMeta==='object'?d.privacyMeta:{});save(PENDING_LABS_KEY,d.pendingLabs&&typeof d.pendingLabs==='object'?d.pendingLabs:{});
  selected='main';tab='summary';view='dashboard';
  alert('Backup caricato correttamente.');
  render();
@@ -1076,7 +1163,7 @@ function eventForm(prefill){
  <label>Tipo evento</label><select id="eType"><option value="first" ${a.type==='first'?'selected':''}>Prima visita</option><option value="control" ${a.type==='control'?'selected':''}>Controllo</option><option value="personal" ${a.type==='personal'?'selected':''}>Impegno personale</option></select>
  <div id="patientBox" style="${a.type==='personal'?'display:none':''}"><label>Paziente</label><select id="ePatient">${patients().map(p=>`<option value="${p.id}" ${p.id===a.patientId?'selected':''}>${esc(p.name)}</option>`).join('')}</select></div>
  <div id="titleBox" style="${a.type==='personal'?'':'display:none'}"><label>Titolo</label><input id="eTitle" value="${esc(a.title||'Impegno personale')}"></div>
- <label>Data</label><input id="eDate" inputmode="numeric" placeholder="gg-mm-aaaa" value="${fmt(a.date)}">
+ <label>Data</label>${proDateControl('eDate',a.date)}
  <label>Ora</label><input id="eTime" type="time" value="${a.time}">
  <label>Durata</label><input id="eDuration" type="number" step="5" value="${a.duration}">
  <label>Note</label><textarea id="eNote" rows="3">${esc(a.note||'')}</textarea>
@@ -1095,7 +1182,7 @@ function conflict(obj){
 
 function render(){
  try{
-  let html=view==='dashboard'?dashboard():view==='patients'?patientsPage():view==='agenda'?agenda():view==='settings'?settingsPage():view==='details'?details():view==='newPatient'?newPatientForm():view==='editProfile'?editPatientProfileForm():view==='patientMeasure'?patientMeasureForm():view==='labForm'?labForm():view==='diaryDay'?proDiaryDayView():eventForm(window.prefill||null);
+  let html=view==='dashboard'?dashboard():view==='patients'?patientsPage():view==='agenda'?agenda():view==='settings'?settingsPage():view==='details'?details():view==='newPatient'?newPatientForm():view==='editProfile'?editPatientProfileForm():view==='patientMeasure'?patientMeasureForm():view==='labForm'?labForm():view==='labReview'?labReview():view==='diaryDay'?proDiaryDayView():eventForm(window.prefill||null);
   el('proApp').innerHTML=html; bind();
  }catch(err){
   console.error(err);
@@ -1128,7 +1215,19 @@ function bind(){
  el('newPatientMeasure')?.addEventListener('click',()=>{window.editMeasureDate=null;view='patientMeasure';render()});
  document.querySelectorAll('[data-edit-measure]').forEach(b=>b.addEventListener('click',()=>{window.editMeasureDate=b.dataset.editMeasure;view='patientMeasure';render()}));
  el('cancelPatientMeasure')?.addEventListener('click',()=>{window.editMeasureDate=null;view='details';tab='measures';render()});
- el('savePatientMeasure')?.addEventListener('click',savePatientMeasure);el('newLab')?.addEventListener('click',()=>{window.editLabId='';view='labForm';render()});document.querySelectorAll('[data-edit-lab]').forEach(b=>b.addEventListener('click',()=>{window.editLabId=b.dataset.editLab;view='labForm';render()}));el('cancelLab')?.addEventListener('click',()=>{view='details';tab='labs';render()});el('saveLab')?.addEventListener('click',saveLab);el('deleteLab')?.addEventListener('click',deleteLab);const upload=()=>el('planFile')?.click();el('uploadPlan')?.addEventListener('click',upload);el('replacePlan')?.addEventListener('click',upload);el('planFile')?.addEventListener('change',async e=>{const f=e.target.files?.[0];if(!f)return;if(!f.name.toLowerCase().endsWith('.pdf'))return alert('Seleziona un PDF.');if(f.size>8*1024*1024)return alert('Per la demo usa un PDF inferiore a 8 MB.');await writePlanPdf(selected,await f.arrayBuffer());savePlanMeta(selected,{filename:f.name,planDate:el('planDate')?.value||today()});render()});el('openProPlan')?.addEventListener('click',async()=>{const d=await readPlanPdf(selected);if(!d)return alert('PDF non disponibile.');const u=URL.createObjectURL(new Blob([d],{type:'application/pdf'}));window.open(u,'_blank');setTimeout(()=>URL.revokeObjectURL(u),60000)});el('deletePlan')?.addEventListener('click',async()=>{if(!confirm('Eliminare il piano alimentare?'))return;await deletePlanPdf(selected);savePlanMeta(selected,null);render()});
+ el('savePatientMeasure')?.addEventListener('click',savePatientMeasure);
+ document.querySelectorAll('[data-date-target]').forEach(p=>p.addEventListener('change',()=>{const t=el(p.dataset.dateTarget);if(t)t.value=fmt(p.value)}));
+ el('savePatientAccount')?.addEventListener('click',()=>{const u=(el('accUser')?.value||'').trim(),pw=el('accPass')?.value||'';if(!u||!pw)return alert('Inserisci username e password.');saveAccountFor(selected,{username:u,password:pw,active:true});alert('Account demo salvato.');render()});
+ el('deletePatientAccount')?.addEventListener('click',()=>{saveAccountFor(selected,null);alert('Account demo disattivato.');render()});
+ el('downloadPrivacyForm')?.addEventListener('click',()=>{const p=patient(selected),blob=privacyPdfBlob(p),u=URL.createObjectURL(blob),a=document.createElement('a');a.href=u;a.download=`Privacy_${String(p.name||'Paziente').replace(/\s+/g,'_')}.pdf`;a.click();setTimeout(()=>URL.revokeObjectURL(u),1500)});
+ el('uploadSignedPrivacy')?.addEventListener('click',()=>el('signedPrivacyFile')?.click());
+ el('signedPrivacyFile')?.addEventListener('change',async e=>{const f=e.target.files?.[0];if(!f)return;if(f.type!=='application/pdf'&&!f.name.toLowerCase().endsWith('.pdf'))return alert('Seleziona un PDF.');await storePrivacyPdf(selected,await f.arrayBuffer());savePrivacyMeta(selected,{filename:f.name,uploadedAt:new Date().toISOString()});render()});
+ el('openSignedPrivacy')?.addEventListener('click',async()=>{const d=await readPrivacyPdf(selected);if(!d)return alert('PDF firmato non disponibile.');const w=window.open('about:blank','_blank'),u=URL.createObjectURL(new Blob([d],{type:'application/pdf'}));if(w)w.location.href=u;else location.href=u;setTimeout(()=>URL.revokeObjectURL(u),60000)});
+ document.querySelectorAll('[data-review-lab]').forEach(b=>b.addEventListener('click',()=>{window.reviewLabKey=b.dataset.reviewLab;view='labReview';render()}));
+ el('openLabReviewPdf')?.addEventListener('click',async()=>{const item=pendingLabs()[window.reviewLabKey];if(!item)return;try{const d=await readLabUploadPdf(item.key);if(!d)return alert('PDF non disponibile.');const w=window.open('about:blank','_blank'),u=URL.createObjectURL(new Blob([d],{type:'application/pdf'}));if(w)w.location.href=u;else location.href=u;setTimeout(()=>URL.revokeObjectURL(u),60000)}catch(e){alert('Non riesco ad aprire il PDF.')}});
+ el('cancelLabReview')?.addEventListener('click',()=>{view='dashboard';render()});
+ el('confirmLabReview')?.addEventListener('click',()=>{const item=pendingLabs()[window.reviewLabKey];if(!item)return;const ids=['glucose','cholesterol','hdl','ldl','triglycerides','got','gpt','uricAcid','creatinine','ggt'],obj={id:'lab-'+Date.now(),date:readProDate('revDate')||today()};ids.forEach(k=>obj[k]=(el('rev'+k)?.value||'').trim());const rows=labsFor(item.patientId);rows.push(obj);saveLabsFor(item.patientId,rows);const m=pendingLabs();m[window.reviewLabKey]={...item,status:'Confermato'};savePendingLabs(m);selected=item.patientId;tab='labs';view='details';render()});
+el('newLab')?.addEventListener('click',()=>{window.editLabId='';view='labForm';render()});document.querySelectorAll('[data-edit-lab]').forEach(b=>b.addEventListener('click',()=>{window.editLabId=b.dataset.editLab;view='labForm';render()}));el('cancelLab')?.addEventListener('click',()=>{view='details';tab='labs';render()});el('saveLab')?.addEventListener('click',saveLab);el('deleteLab')?.addEventListener('click',deleteLab);const upload=()=>el('planFile')?.click();el('uploadPlan')?.addEventListener('click',upload);el('replacePlan')?.addEventListener('click',upload);el('planFile')?.addEventListener('change',async e=>{const f=e.target.files?.[0];if(!f)return;if(!f.name.toLowerCase().endsWith('.pdf'))return alert('Seleziona un PDF.');if(f.size>8*1024*1024)return alert('Per la demo usa un PDF inferiore a 8 MB.');await writePlanPdf(selected,await f.arrayBuffer());savePlanMeta(selected,{filename:f.name,planDate:readProDate('planDate')||today()});render()});el('openProPlan')?.addEventListener('click',async()=>{const d=await readPlanPdf(selected);if(!d)return alert('PDF non disponibile.');const u=URL.createObjectURL(new Blob([d],{type:'application/pdf'}));window.open(u,'_blank');setTimeout(()=>URL.revokeObjectURL(u),60000)});el('deletePlan')?.addEventListener('click',async()=>{if(!confirm('Eliminare il piano alimentare?'))return;await deletePlanPdf(selected);savePlanMeta(selected,null);render()});
  el('exportProDiaryPdf')?.addEventListener('click',exportProDiaryPdf);
  document.querySelectorAll('[data-pro-diary-day]').forEach(b=>b.addEventListener('click',()=>{
    proDiaryDate=b.dataset.proDiaryDay;
@@ -1158,6 +1257,15 @@ function bind(){
  el('nextWeek')?.addEventListener('click',()=>{weekDate=addDays(weekDate,7);render()});
  el('todayWeek')?.addEventListener('click',()=>{weekDate=new Date(today()+'T12:00:00');render()});
  el('backPatients')?.addEventListener('click',()=>{view='patients';render()});
+ document.querySelectorAll('[data-edit-visit]').forEach(b=>b.addEventListener('click',()=>{
+   const appt=appointments().find(a=>a.id===b.dataset.editVisit);
+   if(!appt)return;
+   editing={...appt};
+   eventReturnToPatient=true;
+   view='event';
+   render();
+ }));
+
  el('deletePatient')?.addEventListener('click',deleteSelectedPatient);
  el('searchPatient')?.addEventListener('input',e=>document.querySelectorAll('.pro3-patient').forEach(x=>x.style.display=x.innerText.toLowerCase().includes(e.target.value.toLowerCase())?'grid':'none'));
  el('saveSettings')?.addEventListener('click',()=>{save(SETTINGS_KEY,{name:el('sName').value,first:+el('sFirst').value||60,control:+el('sControl').value||30,dayStart:el('sStart').value||'08:00',dayEnd:el('sEnd').value||'19:00',workDays:+el('sWorkDays').value||5});alert('Impostazioni salvate')});
@@ -1167,14 +1275,20 @@ function bind(){
 
  el('saveNote')?.addEventListener('click',()=>{const n=load(NOTES_KEY,{});n[selected]=el('noteText').value;save(NOTES_KEY,n);alert('Nota salvata')});
  el('eType')?.addEventListener('change',()=>{const t=el('eType').value,s=settings();el('patientBox').style.display=t==='personal'?'none':'block';el('titleBox').style.display=t==='personal'?'block':'none';if(t==='first')el('eDuration').value=s.first;if(t==='control')el('eDuration').value=s.control});
- el('cancelEvent')?.addEventListener('click',()=>{editing=null;window.prefill=null;view='agenda';render()});
+ el('cancelEvent')?.addEventListener('click',()=>{
+   editing=null;window.prefill=null;
+   if(eventReturnToPatient){eventReturnToPatient=false;view='details';tab='visits';}
+   else view='agenda';
+   render();
+ });
  el('deleteEvent')?.addEventListener('click',()=>{
    if(!editing)return;
    if(!confirm('Vuoi eliminare questo appuntamento?'))return;
    save(APPT_KEY,appointments().filter(a=>a.id!==editing.id));
    editing=null;
    window.prefill=null;
-   view='agenda';
+   if(eventReturnToPatient){eventReturnToPatient=false;view='details';tab='visits';}
+   else view='agenda';
    render();
  });
  el('saveEvent')?.addEventListener('click',()=>{
@@ -1182,7 +1296,10 @@ function bind(){
    const type=el('eType').value;
    const obj={id:editing?.id||'e'+Date.now(),type,patientId:type==='personal'?null:el('ePatient').value,date,time:el('eTime').value,duration:+el('eDuration').value||30,title:type==='personal'?(el('eTitle').value||'Impegno personale'):'',note:el('eNote').value};
    const c=conflict(obj);if(c)return alert(`Orario già occupato: ${fmt(c.date)} alle ${c.time}. Appuntamento già fissato.`);
-   let arr=appointments();const i=arr.findIndex(a=>a.id===obj.id);if(i>=0)arr[i]=obj;else arr.push(obj);save(APPT_KEY,arr);editing=null;window.prefill=null;view='agenda';render();
+   let arr=appointments();const i=arr.findIndex(a=>a.id===obj.id);if(i>=0)arr[i]=obj;else arr.push(obj);save(APPT_KEY,arr);editing=null;window.prefill=null;
+   if(eventReturnToPatient){eventReturnToPatient=false;view='details';tab='visits';}
+   else view='agenda';
+   render();
  });
 }
 

@@ -192,3 +192,36 @@ select:focus{border-color:#55aeb4;box-shadow:0 0 0 3px #55aeb41c}
     transform:scaleX(.80) scaleY(1.12);
   }
 }
+
+/* Step 20A bugfix */
+.pro3-event-clickable{width:100%;text-align:left;cursor:pointer;border-left-width:4px}
+.pro3-event-clickable:hover{filter:brightness(.985)}
+
+/* Step 20B */
+.login-shell{max-width:480px;margin:7vh auto 0}.upload-button{display:inline-flex;align-items:center;justify-content:center;cursor:pointer;width:auto}.alert-card{border-left:4px solid #e4b93f}
+.date-entry{display:grid;grid-template-columns:minmax(0,1fr) 48px;gap:8px;align-items:stretch}.date-picker-btn{position:relative;display:flex;align-items:center;justify-content:center;margin:0;border:1px solid #d9e2e5;border-radius:14px;background:#f6f9fa;font-size:18px;cursor:pointer;overflow:hidden}.date-picker-btn input[type=date]{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;border:0;padding:0}
+
+.calorie-estimate{display:block;margin-top:4px;font-size:10px;font-weight:600;color:#7b8b91;white-space:nowrap}
+
+/* Step 20D — esami più leggibili */
+.labs-table th,.labs-table td{text-align:center;vertical-align:middle}
+.labs-table th:first-child,.labs-table td:first-child{text-align:center}
+.labs-table th:last-child,.labs-table td:last-child{text-align:center}
+.lab-values>div{text-align:center;align-items:center}
+.lab-values>div span,.lab-values>div b{display:block;text-align:center;width:100%}
+
+.diary-calorie-card{margin-bottom:14px}
+.calorie-summary-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.calorie-summary-grid>div{padding:12px 14px;border:1px solid #e6ecee;border-radius:14px;background:#fbfcfc}
+.calorie-summary-grid span,.calorie-summary-grid small{display:block;color:#718087}
+.calorie-summary-grid b{display:block;font-size:20px;margin:5px 0}
+.calorie-disclaimer{margin:10px 0 0}
+@media(max-width:640px){.calorie-summary-grid{grid-template-columns:1fr}}
+
+/* Step 20G — calorie per giornata */
+.day-calorie-preview{margin:14px 0 4px;padding:13px 14px;border:1px solid #dfe8ea;border-radius:14px;background:#f8fbfb}
+.day-calorie-preview span,.day-calorie-preview b,.day-calorie-preview small{display:block}
+.day-calorie-preview span{font-size:12px;color:#71818a;font-weight:700}
+.day-calorie-preview b{font-size:20px;margin:5px 0;color:#31484f}
+.day-calorie-preview small{color:#7b8b91;line-height:1.35}
+.history-right small+small{margin-top:3px}

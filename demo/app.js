@@ -1,6 +1,10 @@
 const KEY='diario-pro-patient-main-v1';
 const PROFILE_KEY='diario-pro-profile-main-v1';
 const MEASURE_KEY='diario-pro-measures-main-v1';
+const EXTRA_PATIENTS_KEY='diario-pro-extra-patients-v1';
+const ACCOUNT_KEY='diario-pro-accounts-v1';
+const ACTIVE_PATIENT_KEY='diario-pro-active-patient-v1';
+const PENDING_LABS_KEY='diario-pro-pending-labs-v1';
 let page='home';
 let editDate=null;
 let coffee=0;
@@ -15,35 +19,28 @@ let bmiDays=30;
 let measuresCompleteOnly=false;
 
 const $=s=>document.querySelector(s);
-const load=()=>JSON.parse(localStorage.getItem(KEY)||'[]');
-const save=d=>localStorage.setItem(KEY,JSON.stringify(d));
-const loadProfile=()=>{
-  let p={};
-  try{p=JSON.parse(localStorage.getItem(PROFILE_KEY)||'{}')||{}}catch(e){p={}}
-  const storedNumber=(key)=>{
-    const v=p[key];
-    return v===undefined||v===null||v===''?'':Number(v);
-  };
-  return {
-    name:p.name||'',
-    surname:p.surname||'',
-    birth:p.birth||'',
-    height:storedNumber('height'),
-    sex:p.sex||'',
-    goal:storedNumber('goal'),
-    nextVisit:p.nextVisit||'',
-    minWeight:storedNumber('minWeight'),
-    maxWeight:storedNumber('maxWeight'),
-    reasonableWeight:storedNumber('reasonableWeight'),
-    work:p.work||'',
-    activity:p.activity||'',
-    smoking:p.smoking||'',
-    alcohol:p.alcohol||'', diagnosis:p.diagnosis||'', theoreticalWeight:storedNumber('theoreticalWeight'), bowel:p.bowel||'', metabolism:p.metabolism||'', feeg:p.feeg||'', impedance:p.impedance||'', famObesity:!!p.famObesity, famDiabetes:!!p.famDiabetes, famHypertension:!!p.famHypertension, famCardiovascular:!!p.famCardiovascular, famDyslipidemia:!!p.famDyslipidemia, famThyroid:!!p.famThyroid, famGestational:!!p.famGestational, previousDiets:p.previousDiets||'', allergies:p.allergies||'', medications:p.medications||'', giIssues:p.giIssues||'', pastConditions:p.pastConditions||'', observations:p.observations||'', objectives:p.objectives||''
-  };
+const rawExtraPatients=()=>{try{return JSON.parse(localStorage.getItem(EXTRA_PATIENTS_KEY)||'[]')}catch(e){return []}};
+const activePatientId=()=>localStorage.getItem(ACTIVE_PATIENT_KEY)||'';
+const activeExtraPatient=()=>rawExtraPatients().find(p=>p.id===activePatientId())||null;
+const accountMap=()=>{try{return JSON.parse(localStorage.getItem(ACCOUNT_KEY)||'{}')||{}}catch(e){return {}}};
+const load=()=>{
+ const id=activePatientId();if(id&&id!=='main'){const p=activeExtraPatient();return Array.isArray(p?.diary)?JSON.parse(JSON.stringify(p.diary)):[]}
+ return JSON.parse(localStorage.getItem(KEY)||'[]');
 };
-const saveProfile=p=>localStorage.setItem(PROFILE_KEY,JSON.stringify(p));
-const loadMeasures=()=>{try{return JSON.parse(localStorage.getItem(MEASURE_KEY)||'[]')}catch(e){return []}};
-const saveMeasures=d=>localStorage.setItem(MEASURE_KEY,JSON.stringify(d));
+const save=d=>{
+ const id=activePatientId();if(id&&id!=='main'){const arr=rawExtraPatients(),i=arr.findIndex(p=>p.id===id);if(i<0)return;arr[i]={...arr[i],diary:d,weights:d.filter(x=>x.weight!==''&&x.weight!=null).map(x=>[x.date,Number(x.weight)])};localStorage.setItem(EXTRA_PATIENTS_KEY,JSON.stringify(arr));return}
+ localStorage.setItem(KEY,JSON.stringify(d));
+};
+const loadProfile=()=>{
+ let p={},id=activePatientId();
+ if(id&&id!=='main')p=activeExtraPatient()||{};else{try{p=JSON.parse(localStorage.getItem(PROFILE_KEY)||'{}')||{}}catch(e){p={}}}
+ const num=k=>p[k]===undefined||p[k]===null||p[k]===''?'':Number(p[k]);
+ let first=p.firstName||p.name||'',surname=p.surname||'';
+ if(id&&id!=='main'&&!p.firstName&&p.name){const parts=String(p.name).trim().split(/\s+/);first=parts.shift()||'';surname=surname||parts.join(' ')}
+ return {name:first,surname,birth:p.birth||'',height:num('height'),sex:p.sex||'',goal:num('goal'),nextVisit:p.nextVisit||'',minWeight:num('minWeight'),maxWeight:num('maxWeight'),reasonableWeight:num('reasonableWeight'),work:p.work||'',activity:p.activity||'',activityFactor:p.activityFactor||'',smoking:p.smoking||'',alcohol:p.alcohol||'',diagnosis:p.diagnosis||'',theoreticalWeight:num('theoreticalWeight'),bowel:p.bowel||'',metabolism:p.metabolism||'',feeg:p.feeg||'',impedance:p.impedance||'',famObesity:!!p.famObesity,famDiabetes:!!p.famDiabetes,famHypertension:!!p.famHypertension,famCardiovascular:!!p.famCardiovascular,famDyslipidemia:!!p.famDyslipidemia,famThyroid:!!p.famThyroid,famGestational:!!p.famGestational,previousDiets:p.previousDiets||'',allergies:p.allergies||'',medications:p.medications||'',giIssues:p.giIssues||'',pastConditions:p.pastConditions||'',observations:p.observations||'',objectives:p.objectives||''};
+};
+const loadMeasures=()=>{const id=activePatientId();if(id&&id!=='main'){const p=activeExtraPatient();return Array.isArray(p?.measures)?JSON.parse(JSON.stringify(p.measures)):[]}try{return JSON.parse(localStorage.getItem(MEASURE_KEY)||'[]')}catch(e){return []}};
+const saveMeasures=d=>{const id=activePatientId();if(id&&id!=='main'){const arr=rawExtraPatients(),i=arr.findIndex(p=>p.id===id);if(i<0)return;arr[i]={...arr[i],measures:d};localStorage.setItem(EXTRA_PATIENTS_KEY,JSON.stringify(arr));return}localStorage.setItem(MEASURE_KEY,JSON.stringify(d))};
 const isoToday=()=>{let d=new Date(),z=d.getTimezoneOffset()*60000;return new Date(d-z).toISOString().slice(0,10)};
 const fmt=d=>new Date(d+'T12:00:00').toLocaleDateString('it-IT',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
 const fmtShort=d=>new Date(d+'T12:00:00').toLocaleDateString('it-IT',{day:'2-digit',month:'2-digit',year:'numeric'});
@@ -51,6 +48,42 @@ const kg=v=>Number.isFinite(+v)&&v!==''?`${(+v).toFixed(1).replace('.',',')} kg`
 
 function isoToItalianDate(iso){const m=String(iso||'').match(/^(\d{4})-(\d{2})-(\d{2})$/);return m?`${m[3]}-${m[2]}-${m[1]}`:''}
 function italianDateToIso(v){const m=String(v||'').trim().match(/^(\d{2})[-\/](\d{2})[-\/](\d{4})$/);if(!m)return '';const iso=`${m[3]}-${m[2]}-${m[1]}`,d=new Date(iso+'T12:00:00');return !Number.isNaN(d.getTime())&&d.getFullYear()==+m[3]&&d.getMonth()+1==+m[2]&&d.getDate()==+m[1]?iso:''}
+
+const PATIENT_CALORIE_TABLE=[
+ ['pan bauletto',265],['pane',265],['pasta',350],['riso',360],['biscotti',450],['gocciole',470],['cereali',370],
+ ['yogurt greco',90],['yogurt',70],['latte',50],['zymil',46],['cappuccino',70],['fiocchi',100],['mozzarella',250],
+ ['pollo',165],['tacchino',135],['salmone',210],['tonno',190],['bresaola',150],['prosciutto',220],['cozze',85],
+ ['verdure',35],['iceberg',14],['insalata',20],['pomodor',18],['funghi',22],['banana',89],['fragole',32],['anguria',30],['melone',34],
+ ['mela',52],['frutta',55],['piselli',81],['olio',884],['crostata',400],['barretta',390],['succo',45]
+];
+function estimateTextCalories(text){
+ const s=String(text||'').toLowerCase();if(!s.trim())return 0;let total=0;
+ for(const [name,k100] of PATIENT_CALORIE_TABLE){
+  let at=s.indexOf(name);if(at<0)continue;
+  const around=s.slice(Math.max(0,at-35),Math.min(s.length,at+name.length+35));
+  const grams=around.match(/(\d+(?:[.,]\d+)?)\s*(?:g|gr|grammi)\b/i);
+  if(grams)total+=Number(grams[1].replace(',','.'))*k100/100;
+  else if(name==='cappuccino')total+=70;
+  else if(name==='banana'||name==='mela')total+=85;
+  else if(name==='barretta')total+=110;
+  else total+=k100*.75;
+ }
+ return Math.round(total);
+}
+function dayEstimatedCalories(entry){
+ if(!entry)return null;
+ const stored=Number(entry.estimatedCalories);
+ return Number.isFinite(stored)&&stored>0?Math.round(stored):estimateDiaryCalories(entry);
+}
+function estimateDiaryCalories(entry){
+ if(!entry)return null;const total=['breakfast','snack1','lunch','snack2','dinner'].reduce((s,k)=>s+estimateTextCalories(entry[k]),0);
+ return total>0?total:null;
+}
+function latestDiaryCalories(p){
+ const a=(p.entries||p.diary||[]).slice().sort((x,y)=>String(x.date).localeCompare(String(y.date)));
+ for(let i=a.length-1;i>=0;i--){const c=estimateDiaryCalories(a[i]);if(c)return {date:a[i].date,calories:c}}
+ return null;
+}
 function sorted(){return load().sort((a,b)=>a.date.localeCompare(b.date))}
 function weighted(){return sorted().filter(x=>Number.isFinite(+x.weight)&&x.weight!=='')}
 
@@ -112,7 +145,7 @@ function chart(items,days){
   let ticks=Array.from({length:tickCount},(_,i)=>max-(range/(tickCount-1))*i);
   let grid=ticks.map(v=>{
     let y=yFor(v);
-    return `<line x1="${left}" y1="${y}" x2="${right}" y2="${y}" class="chart-grid"/><text x="${left-2}" y="${y+1.5}" text-anchor="end" class="chart-y-label">${v.toFixed(1).replace('.',',')}</text>`;
+    return `<line x1="${left}" y1="${y}" x2="${right}" y2="${y}" class="chart-grid"/><text x="${left-2}" y="${y}" text-anchor="end" dominant-baseline="middle" class="chart-y-label">${v.toFixed(1).replace('.',',')}</text>`;
   }).join('');
 
   return `<div class="chart-wrap"><svg class="chart" viewBox="0 0 100 100" preserveAspectRatio="none">${grid}<line x1="${left}" y1="${top}" x2="${left}" y2="${bottom}" class="chart-axis"/><line x1="${left}" y1="${bottom}" x2="${right}" y2="${bottom}" class="chart-axis"/><polyline points="${pts}" class="chart-line" fill="none" vector-effect="non-scaling-stroke"/>${w.map(x=>`<circle cx="${xFor(x.date)}" cy="${yFor(+x.weight)}" r="0.55" class="chart-point" vector-effect="non-scaling-stroke"/>`).join('')}${showMovingAverage&&avgPts?`<polyline points="${avgPts}" class="chart-average" fill="none" vector-effect="non-scaling-stroke"/>`:''}</svg><span class="chart-unit">kg</span></div><div class="chart-dates"><span>${fmt(w[0].date).replace(/^[^ ]+ /,'')}</span><span>${fmt(w.at(-1).date).replace(/^[^ ]+ /,'')}</span></div>`;
@@ -138,17 +171,64 @@ function bmiChart(items,days){
   const ticks=Array.from({length:5},(_,i)=>max-(range/4)*i);
   const grid=ticks.map(v=>{
     const y=yFor(v);
-    return `<line x1="${left}" y1="${y}" x2="${right}" y2="${y}" class="chart-grid"/><text x="${left-2}" y="${y+1.5}" text-anchor="end" class="chart-y-label">${v.toFixed(1).replace('.',',')}</text>`;
+    return `<line x1="${left}" y1="${y}" x2="${right}" y2="${y}" class="chart-grid"/><text x="${left-2}" y="${y}" text-anchor="end" dominant-baseline="middle" class="chart-y-label">${v.toFixed(1).replace('.',',')}</text>`;
   }).join('');
   return `<div class="chart-wrap"><svg class="chart" viewBox="0 0 100 100" preserveAspectRatio="none">${grid}<line x1="${left}" y1="${top}" x2="${left}" y2="${bottom}" class="chart-axis"/><line x1="${left}" y1="${bottom}" x2="${right}" y2="${bottom}" class="chart-axis"/><polyline points="${pts}" class="chart-bmi-line" fill="none" vector-effect="non-scaling-stroke"/>${data.map((x,i)=>`<circle cx="${xFor(i)}" cy="${yFor(x.bmi)}" r="0.55" class="chart-bmi-point" vector-effect="non-scaling-stroke"/>`).join('')}</svg><span class="chart-unit">BMI</span></div><div class="chart-dates"><span>${fmt(data[0].date).replace(/^[^ ]+ /,'')}</span><span>${fmt(data.at(-1).date).replace(/^[^ ]+ /,'')}</span></div>`;
 }
 
-const PLAN_META_KEY='diario-pro-plan-meta-v1',PLAN_DB='diario-pro-documents-v1',PLAN_STORE='plans';function planMetaMap(){try{return JSON.parse(localStorage.getItem(PLAN_META_KEY)||'{}')||{}}catch(e){return {}}}function mainPlanMeta(){return planMetaMap().main||null}function openPlanDb(){return new Promise((res,rej)=>{const r=indexedDB.open(PLAN_DB,1);r.onupgradeneeded=()=>{if(!r.result.objectStoreNames.contains(PLAN_STORE))r.result.createObjectStore(PLAN_STORE)};r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)})}async function readPlanPdf(id='main'){const db=await openPlanDb();return new Promise((res,rej)=>{const r=db.transaction(PLAN_STORE,'readonly').objectStore(PLAN_STORE).get(id);r.onsuccess=()=>res(r.result||null);r.onerror=()=>rej(r.error)})}window.openPatientPlan=async()=>{const d=await readPlanPdf('main');if(!d)return alert('Piano alimentare non disponibile.');const u=URL.createObjectURL(new Blob([d],{type:'application/pdf'}));window.open(u,'_blank');setTimeout(()=>URL.revokeObjectURL(u),60000)};
+const PLAN_META_KEY='diario-pro-plan-meta-v1',PLAN_DB='diario-pro-documents-v1',PLAN_STORE='plans';function planMetaMap(){try{return JSON.parse(localStorage.getItem(PLAN_META_KEY)||'{}')||{}}catch(e){return {}}}function mainPlanMeta(){return planMetaMap()[activePatientId()||'main']||null}function openPlanDb(){return new Promise((res,rej)=>{const r=indexedDB.open(PLAN_DB,2);r.onupgradeneeded=()=>{if(!r.result.objectStoreNames.contains(PLAN_STORE))r.result.createObjectStore(PLAN_STORE);if(!r.result.objectStoreNames.contains('labUploads'))r.result.createObjectStore('labUploads');if(!r.result.objectStoreNames.contains('privacy'))r.result.createObjectStore('privacy')};r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)})}async function readPlanPdf(id='main'){const db=await openPlanDb();return new Promise((res,rej)=>{const r=db.transaction(PLAN_STORE,'readonly').objectStore(PLAN_STORE).get(id);r.onsuccess=()=>res(r.result||null);r.onerror=()=>rej(r.error)})}window.openPatientPlan=async()=>{
+  const win=window.open('about:blank','_blank');
+  try{
+    const d=await readPlanPdf(activePatientId()||'main');
+    if(!d){if(win)win.close();return alert('Piano alimentare non disponibile.');}
+    const u=URL.createObjectURL(new Blob([d],{type:'application/pdf'}));
+    if(win)win.location.href=u;
+    else location.href=u;
+    setTimeout(()=>URL.revokeObjectURL(u),60000);
+  }catch(e){
+    if(win)win.close();
+    alert('Non riesco ad aprire il piano alimentare.');
+  }
+};
+
+const PATIENT_APPT_KEY='diario-pro-appts-recovery-v1';
+function patientAppointments(){
+  try{
+    const a=JSON.parse(localStorage.getItem(PATIENT_APPT_KEY)||'[]');
+    return Array.isArray(a)?a:[];
+  }catch(e){return []}
+}
+function nextPatientVisit(profile){
+  const todayIso=isoToday();
+  const future=patientAppointments()
+    .filter(a=>a&&a.patientId===(activePatientId()||'main')&&a.type!=='personal'&&a.date>=todayIso)
+    .sort((a,b)=>String(a.date+a.time).localeCompare(String(b.date+b.time)));
+  if(future.length)return future[0].date;
+  return profile.nextVisit||'';
+}
+
+
+async function storeLabPdf(key,b){const db=await openPlanDb();return new Promise((res,rej)=>{const tx=db.transaction('labUploads','readwrite');tx.objectStore('labUploads').put(b,key);tx.oncomplete=res;tx.onerror=()=>rej(tx.error)})}
+function pendingLabMap(){try{return JSON.parse(localStorage.getItem(PENDING_LABS_KEY)||'{}')||{}}catch(e){return {}}}
+function parseLabValues(text){
+ const c=String(text||'').replace(/\s+/g,' '),out={};
+ const specs=[['glucose',['glicemia','glucosio']],['cholesterol',['colesterolo totale','colesterolo']],['hdl',['hdl']],['ldl',['ldl']],['triglycerides',['trigliceridi']],['got',['got','ast']],['gpt',['gpt','alt']],['uricAcid',['acido urico','uricemia']],['creatinine',['creatinina']],['ggt',['gamma gt','ggt']]];
+ for(const [k,names] of specs)for(const n of names){const safe=n.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),m=c.match(new RegExp(safe+'[^0-9]{0,24}([0-9]+(?:[.,][0-9]+)?)','i'));if(m){out[k]=m[1].replace(',','.');break}}
+ const dm=c.match(/\b([0-3]?\d)[\/.-]([01]?\d)[\/.-](20\d{2})\b/);out.date=dm?`${dm[3]}-${String(dm[2]).padStart(2,'0')}-${String(dm[1]).padStart(2,'0')}`:isoToday();return out;
+}
+async function extractPdfText(file){
+ const pdfjs=await import('https://cdn.jsdelivr.net/npm/pdfjs-dist@6.2.108/build/pdf.min.mjs');pdfjs.GlobalWorkerOptions.workerSrc='https://cdn.jsdelivr.net/npm/pdfjs-dist@6.2.108/build/pdf.worker.min.mjs';
+ const pdf=await pdfjs.getDocument({data:await file.arrayBuffer(),enableScripting:false}).promise;let t='';for(let i=1;i<=pdf.numPages;i++){const p=await pdf.getPage(i),c=await p.getTextContent();t+=' '+c.items.map(x=>x.str).join(' ')}return t;
+}
+window.uploadBloodTests=async input=>{const f=input.files?.[0];if(!f)return;if(f.type!=='application/pdf'&&!f.name.toLowerCase().endsWith('.pdf'))return alert('Seleziona un PDF.');const id=activePatientId()||'main',key='lab-'+id+'-'+Date.now();let values={},note='';try{values=parseLabValues(await extractPdfText(f));if(!Object.keys(values).some(k=>k!=='date'))note='Nessun valore riconosciuto automaticamente.'}catch(e){values={date:isoToday()};note='PDF non leggibile come testo o scansione: compilazione manuale necessaria.'}await storeLabPdf(key,await f.arrayBuffer());const m=pendingLabMap();m[key]={key,patientId:id,filename:f.name,uploadedAt:new Date().toISOString(),status:'Da verificare',values,note};localStorage.setItem(PENDING_LABS_KEY,JSON.stringify(m));input.value='';alert('Analisi inviate al professionista per la verifica.');render()};
+function bloodUploadCard(){const id=activePatientId()||'main',n=Object.values(pendingLabMap()).filter(x=>x.patientId===id&&x.status==='Da verificare').length;return `<section class="card"><div class="section-head"><h2>Analisi del sangue</h2><span class="pill">${n?n+' in verifica':'PDF'}</span></div><p class="muted">Carica il referto. I valori riconosciuti vengono proposti al professionista, che deve confermarli.</p><label class="secondary upload-button">Carica analisi PDF<input type="file" accept="application/pdf,.pdf" onchange="uploadBloodTests(this)" hidden></label></section>`}
+
 function home(){
   const profile=loadProfile();
   let visitHtml='';
-  if(profile.nextVisit){
-    const d=new Date(profile.nextVisit+'T12:00:00');
+  const effectiveNextVisit=nextPatientVisit(profile);
+  if(effectiveNextVisit){
+    const d=new Date(effectiveNextVisit+'T12:00:00');
     if(!Number.isNaN(d.getTime())){
       const visitDate=d.toLocaleDateString('it-IT',{day:'numeric',month:'long',year:'numeric'});
       visitHtml=`<section class="card next-visit-card"><div class="next-visit-icon">📅</div><div><div class="muted">Prossima visita</div><b>${visitDate}</b></div></section>`;
@@ -174,6 +254,7 @@ function home(){
   <section class="card highlight"><div class="muted caps">ULTIMA RILEVAZIONE</div>${last?`<div class="weight">${(+last.weight).toFixed(1).replace('.',',')} <small>kg</small></div><div class="delta ${deltaClass}">${delta>0?'+':''}${delta.toFixed(1).replace('.',',')} kg dall'inizio</div>${currentBmi?`<div class="bmi-now"><span>BMI</span><b>${currentBmi.toFixed(1).replace('.',',')}</b><small>${bmiLabel(currentBmi)}</small></div>`:''}<p class="muted">${fmt(last.date)}</p>`:'<p class="muted">Inserisci la prima giornata per iniziare.</p>'}</section>
   ${visitHtml}${goalHtml}
   ${(()=>{const pm=mainPlanMeta();return pm?`<section class="card plan-card"><div class="section-head"><h2>Il mio piano alimentare</h2><span class="pill">PDF</span></div><p><b>${escapeHtml(pm.filename||'Piano alimentare')}</b></p><p class="muted">${pm.planDate?'Piano del '+fmtShort(pm.planDate):'Documento pubblicato dal professionista'}</p><button class="secondary" onclick="openPatientPlan()">Apri PDF</button></section>`:''})()}
+  ${bloodUploadCard()}
   <section class="card chart-card"><div class="section-head"><h2>Ultimi 7 giorni</h2><span class="pill">Peso</span></div>${chart(w,7)}</section>
   <div class="grid actions"><button class="primary" onclick="newDay()">＋ Aggiungi giornata</button><button class="secondary" onclick="go('trend')">📈 Andamento</button></div>`;
 }
@@ -201,6 +282,11 @@ function add(){
   <label>Peso (kg)</label><input id="weight" inputmode="decimal" placeholder="es. 115,6" value="${data.weight??''}">
   <label>Caffè</label><div class="coffee"><button onclick="setCoffee(-1)">−</button><strong id="coffee">${coffee}</strong><button onclick="setCoffee(1)">＋</button></div><label>Zucchero / dolcificante</label><input id="sweetener" value="${escapeHtml(data.sweetener||'')}" placeholder="es. senza zucchero, 1 cucchiaino, stevia…">
   ${[['breakfast','Colazione','🥐'],['snack1','Spuntino mattina','🍎'],['lunch','Pranzo','🍝'],['snack2','Spuntino pomeriggio','🍎'],['dinner','Cena','🍽️'],['notes','Sport / Note','🏃']].map(([k,l,i])=>`<label>${i} ${l}</label><textarea id="${k}" placeholder="Scrivi liberamente…">${data[k]||''}</textarea>`).join('')}
+  <div class="day-calorie-preview">
+    <span>Calorie stimate della giornata</span>
+    <b>${dayEstimatedCalories(data)?dayEstimatedCalories(data)+' kcal':'Saranno calcolate al salvataggio'}</b>
+    <small>Se la giornata è parziale, la stima considera solo ciò che è stato inserito. Modificando la giornata, il valore viene ricalcolato.</small>
+  </div>
   <div class="form-actions"><button class="primary" onclick="saveDay()" ${targetExists?'disabled':''}>${duplicateDraft?'Salva copia':isEdit?'Aggiorna giornata':'Salva giornata'}</button>${isEdit?`<button class="secondary" onclick="startDuplicate()">⧉ Duplica giornata</button>`:''}</div></section>`;
 }
 
@@ -227,7 +313,7 @@ function profilePage(){
       <div><span>Sesso</span><b>${sexLabel}</b></div>
       <div><span>Altezza</span><b>${p.height?p.height+' cm':'—'}</b></div>
       <div><span>Peso obiettivo</span><b>${p.goal?p.goal+' kg':'—'}</b></div>
-      <div><span>Prossima visita</span><b>${p.nextVisit?fmtShort(p.nextVisit):'—'}</b></div>
+      <div><span>Prossima visita</span><b>${nextPatientVisit(p)?fmtShort(nextPatientVisit(p)):'—'}</b></div>
     </div>
   </section>
 
@@ -286,7 +372,7 @@ function measuresPage(){
   return `<div class="hero-title"><div><div class="eyebrow">EVOLUZIONE CORPOREA</div><h1>Misurazioni</h1></div><button class="pdf-btn" onclick="exportMeasuresPDF()">PDF</button></div>
   <section class="card">
     <div class="section-head"><h2>Nuova misurazione</h2><span class="pill">Facoltativa</span></div>
-    <label>Data</label><input id="measureDate" type="date" value="${isoToday()}">
+    <label>Data</label><div class="date-entry"><input id="measureDate" inputmode="numeric" placeholder="GG-MM-AAAA" value="${isoToItalianDate(isoToday())}"><label class="date-picker-btn">📅<input id="measureDatePicker" type="date" value="${isoToday()}" onchange="document.getElementById('measureDate').value=isoToItalianDate(this.value)"></label></div>
     <div class="measure-grid">
       <div><label>Vita (cm)</label><input id="measureWaist" inputmode="decimal" placeholder="es. 105"></div>
       <div><label>Fianchi (cm)</label><input id="measureHips" inputmode="decimal" placeholder="es. 112"></div>
@@ -317,7 +403,7 @@ function measuresPage(){
   </section>`;
 }
 window.saveMeasureForm=()=>{
-  const date=$('#measureDate')?.value;
+  const date=italianDateToIso($('#measureDate')?.value);
   if(!date)return alert('Inserisci la data.');
   const parse=id=>{
     const v=($(id)?.value||'').trim().replace(',','.');
@@ -337,7 +423,7 @@ window.saveMeasureForm=()=>{
 
 window.editMeasure=date=>{
   const m=loadMeasures().find(x=>x.date===date)||{};
-  $('#measureDate').value=date;
+  $('#measureDate').value=isoToItalianDate(date);
   $('#measureWaist').value=m.waist??'';
   $('#measureHips').value=m.hips??'';
   $('#measureNotes').value=m.notes??'';
@@ -471,6 +557,39 @@ window.exportMeasuresPDF=()=>{
   a.remove();
   setTimeout(()=>URL.revokeObjectURL(url),1500);
 };
+
+
+function patientAgeYears(birth){
+  if(!birth)return null;
+  const b=new Date(birth+'T12:00:00'),n=new Date();
+  if(Number.isNaN(b.getTime()))return null;
+  let a=n.getFullYear()-b.getFullYear();
+  if(n.getMonth()<b.getMonth()||(n.getMonth()===b.getMonth()&&n.getDate()<b.getDate()))a--;
+  return a;
+}
+function patientBmr(){
+  const p=loadProfile(),last=weighted().at(-1);
+  const w=last?Number(last.weight):null,h=Number(p.height),a=patientAgeYears(p.birth);
+  if(!w||!h||a==null||!['M','F'].includes(p.sex))return null;
+  return 10*w+6.25*h-5*a+(p.sex==='M'?5:-161);
+}
+
+function patientDiaryCalorieSummary(){
+  const calorieDays=sorted()
+    .map(x=>({date:x.date,calories:dayEstimatedCalories(x)}))
+    .filter(x=>x.calories);
+  const last=calorieDays.at(-1);
+  const bmr=patientBmr();
+  return `<section class="card diary-calorie-card">
+    <div class="section-head"><h2>Calorie dal diario</h2><span class="pill">Stima</span></div>
+    <div class="calorie-summary-grid">
+      <div><span>Ultima giornata</span><b>${last?last.calories+' kcal':'—'}</b><small>${last?fmtShort(last.date):'Nessun dato interpretabile'}</small></div>
+      <div><span>BMR senza attività</span><b>${bmr?Math.round(bmr)+' kcal/giorno':'—'}</b><small>${bmr?'Metabolismo basale stimato':'Servono peso, altezza, nascita e sesso'}</small></div>
+    </div>
+    <p class="muted calorie-disclaimer">Le calorie del diario sono indicative e dipendono dalle quantità e dagli alimenti descritti.</p>
+  </section>`;
+}
+
 function trend(){
   let all=weighted(),first=all[0],last=all.at(-1),delta=first&&last?(+last.weight)-(+first.weight):null;
   const p=loadProfile();
@@ -478,12 +597,14 @@ function trend(){
   const q=historySearch.trim().toLowerCase();
   const history=sorted().reverse().filter(x=>!q||[x.date,x.breakfast,x.snack1,x.lunch,x.snack2,x.dinner,x.notes,x.sweetener,String(x.weight),String(x.coffee)].join(' ').toLowerCase().includes(q));
   return `<div class="hero-title"><div><div class="eyebrow">STATISTICHE</div><h1>Andamento</h1></div><button class="pdf-btn" onclick="exportPDF()">PDF</button></div>
+  
+  ${patientDiaryCalorieSummary()}
   <section class="card chart-card"><div class="section-head"><h2>Peso</h2><label class="toggle"><input type="checkbox" ${showMovingAverage?'checked':''} onchange="showMovingAverage=this.checked;render()"><span>Media 7 gg</span></label></div><div class="tabs">${[[7,'7 giorni'],[30,'30 giorni'],[90,'3 mesi'],[0,'Tutto']].map(([n,l])=>`<button class="${trendDays===n?'active':''}" onclick="trendDays=${n};render()">${l}</button>`).join('')}</div>${chart(all,trendDays)}</section>
   <section class="card summary"><div class="section-head"><h2>Riepilogo peso</h2><span class="pill">Totale</span></div>${first?`<div class="stats"><div><span>Peso iniziale</span><b>${kg(first.weight)}</b></div><div><span>Ultimo peso</span><b>${kg(last.weight)}</b></div><div><span>Variazione</span><b class="${delta<0?'good':delta>0?'up':''}">${delta>0?'+':''}${delta.toFixed(1).replace('.',',')} kg</b></div></div>`:'<p class="muted">Nessun dato.</p>'}</section>
   <section class="card chart-card"><div class="section-head"><h2>BMI</h2>${currentBmi?`<span class="pill">${currentBmi.toFixed(1).replace('.',',')} · ${bmiLabel(currentBmi)}</span>`:'<span class="pill">Profilo</span>'}</div><div class="tabs">${[[7,'7 giorni'],[30,'30 giorni'],[90,'3 mesi'],[0,'Tutto']].map(([n,l])=>`<button class="${bmiDays===n?'active':''}" onclick="bmiDays=${n};render()">${l}</button>`).join('')}</div>${bmiChart(all,bmiDays)}</section>
   <section class="card"><div class="section-head"><h2>Storico</h2><div class="head-actions"><button class="mini" onclick="showImport()">↑ Importa storico</button><button class="mini" onclick="exportBackup()">↓ Backup</button><button class="mini" onclick="document.getElementById('backupFile').click()">↑ Ripristina</button><input id="backupFile" type="file" accept=".json,application/json" style="display:none" onchange="restoreBackup(event)"><button class="mini" onclick="exportPDF()">↓ Esporta PDF</button></div></div>
   <div class="search-wrap"><input id="historySearch" type="search" placeholder="Cerca nello storico…" value="${escapeHtml(historySearch)}" oninput="historySearch=this.value;renderPreserveSearch()"></div>
-  ${history.map(x=>`<div class="listitem" onclick="edit('${x.date}')"><span><b>${fmtShort(x.date)}</b><small>${fmt(x.date).split(' ')[0]}</small></span><div class="history-right"><b>${kg(x.weight)}</b>${p.height&&x.weight!==''?`<small>BMI ${bmiFor(x.weight,p.height).toFixed(1).replace('.',',')}</small>`:''}</div></div>`).join('')||'<p class="muted">Nessuna giornata trovata.</p>'}</section>`;
+  ${history.map(x=>`<div class="listitem" onclick="edit('${x.date}')"><span><b>${fmtShort(x.date)}</b><small>${fmt(x.date).split(' ')[0]}</small></span><div class="history-right"><b>${kg(x.weight)}</b>${p.height&&x.weight!==''?`<small>BMI ${bmiFor(x.weight,p.height).toFixed(1).replace('.',',')}</small>`:''}${dayEstimatedCalories(x)?`<small>${dayEstimatedCalories(x)} kcal stimate</small>`:''}</div></div>`).join('')||'<p class="muted">Nessuna giornata trovata.</p>'}</section>`;
 }
 window.renderPreserveSearch=()=>{
   const pos=document.scrollingElement?.scrollTop||0;
@@ -656,7 +777,13 @@ function restoreBackup(event){
   reader.readAsText(file);
 }
 
+
+function loginPage(){return `<div class="login-shell"><section class="card login-card"><div class="eyebrow">AREA PAZIENTE · DEMO</div><h1>Accedi al diario</h1><p class="muted">Usa le credenziali create dal professionista. Nella demo sono memorizzate solo sul dispositivo.</p><label>Username</label><input id="loginUser" autocomplete="username"><label>Password</label><input id="loginPass" type="password" autocomplete="current-password"><button class="primary" onclick="patientLogin()">Accedi</button><a href="./index.html" class="mini" style="display:inline-block;margin-top:12px">Cambia area</a></section></div>`}
+window.patientLogin=()=>{const u=($('#loginUser')?.value||'').trim().toLowerCase(),pw=$('#loginPass')?.value||'';const f=Object.entries(accountMap()).find(([id,a])=>a&&a.active!==false&&String(a.username||'').toLowerCase()===u&&String(a.password||'')===pw);if(!f)return alert('Credenziali non valide.');localStorage.setItem(ACTIVE_PATIENT_KEY,f[0]);page='home';render()};
+window.patientLogout=()=>{localStorage.removeItem(ACTIVE_PATIENT_KEY);page='home';render()};
+
 function render(){
+  const ac=accountMap(),id=activePatientId();if(Object.keys(ac).length&&(!id||!ac[id]||ac[id].active===false)){$('#app').innerHTML=loginPage();return}
   $('#app').innerHTML=page==='home'?home():page==='add'?add():page==='import'?importPage():page==='profile'?profilePage():page==='measures'?measuresPage():trend();
   const appRoot=$('#app');
   if(!document.getElementById('patient-profile-read-style')){
@@ -667,7 +794,7 @@ function render(){
   }
   if(appRoot){
     appRoot.insertAdjacentHTML('afterbegin',`<div style="display:flex;justify-content:flex-end;margin:0 0 10px">
-      <a href="./index.html" class="mini">Cambia area</a>
+      ${Object.keys(accountMap()).length?'<button class="mini" onclick="patientLogout()">Esci</button>':''}<a href="./index.html" class="mini">Cambia area</a>
     </div>`);
   }
 }
@@ -702,10 +829,14 @@ window.startDuplicate=()=>{
 window.saveDay=()=>{
   let obj=formDataFromDOM(),date=obj.date;
   if(!date)return alert('Seleziona una data.');
+  obj.estimatedCalories=estimateDiaryCalories(obj)||'';
   let a=load(),i=a.findIndex(x=>x.date===date);
   if(duplicateDraft&&i>=0)return alert('Questa data è già registrata. Scegli una data diversa.');
   if(i>=0)a[i]=obj;else a.push(obj);
-  save(a);editDate=null;duplicateDraft=null;duplicateSource=null;page='home';render();
+  save(a);
+  const kcal=obj.estimatedCalories;
+  editDate=null;duplicateDraft=null;duplicateSource=null;page='home';render();
+  if(kcal)alert(`Giornata salvata. Calorie stimate: ${kcal} kcal.`);
 };
 
 window.deleteDay=()=>{

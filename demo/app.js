@@ -542,6 +542,7 @@ function home(){
   }
   return `<div class="hero-title"><div><div class="eyebrow">IL MIO PERCORSO</div><h1>${profile.name?`Diario di ${escapeHtml([profile.name,profile.surname].filter(Boolean).join(' '))}`:'Diario'}</h1></div></div>
   <section class="card highlight"><div class="muted caps">ULTIMA RILEVAZIONE</div>${last?`<div class="weight">${(+last.weight).toFixed(1).replace('.',',')} <small>kg</small></div><div class="delta ${deltaClass}">${delta>0?'+':''}${delta.toFixed(1).replace('.',',')} kg dall'inizio</div>${currentBmi?`<div class="bmi-now"><span>BMI</span><b>${currentBmi.toFixed(1).replace('.',',')}</b><small>${bmiLabel(currentBmi)}</small></div>`:''}<p class="muted">${fmt(last.date)}</p>`:'<p class="muted">Inserisci la prima giornata per iniziare.</p>'}</section>
+  ${patientDiaryCalorieSummary()}
   ${visitHtml}${goalHtml}
   ${(()=>{const pm=mainPlanMeta();return pm?`<section class="card plan-card"><div class="section-head"><h2>Il mio piano alimentare</h2><span class="pill">PDF</span></div><p><b>${escapeHtml(pm.filename||'Piano alimentare')}</b></p><p class="muted">${pm.planDate?'Piano del '+fmtShort(pm.planDate):'Documento pubblicato dal professionista'}</p><button class="secondary" onclick="openPatientPlan()">Apri PDF</button></section>`:''})()}
   ${bloodUploadCard()}
@@ -877,12 +878,12 @@ function patientBmr(){
 }
 
 function patientDiaryCalorieSummary(){
-  const calorieDays=sorted().map(x=>({date:x.date,estimate:calorieEstimateDay(x)})).filter(x=>x.estimate.calculated);
+  const calorieDays=sorted().map(x=>({date:x.date,estimate:calorieEstimateDay(x)})).filter(x=>(x.estimate.calculated+x.estimate.genericQuantity)>0);
   const last=calorieDays.at(-1),bmr=patientBmr();
-  return `<section class="card diary-calorie-card"><div class="section-head"><h2>Calorie dal diario</h2><span class="pill">Stima</span></div><div class="calorie-summary-grid">
-  <div><span>Ultima giornata</span><b>${last?last.estimate.calories+' kcal':'—'}</b><small>${last?fmtShort(last.date)+' · '+last.estimate.qualityLabel:'Nessun dato interpretabile'}</small></div>
-  <div><span>BMR senza attività</span><b>${bmr?Math.round(bmr)+' kcal/giorno':'—'}</b><small>${bmr?'Metabolismo basale stimato':'Servono peso, altezza, nascita e sesso'}</small></div></div>
-  <p class="muted calorie-disclaimer">Gli alimenti senza quantità non vengono conteggiati: la stima segnala quando è parziale.</p></section>`;
+  return `<section class="card diary-calorie-card"><div class="section-head"><h2>Oggi in sintesi</h2><span class="pill">Stima</span></div><div class="calorie-summary-grid">
+  <div><span>Calorie stimate</span><b>${last?last.estimate.calories+' kcal':'—'}</b><small>${last?fmtShort(last.date)+' · '+last.estimate.qualityLabel:'Nessun dato interpretabile'}</small></div>
+  <div><span>BMR a riposo</span><b>${bmr?Math.round(bmr)+' kcal/giorno':'—'}</b><small>${bmr?'Metabolismo basale stimato':'Servono peso, altezza, nascita e sesso'}</small></div></div>
+  <p class="muted calorie-disclaimer">Le calorie sono una stima del diario; le quantità generiche o gli alimenti non riconosciuti riducono la precisione.</p></section>`;
 }
 
 function trend(){
@@ -893,13 +894,12 @@ function trend(){
   const history=sorted().reverse().filter(x=>!q||[x.date,x.breakfast,x.snack1,x.lunch,x.snack2,x.dinner,x.notes,x.sweetener,String(x.weight),String(x.coffee)].join(' ').toLowerCase().includes(q));
   return `<div class="hero-title"><div><div class="eyebrow">STATISTICHE</div><h1>Andamento</h1></div><button class="pdf-btn" onclick="exportPDF()">PDF</button></div>
   
-  ${patientDiaryCalorieSummary()}
   <section class="card chart-card"><div class="section-head"><h2>Peso</h2><label class="toggle"><input type="checkbox" ${showMovingAverage?'checked':''} onchange="showMovingAverage=this.checked;render()"><span>Media 7 gg</span></label></div><div class="tabs">${[[7,'7 giorni'],[30,'30 giorni'],[90,'3 mesi'],[0,'Tutto']].map(([n,l])=>`<button class="${trendDays===n?'active':''}" onclick="trendDays=${n};render()">${l}</button>`).join('')}</div>${chart(all,trendDays)}</section>
   <section class="card summary"><div class="section-head"><h2>Riepilogo peso</h2><span class="pill">Totale</span></div>${first?`<div class="stats"><div><span>Peso iniziale</span><b>${kg(first.weight)}</b></div><div><span>Ultimo peso</span><b>${kg(last.weight)}</b></div><div><span>Variazione</span><b class="${delta<0?'good':delta>0?'up':''}">${delta>0?'+':''}${delta.toFixed(1).replace('.',',')} kg</b></div></div>`:'<p class="muted">Nessun dato.</p>'}</section>
   <section class="card chart-card"><div class="section-head"><h2>BMI</h2>${currentBmi?`<span class="pill">${currentBmi.toFixed(1).replace('.',',')} · ${bmiLabel(currentBmi)}</span>`:'<span class="pill">Profilo</span>'}</div><div class="tabs">${[[7,'7 giorni'],[30,'30 giorni'],[90,'3 mesi'],[0,'Tutto']].map(([n,l])=>`<button class="${bmiDays===n?'active':''}" onclick="bmiDays=${n};render()">${l}</button>`).join('')}</div>${bmiChart(all,bmiDays)}</section>
   <section class="card"><div class="section-head"><h2>Storico</h2><div class="head-actions"><button class="mini" onclick="showImport()">↑ Importa storico</button><button class="mini" onclick="exportBackup()">↓ Backup</button><button class="mini" onclick="document.getElementById('backupFile').click()">↑ Ripristina</button><input id="backupFile" type="file" accept=".json,application/json" style="display:none" onchange="restoreBackup(event)"><button class="mini" onclick="exportPDF()">↓ Esporta PDF</button></div></div>
   <div class="search-wrap"><input id="historySearch" type="search" placeholder="Cerca nello storico…" value="${escapeHtml(historySearch)}" oninput="historySearch=this.value;renderPreserveSearch()"></div>
-  ${history.map(x=>`<div class="listitem" onclick="edit('${x.date}')"><span><b>${fmtShort(x.date)}</b><small>${fmt(x.date).split(' ')[0]}</small></span><div class="history-right"><b>${kg(x.weight)}</b>${p.height&&x.weight!==''?`<small>BMI ${bmiFor(x.weight,p.height).toFixed(1).replace('.',',')}</small>`:''}${(()=>{const ce=calorieEstimateDay(x);return ce.calculated?`<small>${ce.calories} kcal · stima ${ce.qualityLabel.toLowerCase()}</small>`:''})()}</div></div>`).join('')||'<p class="muted">Nessuna giornata trovata.</p>'}</section>`;
+  ${history.map(x=>`<div class="listitem" onclick="edit('${x.date}')"><span><b>${fmtShort(x.date)}</b><small>${fmt(x.date).split(' ')[0]}</small></span><div class="history-right"><b>${kg(x.weight)}</b>${p.height&&x.weight!==''?`<small>BMI ${bmiFor(x.weight,p.height).toFixed(1).replace('.',',')}</small>`:''}${(()=>{const ce=calorieEstimateDay(x);return (ce.calculated+ce.genericQuantity)>0?`<small>${ce.calories} kcal · stima ${ce.qualityLabel.toLowerCase()}</small>`:''})()}</div></div>`).join('')||'<p class="muted">Nessuna giornata trovata.</p>'}</section>`;
 }
 window.renderPreserveSearch=()=>{
   const pos=document.scrollingElement?.scrollTop||0;

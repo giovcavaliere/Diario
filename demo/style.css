@@ -308,3 +308,10 @@ select:focus{border-color:#55aeb4;box-shadow:0 0 0 3px #55aeb41c}
 .calorie-review-message{font-size:14px;line-height:1.6;color:#465a62;white-space:normal}
 .calorie-review-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:18px}
 .calorie-review-actions button{width:100%}
+
+/* Step 20T — calorie e BMR nella Home */
+.home-calorie-note{margin-top:6px}
+@media(max-width:480px){
+ .diary-calorie-card .calorie-summary-grid{gap:8px}
+ .diary-calorie-card .calorie-summary-grid>div{padding:10px}
+}

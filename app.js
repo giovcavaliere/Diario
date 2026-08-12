@@ -55,6 +55,240 @@ const fmt=d=>new Date(d+'T12:00:00').toLocaleDateString('it-IT',{weekday:'long',
 const fmtShort=d=>new Date(d+'T12:00:00').toLocaleDateString('it-IT',{day:'2-digit',month:'2-digit',year:'numeric'});
 const kg=v=>Number.isFinite(+v)&&v!==''?`${(+v).toFixed(1).replace('.',',')} kg`:'—';
 
+const PATIENT_CALORIE_FOODS=[
+ {names:['yogurt greco 0%','yogurt greco zero'],k100:59,portionKcal:74},
+ {names:['yogurt greco'],k100:90,portionKcal:113,generic:{vasetto:125,vasetti:125}},
+ {names:['yogurt bianco','yogurt'],k100:70,portionKcal:88,generic:{vasetto:125,vasetti:125}},
+ {names:['latte scremato'],k100:35},
+ {names:['latte parzialmente scremato','zymil'],k100:46},
+ {names:['latte intero','latte'],k100:64},
+ {names:['cappuccino'],portionKcal:70},
+ {names:['mozzarella'],k100:250},
+ {names:['ricotta'],k100:174},
+ {names:['fiocchi di latte','fiocchi'],k100:100},
+ {names:['parmigiano','grana padano','grana'],k100:398},
+
+ {names:['pan bauletto'],k100:265,generic:{fetta:25,fette:25}},
+ {names:['pane integrale'],k100:247,generic:{fetta:30,fette:30}},
+ {names:['pane'],k100:265,generic:{fetta:30,fette:30}},
+ {names:['pasta integrale'],k100:345},
+ {names:['pasta'],k100:350},
+ {names:['riso basmati'],k100:350},
+ {names:['riso'],k100:360},
+ {names:['cous cous','couscous'],k100:360},
+ {names:['farro'],k100:335},
+ {names:['orzo'],k100:354},
+ {names:['avena'],k100:389},
+ {names:['cereali'],k100:370},
+ {names:['corn flakes','cornflakes'],k100:357},
+ {names:['fette biscottate'],k100:410},
+ {names:['crackers','cracker'],k100:430},
+ {names:['grissini','grissino'],k100:430},
+ {names:['piadina'],k100:330},
+
+ {names:['gocciole'],k100:470},
+ {names:['biscotti','biscotto'],k100:450},
+ {names:['crostata'],k100:400},
+ {names:['torta'],k100:360},
+ {names:['cioccolato fondente'],k100:550},
+ {names:['cioccolato al latte'],k100:535},
+ {names:['cioccolato'],k100:540},
+ {names:['barretta cereali','barretta ai cereali','barretta','barrette'],portionKcal:110},
+
+ {names:['petto di pollo','pollo'],k100:165},
+ {names:['petto di tacchino','tacchino'],k100:135},
+ {names:['manzo magro','manzo'],k100:180},
+ {names:['vitello'],k100:172},
+ {names:['maiale'],k100:242},
+ {names:['hamburger di manzo','hamburger'],k100:250},
+ {names:['bresaola'],k100:150},
+ {names:['prosciutto crudo'],k100:270},
+ {names:['prosciutto cotto'],k100:215},
+ {names:['prosciutto'],k100:220},
+ {names:['mortadella'],k100:317},
+ {names:['salame'],k100:400},
+
+ {names:['sgombro al naturale','sgombro'],k100:205},
+ {names:['tonno al naturale'],k100:116},
+ {names:['tonno sott olio','tonno sottolio'],k100:190},
+ {names:['tonno'],k100:190},
+ {names:['salmone'],k100:210},
+ {names:['merluzzo'],k100:82},
+ {names:['orata'],k100:121},
+ {names:['branzino','spigola'],k100:124},
+ {names:['sogliola'],k100:86},
+ {names:['gamberi','gambero'],k100:99},
+ {names:['cozze'],k100:85},
+ {names:['vongole'],k100:74},
+ {names:['polpo'],k100:82},
+ {names:['calamari','calamaro'],k100:92},
+
+ {names:['uova','uovo'],portionKcal:78},
+
+ {names:['piselli'],k100:81},
+ {names:['ceci'],k100:164},
+ {names:['lenticchie'],k100:116},
+ {names:['fagioli cannellini','cannellini'],k100:90},
+ {names:['fagioli borlotti','borlotti'],k100:102},
+ {names:['fagioli'],k100:100},
+
+ {names:['carote','carota'],k100:41},
+ {names:['zucchine','zucchina'],k100:17},
+ {names:['melanzane','melanzana'],k100:25},
+ {names:['peperoni','peperone'],k100:31},
+ {names:['broccoli','broccolo'],k100:34},
+ {names:['cavolfiore'],k100:25},
+ {names:['spinaci','spinacio'],k100:23},
+ {names:['bietole','bietola'],k100:19},
+ {names:['finocchi','finocchio'],k100:31},
+ {names:['cetrioli','cetriolo'],k100:15},
+ {names:['iceberg'],k100:14},
+ {names:['lattuga'],k100:15},
+ {names:['insalata'],k100:20},
+ {names:['pomodorini','pomodoro','pomodori'],k100:18},
+ {names:['funghi'],k100:22},
+ {names:['patate lesse','patate bollite'],k100:87},
+ {names:['patate al forno'],k100:149},
+ {names:['patate'],k100:77},
+ {names:['verdure'],k100:35},
+
+ {names:['banana','banane'],portionKcal:90},
+ {names:['mela','mele'],portionKcal:80},
+ {names:['pera','pere'],portionKcal:85},
+ {names:['arancia','arance'],portionKcal:70},
+ {names:['kiwi'],portionKcal:45},
+ {names:['fragole'],k100:32},
+ {names:['anguria','cocomero'],k100:30},
+ {names:['melone'],k100:34},
+ {names:['pesca','pesche'],portionKcal:60},
+ {names:['uva'],k100:69},
+ {names:['ananas'],k100:50},
+
+ {names:['mandorle'],k100:579},
+ {names:['noci'],k100:654},
+ {names:['nocciole'],k100:628},
+ {names:['pistacchi'],k100:562},
+
+ {names:['olio extravergine','olio evo','olio'],k100:884,generic:{cucchiaino:5,cucchiaini:5,cucchiaio:10,cucchiai:10}},
+ {names:['burro'],k100:717},
+ {names:['maionese'],k100:680},
+
+ {names:['succo di frutta','succo'],portionKcal:90},
+ {names:['birra'],k100:43},
+ {names:['vino rosso','vino bianco','vino'],k100:83},
+
+ {names:['pizza margherita','margherita'],k100:270},
+ {names:['pizza'],k100:270}
+];
+
+
+function calorieNormalize(s){
+ return String(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,' ').trim();
+}
+function calorieSegments(text){
+ return String(text||'').replace(/\r/g,'').split(/\n|[;]+|\s+\+\s+/).map(x=>x.trim()).filter(Boolean);
+}
+function findCalorieFood(segment){
+ const s=calorieNormalize(segment);
+ let matches=[];
+ for(const food of PATIENT_CALORIE_FOODS){
+   for(const name of food.names){
+     const idx=s.indexOf(name);
+     if(idx>=0)matches.push({...food,matchedName:name,matchIndex:idx});
+   }
+ }
+ if(!matches.length)return null;
+ matches.sort((a,b)=>a.matchIndex-b.matchIndex || b.matchedName.length-a.matchedName.length);
+ return matches[0];
+}
+function parseSegmentCalories(segment){
+ const raw=calorieNormalize(segment),food=findCalorieFood(raw);
+ if(!food)return {segment,status:'unknown',calories:0,label:segment};
+
+ // Precise units: grams / ml
+ let m=raw.match(/(\d+(?:[.,]\d+)?)\s*(g|gr|grammi|ml)\b/i);
+ if(m){
+   const qty=Number(m[1].replace(',','.'));
+   if(Number.isFinite(qty)&&qty>0&&food.k100)
+     return {segment,status:'calculated',calories:Math.round(qty*food.k100/100),label:food.matchedName,quantity:`${qty} ${m[2]}`};
+ }
+
+ // Household/generic units: slices, spoons, jars...
+ m=raw.match(/(\d+(?:[.,]\d+)?)\s*(fetta|fette|cucchiaino|cucchiaini|cucchiaio|cucchiai|vasetto|vasetti|porzione|porzioni)\b/i);
+ if(m){
+   const qty=Number(m[1].replace(',','.'));
+   const unit=m[2].toLowerCase();
+   if(Number.isFinite(qty)&&qty>0){
+     if(food.generic && food.generic[unit] && food.k100){
+       const grams=qty*food.generic[unit];
+       return {
+         segment,
+         status:'genericQuantity',
+         calories:Math.round(grams*food.k100/100),
+         label:food.matchedName,
+         quantity:`${qty} ${unit}`,
+         assumedGrams:Math.round(grams)
+       };
+     }
+     // Quantity exists but we do not know a safe conversion for this food.
+     return {segment,status:'genericQuantityNoEstimate',calories:0,label:food.matchedName,quantity:`${qty} ${unit}`};
+   }
+ }
+
+ // Countable foods such as 1 banana, 2 uova, 1 yogurt.
+ m=raw.match(/^(\d+(?:[.,]\d+)?)\s+(?:di\s+)?/i);
+ if(m&&!/\b(g|gr|grammi|ml)\b/i.test(raw)){
+   const qty=Number(m[1].replace(',','.'));
+   if(Number.isInteger(qty)&&qty>0&&qty<=10&&food.portionKcal)
+     return {segment,status:'genericQuantity',calories:Math.round(qty*food.portionKcal),label:food.matchedName,quantity:`${qty} porz.`};
+   if(qty>=10&&food.k100)
+     return {segment,status:'calculated',calories:Math.round(qty*food.k100/100),label:food.matchedName,quantity:`${qty} g*`};
+ }
+
+ return {segment,status:'missingQuantity',calories:0,label:food.matchedName};
+}
+function calorieEstimateText(text){
+ const items=calorieSegments(text).map(parseSegmentCalories);
+ return {
+   calories:items.reduce((s,x)=>s+x.calories,0),
+   calculated:items.filter(x=>x.status==='calculated').length,
+   genericQuantity:items.filter(x=>x.status==='genericQuantity').length,
+   genericQuantityNoEstimate:items.filter(x=>x.status==='genericQuantityNoEstimate').length,
+   missingQuantity:items.filter(x=>x.status==='missingQuantity').length,
+   unknown:items.filter(x=>x.status==='unknown').length,
+   total:items.length,
+   items
+ };
+}
+function calorieEstimateDay(entry){
+ const results=['breakfast','snack1','lunch','snack2','dinner'].map(k=>calorieEstimateText(entry?.[k]||''));
+ const r={
+   calories:results.reduce((s,x)=>s+x.calories,0),
+   calculated:results.reduce((s,x)=>s+x.calculated,0),
+   genericQuantity:results.reduce((s,x)=>s+x.genericQuantity,0),
+   genericQuantityNoEstimate:results.reduce((s,x)=>s+x.genericQuantityNoEstimate,0),
+   missingQuantity:results.reduce((s,x)=>s+x.missingQuantity,0),
+   unknown:results.reduce((s,x)=>s+x.unknown,0),
+   total:results.reduce((s,x)=>s+x.total,0),
+   items:results.flatMap(x=>x.items)
+ };
+ const usable=r.calculated+r.genericQuantity;
+ if(!r.total||!usable){r.quality='none';r.qualityLabel='Non disponibile'}
+ else if(r.unknown===0&&r.missingQuantity===0&&r.genericQuantity===0&&r.genericQuantityNoEstimate===0){r.quality='good';r.qualityLabel='Buona'}
+ else{r.quality='partial';r.qualityLabel='Parziale'}
+ return r;
+}
+function estimateDiaryCalories(entry){const r=calorieEstimateDay(entry);return (r.calculated+r.genericQuantity)?r.calories:null}
+function dayEstimatedCalories(entry){return estimateDiaryCalories(entry)}
+function latestDiaryCalories(p){
+ const a=(p.entries||p.diary||[]).slice().sort((x,y)=>String(x.date).localeCompare(String(y.date)));
+ for(let i=a.length-1;i>=0;i--){const r=calorieEstimateDay(a[i]);if(r.calculated)return {date:a[i].date,calories:r.calories,quality:r.quality,qualityLabel:r.qualityLabel}}
+ return null;
+}
+function cleanLegacyCalories(items){
+ return (items||[]).map(x=>{const y={...x};delete y.estimatedCalories;return y});
+}
+
 function sorted(){return load().sort((a,b)=>a.date.localeCompare(b.date))}
 function weighted(){return sorted().filter(x=>Number.isFinite(+x.weight)&&x.weight!=='')}
 
@@ -175,6 +409,7 @@ function home(){
   }
   return `<div class="hero-title"><div><div class="eyebrow">IL MIO PERCORSO</div><h1>${profile.name?`Diario di ${escapeHtml(profile.name)}`:'Diario'}</h1></div><div class="hero-icon">✓</div></div>
   <section class="card highlight"><div class="muted caps">ULTIMA RILEVAZIONE</div>${last?`<div class="weight">${(+last.weight).toFixed(1).replace('.',',')} <small>kg</small></div><div class="delta ${deltaClass}">${delta>0?'+':''}${delta.toFixed(1).replace('.',',')} kg dall'inizio</div>${currentBmi?`<div class="bmi-now"><span>BMI</span><b>${currentBmi.toFixed(1).replace('.',',')}</b><small>${bmiLabel(currentBmi)}</small></div>`:''}<p class="muted">${fmt(last.date)}</p>`:'<p class="muted">Inserisci la prima giornata per iniziare.</p>'}</section>
+  ${patientDiaryCalorieSummary()}
   ${visitHtml}${goalHtml}
   <section class="card chart-card"><div class="section-head"><h2>Ultimi 7 giorni</h2><span class="pill">Peso</span></div>${chart(w,7)}</section>
   <div class="grid actions"><button class="primary" onclick="newDay()">＋ Aggiungi giornata</button><button class="secondary" onclick="go('trend')">📈 Andamento</button></div>`;
@@ -199,6 +434,24 @@ function add(){
   return `<div class="page-title"><button class="back" onclick="cancelEdit()">‹</button><div><div class="eyebrow">${duplicateDraft?'COPIA RAPIDA':isEdit?'REGISTRAZIONE':'NUOVA REGISTRAZIONE'}</div><h1>${duplicateDraft?'Duplica giornata':isEdit?'Modifica giornata':'Aggiungi giornata'}</h1></div></div>
   ${duplicateDraft?`<div class="notice">Stai copiando <b>${fmtShort(duplicateSource)}</b>. Peso escluso: modifica quello che vuoi e salva con una nuova data.</div>`:''}
   <section class="card form-card"><label>Data</label>${dateControl("dateText",targetDate,"dateChanged")}${targetExists?'<div class="warning">Questa data è già registrata. Scegline un’altra per evitare duplicati.</div>':''}
+  ${(()=>{
+    const ce=calorieEstimateDay(data);
+    const bmr=patientBmr();
+    const usable=ce.calculated+ce.genericQuantity;
+    return `<div class="diary-top-metrics">
+      <div>
+        <span>Calorie stimate</span>
+        <b id="liveDiaryCalories">${usable?ce.calories+' kcal':'—'}</b>
+        <small id="liveDiaryCaloriesQuality">${usable?'Stima '+ce.qualityLabel.toLowerCase():'Compila i pasti per la stima'}</small>
+      </div>
+      <div>
+        <span>BMR a riposo</span>
+        <b>${bmr?Math.round(bmr)+' kcal/giorno':'—'}</b>
+        <small>${bmr?'Metabolismo basale stimato':'Completa peso, altezza, nascita e sesso'}</small>
+      </div>
+    </div>
+    <p class="calorie-writing-tip-single">Per una stima più accurata indica <b>quantità + alimento</b>, separandoli con <b>+</b> o andando a capo. Esempio: <b>150 g yogurt greco + 45 g biscotti</b>.</p>`;
+  })()}
   <label>Peso (kg)</label><input id="weight" inputmode="decimal" placeholder="es. 115,6" value="${data.weight??''}">
   <label>Caffè</label><div class="coffee"><button onclick="setCoffee(-1)">−</button><strong id="coffee">${coffee}</strong><button onclick="setCoffee(1)">＋</button></div>
   <label>Zucchero / dolcificante</label><input id="sweetener" type="text" placeholder="es. 1 cucchiaino di zucchero, stevia..." value="${escapeHtml(data.sweetener||'')}">
@@ -472,6 +725,31 @@ window.exportMeasuresPDF=()=>{
   a.remove();
   setTimeout(()=>URL.revokeObjectURL(url),1500);
 };
+function patientAgeYears(birth){
+  if(!birth)return null;
+  const b=new Date(birth+'T12:00:00'),n=new Date();
+  if(Number.isNaN(b.getTime()))return null;
+  let a=n.getFullYear()-b.getFullYear();
+  if(n.getMonth()<b.getMonth()||(n.getMonth()===b.getMonth()&&n.getDate()<b.getDate()))a--;
+  return a;
+}
+function patientBmr(){
+  const p=loadProfile(),last=weighted().at(-1);
+  const w=last?Number(last.weight):null,h=Number(p.height),a=patientAgeYears(p.birth);
+  if(!w||!h||a==null||!['M','F'].includes(p.sex))return null;
+  return 10*w+6.25*h-5*a+(p.sex==='M'?5:-161);
+}
+
+function patientDiaryCalorieSummary(){
+  const calorieDays=sorted().map(x=>({date:x.date,estimate:calorieEstimateDay(x)})).filter(x=>(x.estimate.calculated+x.estimate.genericQuantity)>0);
+  const last=calorieDays.at(-1),bmr=patientBmr();
+  return `<section class="card diary-calorie-card"><div class="section-head"><h2>Oggi in sintesi</h2><span class="pill">Stima</span></div><div class="calorie-summary-grid">
+  <div><span>Calorie stimate</span><b>${last?last.estimate.calories+' kcal':'—'}</b><small>${last?fmtShort(last.date)+' · '+last.estimate.qualityLabel:'Nessun dato interpretabile'}</small></div>
+  <div><span>BMR a riposo</span><b>${bmr?Math.round(bmr)+' kcal/giorno':'—'}</b><small>${bmr?'Metabolismo basale stimato':'Servono peso, altezza, nascita e sesso'}</small></div></div>
+  <p class="muted calorie-disclaimer">Le calorie sono una stima del diario; le quantità generiche o gli alimenti non riconosciuti riducono la precisione.</p></section>`;
+}
+
+
 function trend(){
   let all=weighted(),first=all[0],last=all.at(-1),delta=first&&last?(+last.weight)-(+first.weight):null;
   const p=loadProfile();
@@ -484,7 +762,7 @@ function trend(){
   <section class="card chart-card"><div class="section-head"><h2>BMI</h2>${currentBmi?`<span class="pill">${currentBmi.toFixed(1).replace('.',',')} · ${bmiLabel(currentBmi)}</span>`:'<span class="pill">Profilo</span>'}</div><div class="tabs">${[[7,'7 giorni'],[30,'30 giorni'],[90,'3 mesi'],[0,'Tutto']].map(([n,l])=>`<button class="${bmiDays===n?'active':''}" onclick="bmiDays=${n};render()">${l}</button>`).join('')}</div>${bmiChart(all,bmiDays)}</section>
   <section class="card"><div class="section-head"><h2>Storico</h2><div class="head-actions"><button class="mini" onclick="showImport()">↑ Importa storico</button><button class="mini" onclick="exportBackup()">↓ Backup</button><button class="mini" onclick="document.getElementById('backupFile').click()">↑ Ripristina</button><input id="backupFile" type="file" accept=".json,application/json" style="display:none" onchange="restoreBackup(event)"><button class="mini" onclick="exportPDF()">↓ Esporta PDF</button></div></div>
   <div class="search-wrap"><input id="historySearch" type="search" placeholder="Cerca nello storico…" value="${escapeHtml(historySearch)}" oninput="historySearch=this.value;renderPreserveSearch()"></div>
-  ${history.map(x=>`<div class="listitem" onclick="edit('${x.date}')"><span><b>${fmtShort(x.date)}</b><small>${fmt(x.date).split(' ')[0]}</small></span><div class="history-right"><b>${kg(x.weight)}</b>${p.height&&x.weight!==''?`<small>BMI ${bmiFor(x.weight,p.height).toFixed(1).replace('.',',')}</small>`:''}</div></div>`).join('')||'<p class="muted">Nessuna giornata trovata.</p>'}</section>`;
+  ${history.map(x=>`<div class="listitem" onclick="edit('${x.date}')"><span><b>${fmtShort(x.date)}</b><small>${fmt(x.date).split(' ')[0]}</small></span><div class="history-right"><b>${kg(x.weight)}</b>${p.height&&x.weight!==''?`<small>BMI ${bmiFor(x.weight,p.height).toFixed(1).replace('.',',')}</small>`:''}${(()=>{const ce=calorieEstimateDay(x);return (ce.calculated+ce.genericQuantity)>0?`<small>${ce.calories} kcal · stima ${ce.qualityLabel.toLowerCase()}</small>`:''})()}</div></div>`).join('')||'<p class="muted">Nessuna giornata trovata.</p>'}</section>`;
 }
 window.renderPreserveSearch=()=>{
   const pos=document.scrollingElement?.scrollTop||0;
@@ -686,13 +964,94 @@ window.startDuplicate=()=>{
   page='add';render();scrollTo(0,0);
 };
 
+window.updateDiaryCaloriePreview=()=>{
+ const out=$('#liveDiaryCalories');
+ if(!out)return;
+ const draft={};
+ ['breakfast','snack1','lunch','snack2','dinner'].forEach(k=>draft[k]=$('#'+k)?.value||'');
+ const ce=calorieEstimateDay(draft);
+ const usable=ce.calculated+ce.genericQuantity;out.textContent=usable?ce.calories+' kcal':'—';
+ const q=$('#liveDiaryCaloriesQuality');
+ if(q)q.textContent=usable?'Stima '+ce.qualityLabel.toLowerCase():'Compila i pasti per la stima';
+};
+document.addEventListener('input',e=>{
+ if(['breakfast','snack1','lunch','snack2','dinner'].includes(e.target?.id)){
+   window.updateDiaryCaloriePreview();
+ }
+});
+
+
+function calorieIssueLabels(items,status){
+ return [...new Set(
+   (items||[])
+     .filter(x=>x.status===status)
+     .map(x=>String(x.label||x.segment||'').trim())
+     .filter(Boolean)
+ )];
+}
+
+function calorieReviewMessage(estimate){
+ const missing=calorieIssueLabels(estimate.items,'missingQuantity');
+ const unknown=calorieIssueLabels(estimate.items,'unknown');
+ const generic=estimate.items.filter(x=>x.status==='genericQuantity').map(x=>`${x.label} — ${x.quantity}`).filter(Boolean);
+ const genericNo=estimate.items.filter(x=>x.status==='genericQuantityNoEstimate').map(x=>`${x.label} — ${x.quantity}`).filter(Boolean);
+ const lines=[];
+ const usable=estimate.calculated+estimate.genericQuantity;
+
+ if(estimate.quality==='good'){
+   lines.push(`Stima giornata: ${estimate.calories} kcal`,`✓ ${usable} alimenti calcolati`,'Qualità stima: buona');
+ }else if(estimate.quality==='partial'){
+   lines.push(`Stima parziale: ${estimate.calories} kcal`,`✓ ${usable} alimenti calcolati`);
+   if(unknown.length)lines.push(`⚠️ Alimenti non riconosciuti: ${unknown.join(', ')}`);
+   if(missing.length)lines.push(`⚠️ Senza quantità: ${missing.join(', ')}`);
+   if(generic.length)lines.push(`⚠️ Quantità generica: ${generic.join(', ')}`);
+   if(genericNo.length)lines.push(`⚠️ Quantità generica non stimabile: ${genericNo.join(', ')}`);
+ }else{
+   lines.push('Stima calorie non disponibile.');
+   if(unknown.length)lines.push(`⚠️ Alimenti non riconosciuti: ${unknown.join(', ')}`);
+   if(missing.length)lines.push(`⚠️ Senza quantità: ${missing.join(', ')}`);
+   if(genericNo.length)lines.push(`⚠️ Quantità generica non stimabile: ${genericNo.join(', ')}`);
+ }
+ return lines.join('\n');
+}
+function showCalorieSaveReview(estimate,onRegister){
+ const old=document.getElementById('calorieSaveReview');if(old)old.remove();
+ const modal=document.createElement('div');
+ modal.id='calorieSaveReview';
+ modal.className='calorie-review-overlay';
+ modal.innerHTML=`<div class="calorie-review-modal">
+   <h3>Controllo calorie</h3>
+   <div class="calorie-review-message">${calorieReviewMessage(estimate).replace(/\n/g,'<br>')}</div>
+   <div class="calorie-review-actions">
+     <button type="button" class="secondary" id="calorieReviewCorrect">Correggi</button>
+     <button type="button" class="primary" id="calorieReviewRegister">Registra</button>
+   </div>
+ </div>`;
+ document.body.appendChild(modal);
+ document.getElementById('calorieReviewCorrect').onclick=()=>modal.remove();
+ document.getElementById('calorieReviewRegister').onclick=()=>{modal.remove();onRegister()};
+}
 window.saveDay=()=>{
-  let obj=formDataFromDOM(),date=obj.date;
-  if(!date)return alert('Seleziona una data.');
-  let a=load(),i=a.findIndex(x=>x.date===date);
-  if(duplicateDraft&&i>=0)return alert('Questa data è già registrata. Scegli una data diversa.');
-  if(i>=0)a[i]=obj;else a.push(obj);
-  save(a);editDate=null;duplicateDraft=null;duplicateSource=null;page='home';render();
+ let obj=formDataFromDOM(),date=obj.date;
+ if(!date)return alert('Seleziona una data.');
+ delete obj.estimatedCalories;
+ const estimate=calorieEstimateDay(obj);
+ let a=load(),i=a.findIndex(x=>x.date===date);
+ if(duplicateDraft&&i>=0)return alert('Questa data è già registrata. Scegli una data diversa.');
+
+ const register=()=>{
+   // Rilegge i campi al momento della registrazione: se l'utente ha corretto,
+   // il salvataggio successivo userà sempre il testo aggiornato.
+   obj=formDataFromDOM();delete obj.estimatedCalories;date=obj.date;
+   a=load();i=a.findIndex(x=>x.date===date);
+   if(i>=0)a[i]=obj;else a.push(obj);
+   save(a);
+   editDate=null;duplicateDraft=null;duplicateSource=null;page='home';render();
+ };
+
+ // Se ci sono pasti compilati mostriamo sempre il controllo prima del salvataggio.
+ if(estimate.total)showCalorieSaveReview(estimate,register);
+ else register();
 };
 
 window.deleteDay=()=>{

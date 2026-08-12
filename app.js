@@ -152,13 +152,13 @@ function estimateLineCalories(line){
 }
 
 function estimateTextCalories(text){
-  const lines=String(text||'')
+  const parts=String(text||'')
     .replace(/\r/g,'')
-    .split(/\n|[;]+/)
+    .split(/\n|[;]+|\s+\+\s+/)
     .map(x=>x.trim())
     .filter(Boolean);
 
-  return lines.reduce((sum,line)=>sum+estimateLineCalories(line),0);
+  return parts.reduce((sum,part)=>sum+estimateLineCalories(part),0);
 }
 
 function estimateDiaryCalories(entry){
@@ -167,8 +167,7 @@ function estimateDiaryCalories(entry){
   return total>0?total:null;
 }
 function dayEstimatedCalories(entry){
-  const stored=Number(entry?.estimatedCalories);
-  return Number.isFinite(stored)&&stored>0?Math.round(stored):estimateDiaryCalories(entry);
+  return estimateDiaryCalories(entry);
 }
 function ageYears(birth){
   if(!birth)return null;

@@ -249,3 +249,13 @@ select:focus{border-color:#55aeb4;box-shadow:0 0 0 3px #55aeb41c}
   }
 }
 
+
+/* Step 20M — eliminazione referto in fase di verifica */
+.danger-soft{border:1px solid #d7a5a5;background:#fff5f5;color:#9d3030}
+.lab-review-actions{display:flex;flex-wrap:wrap;gap:10px}
+.lab-review-actions button{flex:1 1 150px}
+@media(max-width:480px){
+ .lab-review-actions{display:grid;grid-template-columns:1fr 1fr}
+ .lab-review-actions button{width:100%;min-width:0}
+ .lab-review-actions #confirmLabReview{grid-column:1/-1}
+}

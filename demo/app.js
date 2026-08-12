@@ -216,9 +216,34 @@ function parseLabValues(text){
  for(const [k,names] of specs)for(const n of names){const safe=n.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),m=c.match(new RegExp(safe+'[^0-9]{0,24}([0-9]+(?:[.,][0-9]+)?)','i'));if(m){out[k]=m[1].replace(',','.');break}}
  const dm=c.match(/\b([0-3]?\d)[\/.-]([01]?\d)[\/.-](20\d{2})\b/);out.date=dm?`${dm[3]}-${String(dm[2]).padStart(2,'0')}-${String(dm[1]).padStart(2,'0')}`:isoToday();return out;
 }
+let pdfJsCompatPromise=null;
+function loadPdfJsCompat(){
+ if(window.pdfjsLib)return Promise.resolve(window.pdfjsLib);
+ if(pdfJsCompatPromise)return pdfJsCompatPromise;
+ pdfJsCompatPromise=new Promise((resolve,reject)=>{
+   const s=document.createElement('script');
+   s.src='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+   s.async=true;
+   s.onload=()=>{
+     if(!window.pdfjsLib)return reject(new Error('PDF.js non disponibile'));
+     window.pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+     resolve(window.pdfjsLib);
+   };
+   s.onerror=()=>reject(new Error('Impossibile caricare PDF.js'));
+   document.head.appendChild(s);
+ });
+ return pdfJsCompatPromise;
+}
 async function extractPdfText(file){
- const pdfjs=await import('https://cdn.jsdelivr.net/npm/pdfjs-dist@6.2.108/build/pdf.min.mjs');pdfjs.GlobalWorkerOptions.workerSrc='https://cdn.jsdelivr.net/npm/pdfjs-dist@6.2.108/build/pdf.worker.min.mjs';
- const pdf=await pdfjs.getDocument({data:await file.arrayBuffer(),enableScripting:false}).promise;let t='';for(let i=1;i<=pdf.numPages;i++){const p=await pdf.getPage(i),c=await p.getTextContent();t+=' '+c.items.map(x=>x.str).join(' ')}return t;
+ const pdfjs=await loadPdfJsCompat();
+ const buffer=await file.arrayBuffer();
+ const pdf=await pdfjs.getDocument({data:new Uint8Array(buffer),enableScripting:false}).promise;
+ let t='';
+ for(let i=1;i<=pdf.numPages;i++){
+   const p=await pdf.getPage(i),c=await p.getTextContent();
+   t+=' '+c.items.map(x=>x.str).join(' ');
+ }
+ return t;
 }
 window.uploadBloodTests=async input=>{const f=input.files?.[0];if(!f)return;if(f.type!=='application/pdf'&&!f.name.toLowerCase().endsWith('.pdf'))return alert('Seleziona un PDF.');const id=activePatientId()||'main',key='lab-'+id+'-'+Date.now();let values={},note='';try{values=parseLabValues(await extractPdfText(f));if(!Object.keys(values).some(k=>k!=='date'))note='Nessun valore riconosciuto automaticamente.'}catch(e){values={date:isoToday()};note='PDF non leggibile come testo o scansione: compilazione manuale necessaria.'}await storeLabPdf(key,await f.arrayBuffer());const m=pendingLabMap();m[key]={key,patientId:id,filename:f.name,uploadedAt:new Date().toISOString(),status:'Da verificare',values,note};localStorage.setItem(PENDING_LABS_KEY,JSON.stringify(m));input.value='';alert('Analisi inviate al professionista per la verifica.');render()};
 function bloodUploadCard(){const id=activePatientId()||'main',n=Object.values(pendingLabMap()).filter(x=>x.patientId===id&&x.status==='Da verificare').length;return `<section class="card"><div class="section-head"><h2>Analisi del sangue</h2><span class="pill">${n?n+' in verifica':'PDF'}</span></div><p class="muted">Carica il referto. I valori riconosciuti vengono proposti al professionista, che deve confermarli.</p><label class="secondary upload-button">Carica analisi PDF<input type="file" accept="application/pdf,.pdf" onchange="uploadBloodTests(this)" hidden></label></section>`}

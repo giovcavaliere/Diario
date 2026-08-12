@@ -225,3 +225,26 @@ select:focus{border-color:#55aeb4;box-shadow:0 0 0 3px #55aeb41c}
 .day-calorie-preview b{font-size:20px;margin:5px 0;color:#31484f}
 .day-calorie-preview small{color:#7b8b91;line-height:1.35}
 .history-right small+small{margin-top:3px}
+
+/* Step 20I — fix iPhone notifica analisi, nessuna modifica iPad */
+@media(max-width:480px){
+  .alert-card .pro3-patient{
+    grid-template-columns:38px minmax(0,1fr);
+    gap:9px;
+    align-items:center;
+  }
+  .alert-card .pro3-patient>div:nth-child(2){
+    min-width:0;
+  }
+  .alert-card .pro3-patient span{
+    white-space:normal;
+    overflow-wrap:anywhere;
+    word-break:break-word;
+  }
+  .alert-card .pro3-patient>strong{
+    grid-column:2;
+    justify-self:start;
+    margin-top:2px;
+    font-size:12px;
+  }
+}

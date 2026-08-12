@@ -44,143 +44,16 @@ const saveProfile=p=>localStorage.setItem(PROFILE_KEY,JSON.stringify(p));
 const loadMeasures=()=>{try{return JSON.parse(localStorage.getItem(MEASURE_KEY)||'[]')}catch(e){return []}};
 const saveMeasures=d=>localStorage.setItem(MEASURE_KEY,JSON.stringify(d));
 const isoToday=()=>{let d=new Date(),z=d.getTimezoneOffset()*60000;return new Date(d-z).toISOString().slice(0,10)};
+const isoToItalianDate=v=>{if(!/^\d{4}-\d{2}-\d{2}$/.test(String(v||'')))return '';const [y,m,d]=v.split('-');return `${d}-${m}-${y}`};
+const italianDateToIso=v=>{const s=String(v||'').trim();let m=s.match(/^(\d{1,2})[-\/.](\d{1,2})[-\/.](\d{4})$/);if(!m)return /^\d{4}-\d{2}-\d{2}$/.test(s)?s:'';const d=String(m[1]).padStart(2,'0'),mo=String(m[2]).padStart(2,'0'),y=m[3],iso=`${y}-${mo}-${d}`,dt=new Date(iso+'T12:00:00');return !Number.isNaN(dt.getTime())&&dt.getFullYear()==+y&&dt.getMonth()+1==+mo&&dt.getDate()==+d?iso:''};
+function dateControl(id,isoValue,onchangeFn=''){
+ const picker=id+'Picker';
+ return `<div class="date-entry"><input id="${id}" inputmode="numeric" placeholder="GG-MM-AAAA" value="${isoToItalianDate(isoValue||'')}"><label class="date-picker-btn" aria-label="Apri calendario">📅<input id="${picker}" type="date" value="${isoValue||''}" onchange="document.getElementById('${id}').value=isoToItalianDate(this.value);${onchangeFn?onchangeFn+'(this.value);':''}"></label></div>`;
+}
+
 const fmt=d=>new Date(d+'T12:00:00').toLocaleDateString('it-IT',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
 const fmtShort=d=>new Date(d+'T12:00:00').toLocaleDateString('it-IT',{day:'2-digit',month:'2-digit',year:'numeric'});
 const kg=v=>Number.isFinite(+v)&&v!==''?`${(+v).toFixed(1).replace('.',',')} kg`:'—';
-
-function isoToItalianDate(iso){
-  const m=String(iso||'').match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  return m?`${m[3]}-${m[2]}-${m[1]}`:'';
-}
-function italianDateToIso(value){
-  const m=String(value||'').trim().match(/^(\d{2})[-\/](\d{2})[-\/](\d{4})$/);
-  if(!m)return '';
-  const iso=`${m[3]}-${m[2]}-${m[1]}`;
-  const d=new Date(iso+'T12:00:00');
-  return !Number.isNaN(d.getTime())&&d.getFullYear()==+m[3]&&d.getMonth()+1==+m[2]&&d.getDate()==+m[1]?iso:'';
-}
-function dateControl(id,isoValue='',onChange=''){
-  const handler=onChange?` onchange="${onChange}(this.value)"`:'';
-  return `<div class="date-entry"><input id="${id}" type="text" inputmode="numeric" placeholder="GG-MM-AAAA" value="${isoToItalianDate(isoValue)}"><label class="date-picker-btn" title="Apri calendario">📅<input type="date" data-date-target="${id}" value="${isoValue||''}"${handler}></label></div>`;
-}
-
-
-const CALORIE_TABLE=[
- ['yogurt greco',90],
- ['pan bauletto',265],
- ['biscotti',450],
- ['gocciole',470],
- ['cereali',370],
- ['pasta',350],
- ['riso',360],
- ['pane',265],
- ['yogurt',70],
- ['latte',50],
- ['zymil',46],
- ['cappuccino',70],
- ['fiocchi',100],
- ['mozzarella',250],
- ['pollo',165],
- ['tacchino',135],
- ['salmone',210],
- ['tonno',190],
- ['bresaola',150],
- ['prosciutto',220],
- ['cozze',85],
- ['verdure',35],
- ['iceberg',14],
- ['insalata',20],
- ['pomodor',18],
- ['funghi',22],
- ['banana',89],
- ['fragole',32],
- ['anguria',30],
- ['melone',34],
- ['mela',52],
- ['frutta',55],
- ['piselli',81],
- ['olio',884],
- ['crostata',400],
- ['barretta',390],
- ['succo',45]
-];
-
-function estimateLineCalories(line){
-  let s=String(line||'').toLowerCase().trim();
-  if(!s)return 0;
-
-  // Normalizza separatori e spazi, ma mantiene la riga indipendente.
-  s=s.replace(/\s+/g,' ');
-
-  // Cerca prima gli alimenti più specifici/lunghi, evitando doppi conteggi
-  // come "yogurt greco" + "yogurt".
-  const foods=[...CALORIE_TABLE].sort((a,b)=>b[0].length-a[0].length);
-
-  for(const [name,kcal100] of foods){
-    if(!s.includes(name))continue;
-
-    // Quantità: accetta "150 gr", "150 g", "150 grammi"
-    // e anche forme tipo "150 di yogurt greco".
-    let grams=null;
-
-    // Prima prova a leggere il numero immediatamente prima del nome alimento.
-    const idx=s.indexOf(name);
-    const before=s.slice(0,idx).trim();
-
-    let m=before.match(/(\d+(?:[.,]\d+)?)\s*(?:g|gr|grammi)?\s*(?:di)?\s*$/i);
-    if(m) grams=Number(m[1].replace(',','.'));
-
-    // In alternativa cerca una quantità esplicita nella stessa riga.
-    if(grams==null){
-      m=s.match(/(\d+(?:[.,]\d+)?)\s*(?:g|gr|grammi)\b/i);
-      if(m) grams=Number(m[1].replace(',','.'));
-    }
-
-    if(grams!=null && Number.isFinite(grams))
-      return Math.round(grams*kcal100/100);
-
-    // Fallback solo per porzioni non espresse in grammi.
-    if(name==='cappuccino')return 70;
-    if(name==='banana'||name==='mela')return 85;
-    if(name==='barretta')return 110;
-
-    // Se manca la quantità, meglio non inventare una porzione enorme.
-    return 0;
-  }
-
-  return 0;
-}
-
-function estimateTextCalories(text){
-  const parts=String(text||'')
-    .replace(/\r/g,'')
-    .split(/\n|[;]+|\s+\+\s+/)
-    .map(x=>x.trim())
-    .filter(Boolean);
-
-  return parts.reduce((sum,part)=>sum+estimateLineCalories(part),0);
-}
-
-function estimateDiaryCalories(entry){
-  if(!entry)return null;
-  const total=['breakfast','snack1','lunch','snack2','dinner'].reduce((sum,k)=>sum+estimateTextCalories(entry[k]),0);
-  return total>0?total:null;
-}
-function dayEstimatedCalories(entry){
-  return estimateDiaryCalories(entry);
-}
-function ageYears(birth){
-  if(!birth)return null;
-  const b=new Date(birth+'T12:00:00'),n=new Date(); if(Number.isNaN(b.getTime()))return null;
-  let a=n.getFullYear()-b.getFullYear();
-  if(n.getMonth()<b.getMonth()||(n.getMonth()===b.getMonth()&&n.getDate()<b.getDate()))a--;
-  return a;
-}
-function bmrAtRest(){
-  const p=loadProfile(),last=weighted().at(-1),w=last?Number(last.weight):null,h=Number(p.height),a=ageYears(p.birth);
-  if(!w||!h||a==null||!['M','F'].includes(p.sex))return null;
-  return 10*w+6.25*h-5*a+(p.sex==='M'?5:-161);
-}
 
 function sorted(){return load().sort((a,b)=>a.date.localeCompare(b.date))}
 function weighted(){return sorted().filter(x=>Number.isFinite(+x.weight)&&x.weight!=='')}
@@ -309,11 +182,10 @@ function home(){
 function formDataFromDOM(){
   let weight=$('#weight')?.value.trim().replace(',','.')??'';
   return {
-    date:italianDateToIso($('#dateText')?.value)||editDate||isoToday(),
+    date:$('#date')?.value||editDate||isoToday(),
     weight:weight===''?'':Number(weight),
     coffee,
-    sweetener:$('#sweetener')?.value.trim()||'',
-    ...Object.fromEntries(['breakfast','snack1','lunch','snack2','dinner','notes'].map(k=>[k,$('#'+k)?.value.trim()||'']))
+    ...Object.fromEntries(['sweetener','breakfast','snack1','lunch','snack2','dinner','notes'].map(k=>[k,$('#'+k)?.value.trim()||'']))
   };
 }
 
@@ -326,11 +198,10 @@ function add(){
   let targetExists=duplicateDraft&&load().some(x=>x.date===targetDate);
   return `<div class="page-title"><button class="back" onclick="cancelEdit()">‹</button><div><div class="eyebrow">${duplicateDraft?'COPIA RAPIDA':isEdit?'REGISTRAZIONE':'NUOVA REGISTRAZIONE'}</div><h1>${duplicateDraft?'Duplica giornata':isEdit?'Modifica giornata':'Aggiungi giornata'}</h1></div></div>
   ${duplicateDraft?`<div class="notice">Stai copiando <b>${fmtShort(duplicateSource)}</b>. Peso escluso: modifica quello che vuoi e salva con una nuova data.</div>`:''}
-  <section class="card form-card"><label>Data</label>${dateControl('dateText',targetDate,'pickerDateChanged')}${targetExists?'<div class="warning">Questa data è già registrata. Scegline un’altra per evitare duplicati.</div>':''}
-  <div class="day-calorie-preview"><span>Calorie stimate</span><b>${dayEstimatedCalories(data)?dayEstimatedCalories(data)+' kcal':'Calcolate al salvataggio'}</b><small>Stima indicativa basata su quanto inserito. Se la giornata è parziale, considera solo i pasti compilati.</small></div>
+  <section class="card form-card"><label>Data</label>${dateControl("dateText",targetDate,"dateChanged")}${targetExists?'<div class="warning">Questa data è già registrata. Scegline un’altra per evitare duplicati.</div>':''}
   <label>Peso (kg)</label><input id="weight" inputmode="decimal" placeholder="es. 115,6" value="${data.weight??''}">
   <label>Caffè</label><div class="coffee"><button onclick="setCoffee(-1)">−</button><strong id="coffee">${coffee}</strong><button onclick="setCoffee(1)">＋</button></div>
-  <label>Zucchero / dolcificante</label><input id="sweetener" type="text" placeholder="es. senza zucchero, 1 cucchiaino, stevia…" value="${escapeHtml(data.sweetener||'')}">
+  <label>Zucchero / dolcificante</label><input id="sweetener" type="text" placeholder="es. 1 cucchiaino di zucchero, stevia..." value="${escapeHtml(data.sweetener||'')}">
   ${[['breakfast','Colazione','🥐'],['snack1','Spuntino mattina','🍎'],['lunch','Pranzo','🍝'],['snack2','Spuntino pomeriggio','🍎'],['dinner','Cena','🍽️'],['notes','Sport / Note','🏃']].map(([k,l,i])=>`<label>${i} ${l}</label><textarea id="${k}" placeholder="Scrivi liberamente…">${data[k]||''}</textarea>`).join('')}
   <div class="form-actions"><button class="primary" onclick="saveDay()" ${targetExists?'disabled':''}>${duplicateDraft?'Salva copia':isEdit?'Aggiorna giornata':'Salva giornata'}</button>${isEdit?`<button class="secondary" onclick="startDuplicate()">⧉ Duplica giornata</button><button class="danger" onclick="deleteDay()">Elimina giornata</button>`:''}</div></section>`;
 }
@@ -342,11 +213,11 @@ function profilePage(){
   <section class="card form-card">
     <h2>Dati personali</h2>
     <label>Nome</label><input id="profileName" type="text" placeholder="es. Giovanni" value="${escapeHtml(p.name)}">
-    <label>Data di nascita</label>${dateControl('profileBirth',p.birth||'')}
+    <label>Data di nascita</label>${dateControl("profileBirth",p.birth||"")}
     <label>Altezza (cm)</label><input id="profileHeight" inputmode="decimal" placeholder="es. 180" value="${p.height||''}">
     <label>Sesso</label><select id="profileSex"><option value="">Non specificato</option><option value="M" ${p.sex==='M'?'selected':''}>Maschile</option><option value="F" ${p.sex==='F'?'selected':''}>Femminile</option><option value="X" ${p.sex==='X'?'selected':''}>Altro / preferisco non specificare</option></select>
     <label>Peso obiettivo (kg)</label><input id="profileGoal" inputmode="decimal" placeholder="es. 85" value="${p.goal||''}">
-    <label>Data prossima visita</label>${dateControl('profileNextVisit',p.nextVisit||'')}
+    <label>Data prossima visita</label><input id="profileNextVisit" type="date" value="${p.nextVisit||''}">
     <p class="muted">Facoltativa. Se compilata, verrà mostrata nella Home.</p>
   </section>
   <section class="card form-card">
@@ -365,7 +236,6 @@ function profilePage(){
   </section>
   <section class="card form-card">
     ${p.height&&weighted().at(-1)?(()=>{const b=bmiFor(weighted().at(-1).weight,p.height);return `<div class="profile-preview"><span>BMI attuale</span><b>${b.toFixed(1).replace('.',',')}</b><small>${bmiLabel(b)}</small></div>`})():`<div class="profile-preview"><span>Il BMI verrà calcolato automaticamente dopo aver inserito l’altezza.</span></div>`}
-    ${(()=>{const b=bmrAtRest();return b?`<div class="profile-preview"><span>BMR a riposo</span><b>${Math.round(b)} kcal/giorno</b><small>Stima del metabolismo basale, senza attività fisica.</small></div>`:`<div class="profile-preview"><span>BMR a riposo</span><b>—</b><small>Servono ultimo peso, altezza, data di nascita e sesso.</small></div>`})()}
     <button class="primary profile-save" onclick="saveProfileForm()">Salva profilo</button>
   </section>`;
 }
@@ -435,7 +305,7 @@ function measuresPage(){
   return `<div class="hero-title"><div><div class="eyebrow">EVOLUZIONE CORPOREA</div><h1>Misurazioni</h1></div><button class="pdf-btn" onclick="exportMeasuresPDF()">PDF</button></div>
   <section class="card">
     <div class="section-head"><h2>Nuova misurazione</h2><span class="pill">Facoltativa</span></div>
-    <label>Data</label>${dateControl('measureDate',isoToday())}
+    <label>Data</label>${dateControl("measureDate",isoToday())}
     <div class="measure-grid">
       <div><label>Vita (cm)</label><input id="measureWaist" inputmode="decimal" placeholder="es. 105"></div>
       <div><label>Fianchi (cm)</label><input id="measureHips" inputmode="decimal" placeholder="es. 112"></div>
@@ -607,14 +477,14 @@ function trend(){
   const p=loadProfile();
   const currentBmi=last&&p.height?bmiFor(last.weight,p.height):null;
   const q=historySearch.trim().toLowerCase();
-  const history=sorted().reverse().filter(x=>!q||[x.date,x.breakfast,x.snack1,x.lunch,x.snack2,x.dinner,x.notes,x.sweetener,String(x.weight),String(x.coffee),String(x.estimatedCalories)].join(' ').toLowerCase().includes(q));
+  const history=sorted().reverse().filter(x=>!q||[x.date,x.breakfast,x.snack1,x.lunch,x.snack2,x.dinner,x.notes,String(x.weight),String(x.coffee)].join(' ').toLowerCase().includes(q));
   return `<div class="hero-title"><div><div class="eyebrow">STATISTICHE</div><h1>Andamento</h1></div><button class="pdf-btn" onclick="exportPDF()">PDF</button></div>
   <section class="card chart-card"><div class="section-head"><h2>Peso</h2><label class="toggle"><input type="checkbox" ${showMovingAverage?'checked':''} onchange="showMovingAverage=this.checked;render()"><span>Media 7 gg</span></label></div><div class="tabs">${[[7,'7 giorni'],[30,'30 giorni'],[90,'3 mesi'],[0,'Tutto']].map(([n,l])=>`<button class="${trendDays===n?'active':''}" onclick="trendDays=${n};render()">${l}</button>`).join('')}</div>${chart(all,trendDays)}</section>
   <section class="card summary"><div class="section-head"><h2>Riepilogo peso</h2><span class="pill">Totale</span></div>${first?`<div class="stats"><div><span>Peso iniziale</span><b>${kg(first.weight)}</b></div><div><span>Ultimo peso</span><b>${kg(last.weight)}</b></div><div><span>Variazione</span><b class="${delta<0?'good':delta>0?'up':''}">${delta>0?'+':''}${delta.toFixed(1).replace('.',',')} kg</b></div></div>`:'<p class="muted">Nessun dato.</p>'}</section>
   <section class="card chart-card"><div class="section-head"><h2>BMI</h2>${currentBmi?`<span class="pill">${currentBmi.toFixed(1).replace('.',',')} · ${bmiLabel(currentBmi)}</span>`:'<span class="pill">Profilo</span>'}</div><div class="tabs">${[[7,'7 giorni'],[30,'30 giorni'],[90,'3 mesi'],[0,'Tutto']].map(([n,l])=>`<button class="${bmiDays===n?'active':''}" onclick="bmiDays=${n};render()">${l}</button>`).join('')}</div>${bmiChart(all,bmiDays)}</section>
   <section class="card"><div class="section-head"><h2>Storico</h2><div class="head-actions"><button class="mini" onclick="showImport()">↑ Importa storico</button><button class="mini" onclick="exportBackup()">↓ Backup</button><button class="mini" onclick="document.getElementById('backupFile').click()">↑ Ripristina</button><input id="backupFile" type="file" accept=".json,application/json" style="display:none" onchange="restoreBackup(event)"><button class="mini" onclick="exportPDF()">↓ Esporta PDF</button></div></div>
   <div class="search-wrap"><input id="historySearch" type="search" placeholder="Cerca nello storico…" value="${escapeHtml(historySearch)}" oninput="historySearch=this.value;renderPreserveSearch()"></div>
-  ${history.map(x=>`<div class="listitem" onclick="edit('${x.date}')"><span><b>${fmtShort(x.date)}</b><small>${fmt(x.date).split(' ')[0]}</small></span><div class="history-right"><b>${kg(x.weight)}</b>${p.height&&x.weight!==''?`<small>BMI ${bmiFor(x.weight,p.height).toFixed(1).replace('.',',')}</small>`:''}${dayEstimatedCalories(x)?`<small>${dayEstimatedCalories(x)} kcal stimate</small>`:''}</div></div>`).join('')||'<p class="muted">Nessuna giornata trovata.</p>'}</section>`;
+  ${history.map(x=>`<div class="listitem" onclick="edit('${x.date}')"><span><b>${fmtShort(x.date)}</b><small>${fmt(x.date).split(' ')[0]}</small></span><div class="history-right"><b>${kg(x.weight)}</b>${p.height&&x.weight!==''?`<small>BMI ${bmiFor(x.weight,p.height).toFixed(1).replace('.',',')}</small>`:''}</div></div>`).join('')||'<p class="muted">Nessuna giornata trovata.</p>'}</section>`;
 }
 window.renderPreserveSearch=()=>{
   const pos=document.scrollingElement?.scrollTop||0;
@@ -789,14 +659,6 @@ function restoreBackup(event){
 
 function render(){
   $('#app').innerHTML=page==='home'?home():page==='add'?add():page==='import'?importPage():page==='profile'?profilePage():page==='measures'?measuresPage():trend();
-  document.querySelectorAll('[data-date-target]').forEach(picker=>{
-    if(picker.dataset.bound==='1')return;
-    picker.dataset.bound='1';
-    picker.addEventListener('change',()=>{
-      const target=$('#'+picker.dataset.dateTarget);
-      if(target)target.value=isoToItalianDate(picker.value);
-    });
-  });
 }
 
 function go(p){
@@ -812,7 +674,6 @@ window.dateChanged=d=>{
   if(duplicateDraft){duplicateDraft={...formDataFromDOM(),date:d,weight:$('#weight').value.trim()===''?'':Number($('#weight').value.trim().replace(',','.'))};render();return;}
   editDate=d;render();
 };
-window.pickerDateChanged=iso=>dateChanged(iso);
 window.edit=d=>{editDate=d;duplicateDraft=null;duplicateSource=null;page='add';render();scrollTo(0,0)};
 
 window.startDuplicate=()=>{
@@ -827,8 +688,7 @@ window.startDuplicate=()=>{
 
 window.saveDay=()=>{
   let obj=formDataFromDOM(),date=obj.date;
-  if(!date)return alert('Inserisci una data valida nel formato GG-MM-AAAA oppure selezionala dal calendario.');
-  obj.estimatedCalories=estimateDiaryCalories(obj)||'';
+  if(!date)return alert('Seleziona una data.');
   let a=load(),i=a.findIndex(x=>x.date===date);
   if(duplicateDraft&&i>=0)return alert('Questa data è già registrata. Scegli una data diversa.');
   if(i>=0)a[i]=obj;else a.push(obj);
@@ -855,15 +715,13 @@ function pdfTableData(){
     fmtShort(x.date),
     x.weight===''||x.weight==null?'':Number(x.weight).toFixed(1).replace('.',','),
     x.coffee===''||x.coffee==null?'':String(x.coffee),
-    x.sweetener||'',
-    dayEstimatedCalories(x)?String(dayEstimatedCalories(x)):'',
     x.breakfast||'',x.snack1||'',x.lunch||'',x.snack2||'',x.dinner||'',x.notes||''
   ]);
 }
 function makePdfBlob(){
   const rows=pdfTableData();
-  const headers=['Data','Peso','Caffe','Dolcificante','Kcal stimate','Colazione','Spuntino mattina','Pranzo','Spuntino pomeriggio','Cena','Sport / Note'];
-  const widths=[42,34,28,62,55,82,72,86,72,86,101];
+  const headers=['Data','Peso','Caffe','Colazione','Spuntino mattina','Pranzo','Spuntino pomeriggio','Cena','Sport / Note'];
+  const widths=[52,42,36,100,88,105,88,105,118];
   const x0=22, pageW=842, pageH=595, top=548, bottom=28;
   const fontSize=6.5, lineH=8, pad=3;
   let pages=[],current=[],y=top;

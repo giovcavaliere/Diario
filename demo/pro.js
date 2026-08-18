@@ -43,7 +43,7 @@ function proAccessScreen(){
  const c=proLoginData();
  const setup=!c;
  return `<div class="login-shell pro-login-shell"><section class="card login-card pro-login-card">
-   <div class="login-brand-mark"><img src="../assets/nubemo-logo-clean.png" alt=""><div><b>NUBEMO</b><span>Professional · Demo</span></div></div>
+   <div class="login-brand-mark"><img src="assets/nubemo-logo-clean.png" alt=""><div><b>NUBEMO</b><span>Professional · Demo</span></div></div>
    <div class="eyebrow">${setup?'PRIMO ACCESSO':'ACCESSO PROFESSIONISTA'}</div>
    <h1>${setup?'Configura il tuo accesso.':'Bentornato in NUBEMO.'}</h1>
    <p class="muted">${setup?'Crea le credenziali locali della demo. Nel prodotto reale saranno gestite da un sistema di autenticazione sicuro.':'Inserisci le credenziali del professionista per accedere a pazienti e agenda.'}</p>

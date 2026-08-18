@@ -15,8 +15,8 @@ select:focus{border-color:#55aeb4;box-shadow:0 0 0 3px #55aeb41c}
 .progress{height:10px;background:#e6edef;border-radius:999px;overflow:hidden}
 .progress span{display:block;height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2));border-radius:999px}
 .chart-average{stroke:#ef9d45;stroke-width:2;stroke-dasharray:4 2;opacity:.95}
-.chart-bmi-line{stroke:#7857a8;stroke-width:2.4}
-.chart-bmi-point{fill:#7857a8;stroke:#7857a8;stroke-width:.65}
+.chart-bmi-line{stroke:var(--accent);stroke-width:2.4}
+.chart-bmi-point{fill:var(--accent);stroke:var(--accent);stroke-width:.65}
 .toggle{display:flex;align-items:center;gap:7px;margin:0;font-size:12px;color:#657780;font-weight:700}
 .toggle input{width:auto;margin:0;accent-color:var(--accent)}
 .profile-preview{margin:18px 0 4px;padding:14px;border-radius:16px;background:#eef7f7;display:flex;align-items:baseline;gap:9px;flex-wrap:wrap;color:#567078}
@@ -570,4 +570,26 @@ nav{background:rgba(250,252,248,.94);backdrop-filter:blur(22px);border-color:rgb
   body:not(.pro-body) .brand-rail>.patient-logout-header{
     margin-left:8px!important;
   }
+}
+
+/* NUBEMO 3.15 — grafici responsive */
+.chart-wrap{overflow:hidden!important}
+.chart{overflow:visible}
+.chart-y-label{font-size:3.2px}
+@media(max-width:900px){
+  .chart-wrap{padding-left:2px!important;padding-right:2px!important}
+  .chart-y-label{font-size:3px}
+}
+
+/* NUBEMO 3.16 — peso e BMI: marker identici */
+.chart-point,
+.chart-bmi-point{
+  fill:var(--accent2)!important;
+  stroke:#fff!important;
+  stroke-width:1.1!important;
+}
+.chart-line,
+.chart-bmi-line{
+  stroke:var(--accent)!important;
+  stroke-width:2.4!important;
 }

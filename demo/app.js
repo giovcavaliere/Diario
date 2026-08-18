@@ -1171,7 +1171,7 @@ function chart(items,days){
   if(max===min)max=min+1;
   let range=max-min;
 
-  const left=14,right=98,top=8,bottom=86;
+  const left=22,right=98,top=8,bottom=86;
   const xFor=(date)=>{
     const idx=w.findIndex(x=>x.date===date);
     return w.length===1?(left+right)/2:left+idx/(w.length-1)*(right-left);
@@ -1203,7 +1203,7 @@ function bmiChart(items,days){
   let min=Math.floor((rawMin-pad)*2)/2;
   let max=Math.ceil((rawMax+pad)*2)/2;
   if(max===min)max=min+1;
-  const range=max-min,left=14,right=98,top=8,bottom=86;
+  const range=max-min,left=22,right=98,top=8,bottom=86;
   const xFor=i=>data.length===1?(left+right)/2:left+i/(data.length-1)*(right-left);
   const yFor=v=>bottom-((v-min)/range)*(bottom-top);
   const pts=data.map((x,i)=>`${xFor(i).toFixed(2)},${yFor(x.bmi).toFixed(2)}`).join(' ');
@@ -1381,7 +1381,7 @@ function home(){
       : 0;
     goalHtml=`<section class="card goal-card"><div class="section-head"><h2>Obiettivo</h2><span class="pill">${pct}%</span></div><div class="goal-row"><b>${kg(startWeight)}</b><span>→</span><b>${kg(goalWeight)}</b></div><div class="progress"><span style="width:${pct}%"></span></div><p class="muted">Peso attuale: ${kg(currentWeight)} · ${Math.max(0,currentWeight-goalWeight).toFixed(1).replace('.',',')} kg al traguardo</p></section>`;
   }
-  return `<div class="hero-title"><div><div class="eyebrow">IL MIO PERCORSO</div><h1>${profile.name?`Il percorso di ${escapeHtml([profile.name,profile.surname].filter(Boolean).join(' '))}`:'Il mio percorso'}</h1></div><div class="hero-brand-chip"><img src="assets/nubemo-logo-clean.png" alt=""></div></div>
+  return `<div class="hero-title"><div><div class="eyebrow">IL MIO PERCORSO</div><h1>${profile.name?`Il percorso di ${escapeHtml([profile.name,profile.surname].filter(Boolean).join(' '))}`:'Il mio percorso'}</h1></div><div class="hero-brand-chip"><img src="assets/nubemo-brand-clean-v2.png" alt=""></div></div>
   <section class="card highlight"><div class="muted caps">ULTIMA RILEVAZIONE</div>${last?`<div class="weight">${(+last.weight).toFixed(1).replace('.',',')} <small>kg</small></div><div class="delta ${deltaClass}">${delta>0?'+':''}${delta.toFixed(1).replace('.',',')} kg dall'inizio</div>${currentBmi?`<div class="bmi-now"><span>BMI</span><b>${currentBmi.toFixed(1).replace('.',',')}</b><small>${bmiLabel(currentBmi)}</small></div>`:''}<p class="muted">${fmt(last.date)}</p>`:'<p class="muted">Inserisci la prima giornata per iniziare.</p>'}</section>
   ${patientDiaryCalorieSummary()}
   ${visitHtml}${goalHtml}
@@ -1919,7 +1919,7 @@ function restoreBackup(event){
 }
 
 
-function loginPage(){const hasAccounts=Object.keys(accountMap()).length>0;return `<div class="login-shell"><section class="card login-card"><div class="login-brand-mark"><img src="assets/nubemo-logo-clean.png" alt=""><div><b>NUBEMO</b><span>Area Paziente · Demo</span></div></div><div class="eyebrow">ACCESSO PAZIENTE</div><h1>Il tuo percorso inizia qui.</h1><p class="muted">${hasAccounts?'Usa le credenziali create dal professionista.':'Prima crea le credenziali dalla scheda paziente nell’Area Professionista.'}</p><label>Username</label><input id="loginUser" autocomplete="username" ${hasAccounts?'':'disabled'}><label>Password</label><input id="loginPass" type="password" autocomplete="current-password" ${hasAccounts?'':'disabled'}><button class="primary" onclick="patientLogin()" ${hasAccounts?'':'disabled'}>Accedi a NUBEMO</button><a href="./index.html" class="mini login-area-link">Cambia area</a></section></div>`}
+function loginPage(){const hasAccounts=Object.keys(accountMap()).length>0;return `<div class="login-shell"><section class="card login-card"><div class="login-brand-mark"><img src="assets/nubemo-brand-clean-v2.png" alt=""><div><b>NUBEMO</b><span>Area Paziente · Demo</span></div></div><div class="eyebrow">ACCESSO PAZIENTE</div><h1>Il tuo percorso inizia qui.</h1><p class="muted">${hasAccounts?'Usa le credenziali create dal professionista.':'Prima crea le credenziali dalla scheda paziente nell’Area Professionista.'}</p><label>Username</label><input id="loginUser" autocomplete="username" ${hasAccounts?'':'disabled'}><label>Password</label><input id="loginPass" type="password" autocomplete="current-password" ${hasAccounts?'':'disabled'}><button class="primary" onclick="patientLogin()" ${hasAccounts?'':'disabled'}>Accedi a NUBEMO</button></section></div>`}
 window.patientLogin=()=>{const u=($('#loginUser')?.value||'').trim().toLowerCase(),pw=$('#loginPass')?.value||'';const f=Object.entries(accountMap()).find(([id,a])=>a&&a.active!==false&&String(a.username||'').toLowerCase()===u&&String(a.password||'')===pw);if(!f)return alert('Credenziali non valide.');localStorage.setItem(ACTIVE_PATIENT_KEY,f[0]);page='home';render()};
 window.patientLogout=()=>{localStorage.removeItem(ACTIVE_PATIENT_KEY);page='home';render()};
 

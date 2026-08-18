@@ -43,14 +43,14 @@ function proAccessScreen(){
  const c=proLoginData();
  const setup=!c;
  return `<div class="login-shell pro-login-shell"><section class="card login-card pro-login-card">
-   <div class="login-brand-mark"><img src="assets/nubemo-logo-clean.png" alt=""><div><b>NUBEMO</b><span>Professional · Demo</span></div></div>
+   <div class="login-brand-mark"><img src="assets/nubemo-brand-clean-v2.png" alt=""><div><b>NUBEMO</b><span>Professional · Demo</span></div></div>
    <div class="eyebrow">${setup?'PRIMO ACCESSO':'ACCESSO PROFESSIONISTA'}</div>
    <h1>${setup?'Configura il tuo accesso.':'Bentornato in NUBEMO.'}</h1>
    <p class="muted">${setup?'Crea le credenziali locali della demo. Nel prodotto reale saranno gestite da un sistema di autenticazione sicuro.':'Inserisci le credenziali del professionista per accedere a pazienti e agenda.'}</p>
    <label>Username</label><input id="proLoginUser" autocomplete="username" value="${esc(setup?'':c?.username||'')}">
    <label>Password</label><input id="proLoginPass" type="password" autocomplete="${setup?'new-password':'current-password'}">
    <button class="primary" id="${setup?'createProLogin':'doProLogin'}">${setup?'Crea accesso professionista':'Accedi a NUBEMO'}</button>
-   <a href="./index.html" class="mini login-area-link">Cambia area</a>
+   
  </section></div>`;
 }
 function bindProAccess(){
@@ -452,7 +452,7 @@ function proWeightChart(items,days){
   if(max===min)max=min+1;
   let range=max-min;
 
-  const left=14,right=98,top=8,bottom=86;
+  const left=22,right=98,top=8,bottom=86;
   const xFor=(date)=>{
     const idx=w.findIndex(x=>x.date===date);
     return w.length===1?(left+right)/2:left+idx/(w.length-1)*(right-left);
@@ -483,7 +483,7 @@ function proBmiChart(items,days,height){
   let min=Math.floor((rawMin-pad)*2)/2;
   let max=Math.ceil((rawMax+pad)*2)/2;
   if(max===min)max=min+1;
-  const range=max-min,left=14,right=98,top=8,bottom=86;
+  const range=max-min,left=22,right=98,top=8,bottom=86;
   const xFor=i=>data.length===1?(left+right)/2:left+i/(data.length-1)*(right-left);
   const yFor=v=>bottom-((v-min)/range)*(bottom-top);
   const pts=data.map((x,i)=>`${xFor(i).toFixed(2)},${yFor(x.bmi).toFixed(2)}`).join(' ');

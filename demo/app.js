@@ -1381,7 +1381,7 @@ function home(){
       : 0;
     goalHtml=`<section class="card goal-card"><div class="section-head"><h2>Obiettivo</h2><span class="pill">${pct}%</span></div><div class="goal-row"><b>${kg(startWeight)}</b><span>→</span><b>${kg(goalWeight)}</b></div><div class="progress"><span style="width:${pct}%"></span></div><p class="muted">Peso attuale: ${kg(currentWeight)} · ${Math.max(0,currentWeight-goalWeight).toFixed(1).replace('.',',')} kg al traguardo</p></section>`;
   }
-  return `<div class="hero-title"><div><div class="eyebrow">IL MIO PERCORSO</div><h1>${profile.name?`Diario di ${escapeHtml([profile.name,profile.surname].filter(Boolean).join(' '))}`:'Diario'}</h1></div></div>
+  return `<div class="hero-title"><div><div class="eyebrow">IL MIO PERCORSO</div><h1>${profile.name?`Il percorso di ${escapeHtml([profile.name,profile.surname].filter(Boolean).join(' '))}`:'Il mio percorso'}</h1></div><div class="hero-brand-chip"><img src="../assets/nubemo-logo-clean.png" alt=""></div></div>
   <section class="card highlight"><div class="muted caps">ULTIMA RILEVAZIONE</div>${last?`<div class="weight">${(+last.weight).toFixed(1).replace('.',',')} <small>kg</small></div><div class="delta ${deltaClass}">${delta>0?'+':''}${delta.toFixed(1).replace('.',',')} kg dall'inizio</div>${currentBmi?`<div class="bmi-now"><span>BMI</span><b>${currentBmi.toFixed(1).replace('.',',')}</b><small>${bmiLabel(currentBmi)}</small></div>`:''}<p class="muted">${fmt(last.date)}</p>`:'<p class="muted">Inserisci la prima giornata per iniziare.</p>'}</section>
   ${patientDiaryCalorieSummary()}
   ${visitHtml}${goalHtml}
@@ -1395,6 +1395,7 @@ function formDataFromDOM(){
   return {
     date:italianDateToIso($('#dateText')?.value)||$('#datePicker')?.value||editDate||isoToday(),
     weight:weight===''?'':Number(weight),
+    water:(()=>{const v=($('#water')?.value||'').trim().replace(',','.');return v===''?'':Number(v)})(),
     coffee,
     sweetener:$('#sweetener')?.value.trim()||'',
     ...Object.fromEntries(['breakfast','snack1','lunch','snack2','dinner','notes'].map(k=>[k,$('#'+k)?.value.trim()||'']))
@@ -1429,6 +1430,10 @@ function add(){
     <p class="calorie-writing-tip-single">Per una stima più accurata indica <b>quantità + alimento</b>, separandoli con <b>+</b> o andando a capo. Esempio: <b>150 g yogurt greco + 45 g biscotti</b>.</p>`;
   })()}
   <label>Peso (kg)</label><input id="weight" inputmode="decimal" placeholder="es. 115,6" value="${data.weight??''}">
+  <div class="water-entry">
+    <div class="water-entry-icon">💧</div>
+    <div class="water-entry-field"><label>Acqua bevuta (litri)</label><input id="water" inputmode="decimal" placeholder="es. 1,5" value="${data.water??''}"><small>Facoltativo · indica il totale bevuto nella giornata.</small></div>
+  </div>
   <label>Caffè</label><div class="coffee"><button onclick="setCoffee(-1)">−</button><strong id="coffee">${coffee}</strong><button onclick="setCoffee(1)">＋</button></div><label>Zucchero / dolcificante</label><input id="sweetener" value="${escapeHtml(data.sweetener||'')}" placeholder="es. senza zucchero, 1 cucchiaino, stevia…">
   ${[['breakfast','Colazione','🥐'],['snack1','Spuntino mattina','🍎'],['lunch','Pranzo','🍝'],['snack2','Spuntino pomeriggio','🍎'],['dinner','Cena','🍽️'],['notes','Sport / Note','🏃']].map(([k,l,i])=>`<label>${i} ${l}</label><textarea id="${k}" placeholder="Scrivi liberamente…">${data[k]||''}</textarea>`).join('')}
   <div class="form-actions"><button class="primary" onclick="saveDay()" ${targetExists?'disabled':''}>${duplicateDraft?'Salva copia':isEdit?'Aggiorna giornata':'Salva giornata'}</button>${isEdit?`<button class="secondary" onclick="startDuplicate()">⧉ Duplica giornata</button>`:''}</div></section>`;
@@ -1732,7 +1737,7 @@ function trend(){
   const p=loadProfile();
   const currentBmi=last&&p.height?bmiFor(last.weight,p.height):null;
   const q=historySearch.trim().toLowerCase();
-  const history=sorted().reverse().filter(x=>!q||[x.date,x.breakfast,x.snack1,x.lunch,x.snack2,x.dinner,x.notes,x.sweetener,String(x.weight),String(x.coffee)].join(' ').toLowerCase().includes(q));
+  const history=sorted().reverse().filter(x=>!q||[x.date,x.breakfast,x.snack1,x.lunch,x.snack2,x.dinner,x.notes,x.sweetener,String(x.weight),String(x.water),String(x.coffee)].join(' ').toLowerCase().includes(q));
   return `<div class="hero-title"><div><div class="eyebrow">STATISTICHE</div><h1>Andamento</h1></div><button class="pdf-btn" onclick="exportPDF()">PDF</button></div>
   
   <section class="card chart-card"><div class="section-head"><h2>Peso</h2><label class="toggle"><input type="checkbox" ${showMovingAverage?'checked':''} onchange="showMovingAverage=this.checked;render()"><span>Media 7 gg</span></label></div><div class="tabs">${[[7,'7 giorni'],[30,'30 giorni'],[90,'3 mesi'],[0,'Tutto']].map(([n,l])=>`<button class="${trendDays===n?'active':''}" onclick="trendDays=${n};render()">${l}</button>`).join('')}</div>${chart(all,trendDays)}</section>
@@ -1740,7 +1745,7 @@ function trend(){
   <section class="card chart-card"><div class="section-head"><h2>BMI</h2>${currentBmi?`<span class="pill">${currentBmi.toFixed(1).replace('.',',')} · ${bmiLabel(currentBmi)}</span>`:'<span class="pill">Profilo</span>'}</div><div class="tabs">${[[7,'7 giorni'],[30,'30 giorni'],[90,'3 mesi'],[0,'Tutto']].map(([n,l])=>`<button class="${bmiDays===n?'active':''}" onclick="bmiDays=${n};render()">${l}</button>`).join('')}</div>${bmiChart(all,bmiDays)}</section>
   <section class="card"><div class="section-head"><h2>Storico</h2><div class="head-actions"><button class="mini" onclick="showImport()">↑ Importa storico</button><button class="mini" onclick="exportBackup()">↓ Backup</button><button class="mini" onclick="document.getElementById('backupFile').click()">↑ Ripristina</button><input id="backupFile" type="file" accept=".json,application/json" style="display:none" onchange="restoreBackup(event)"><button class="mini" onclick="exportPDF()">↓ Esporta PDF</button></div></div>
   <div class="search-wrap"><input id="historySearch" type="search" placeholder="Cerca nello storico…" value="${escapeHtml(historySearch)}" oninput="historySearch=this.value;renderPreserveSearch()"></div>
-  ${history.map(x=>`<div class="listitem" onclick="edit('${x.date}')"><span><b>${fmtShort(x.date)}</b><small>${fmt(x.date).split(' ')[0]}</small></span><div class="history-right"><b>${kg(x.weight)}</b>${p.height&&x.weight!==''?`<small>BMI ${bmiFor(x.weight,p.height).toFixed(1).replace('.',',')}</small>`:''}${(()=>{const ce=calorieEstimateDay(x);return (ce.calculated+ce.genericQuantity)>0?`<small>${ce.calories} kcal · stima ${ce.qualityLabel.toLowerCase()}</small>`:''})()}</div></div>`).join('')||'<p class="muted">Nessuna giornata trovata.</p>'}</section>`;
+  ${history.map(x=>`<div class="listitem" onclick="edit('${x.date}')"><span><b>${fmtShort(x.date)}</b><small>${fmt(x.date).split(' ')[0]}</small></span><div class="history-right"><b>${kg(x.weight)}</b>${x.water!==''&&x.water!=null?`<small>💧 ${Number(x.water).toFixed(1).replace('.',',')} L acqua</small>`:''}${p.height&&x.weight!==''?`<small>BMI ${bmiFor(x.weight,p.height).toFixed(1).replace('.',',')}</small>`:''}${(()=>{const ce=calorieEstimateDay(x);return (ce.calculated+ce.genericQuantity)>0?`<small>${ce.calories} kcal · stima ${ce.qualityLabel.toLowerCase()}</small>`:''})()}</div></div>`).join('')||'<p class="muted">Nessuna giornata trovata.</p>'}</section>`;
 }
 window.renderPreserveSearch=()=>{
   const pos=document.scrollingElement?.scrollTop||0;
@@ -1914,12 +1919,14 @@ function restoreBackup(event){
 }
 
 
-function loginPage(){return `<div class="login-shell"><section class="card login-card"><div class="eyebrow">AREA PAZIENTE · DEMO</div><h1>Accedi al diario</h1><p class="muted">Usa le credenziali create dal professionista. Nella demo sono memorizzate solo sul dispositivo.</p><label>Username</label><input id="loginUser" autocomplete="username"><label>Password</label><input id="loginPass" type="password" autocomplete="current-password"><button class="primary" onclick="patientLogin()">Accedi</button><a href="./index.html" class="mini" style="display:inline-block;margin-top:12px">Cambia area</a></section></div>`}
+function loginPage(){const hasAccounts=Object.keys(accountMap()).length>0;return `<div class="login-shell"><section class="card login-card"><div class="login-brand-mark"><img src="../assets/nubemo-logo-clean.png" alt=""><div><b>NUBEMO</b><span>Area Paziente · Demo</span></div></div><div class="eyebrow">ACCESSO PAZIENTE</div><h1>Il tuo percorso inizia qui.</h1><p class="muted">${hasAccounts?'Usa le credenziali create dal professionista.':'Prima crea le credenziali dalla scheda paziente nell’Area Professionista.'}</p><label>Username</label><input id="loginUser" autocomplete="username" ${hasAccounts?'':'disabled'}><label>Password</label><input id="loginPass" type="password" autocomplete="current-password" ${hasAccounts?'':'disabled'}><button class="primary" onclick="patientLogin()" ${hasAccounts?'':'disabled'}>Accedi a NUBEMO</button><a href="./index.html" class="mini login-area-link">Cambia area</a></section></div>`}
 window.patientLogin=()=>{const u=($('#loginUser')?.value||'').trim().toLowerCase(),pw=$('#loginPass')?.value||'';const f=Object.entries(accountMap()).find(([id,a])=>a&&a.active!==false&&String(a.username||'').toLowerCase()===u&&String(a.password||'')===pw);if(!f)return alert('Credenziali non valide.');localStorage.setItem(ACTIVE_PATIENT_KEY,f[0]);page='home';render()};
 window.patientLogout=()=>{localStorage.removeItem(ACTIVE_PATIENT_KEY);page='home';render()};
 
 function render(){
-  const ac=accountMap(),id=activePatientId();if(Object.keys(ac).length&&(!id||!ac[id]||ac[id].active===false)){$('#app').innerHTML=loginPage();return}
+  document.body.dataset.page=page;
+  const ac=accountMap(),id=activePatientId();const logoutBtn=document.getElementById('patientLogoutBtn');if(!id||!ac[id]||ac[id].active===false){if(logoutBtn)logoutBtn.style.display='none';document.body.dataset.page='login';$('#app').innerHTML=loginPage();return}
+  if(logoutBtn)logoutBtn.style.display='inline-flex';
   $('#app').innerHTML=page==='home'?home():page==='add'?add():page==='import'?importPage():page==='profile'?profilePage():page==='measures'?measuresPage():trend();
   const appRoot=$('#app');
   if(!document.getElementById('patient-profile-read-style')){
@@ -1927,11 +1934,6 @@ function render(){
     st.id='patient-profile-read-style';
     st.textContent='.profile-read-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.profile-read-grid>div{padding:12px;border:1px solid #e5ecee;border-radius:14px;background:#fff}.profile-read-grid span,.profile-read-grid b{display:block}.profile-read-grid span{font-size:12px;color:#71818a}.profile-read-grid b{margin-top:4px}@media(max-width:650px){.profile-read-grid{grid-template-columns:1fr}}';
     document.head.appendChild(st);
-  }
-  if(appRoot){
-    appRoot.insertAdjacentHTML('afterbegin',`<div style="display:flex;justify-content:flex-end;margin:0 0 10px">
-      ${Object.keys(accountMap()).length?'<button class="mini" onclick="patientLogout()">Esci</button>':''}<a href="./index.html" class="mini">Cambia area</a>
-    </div>`);
   }
 }
 
@@ -2033,6 +2035,7 @@ function showCalorieSaveReview(estimate,onRegister){
 window.saveDay=()=>{
  let obj=formDataFromDOM(),date=obj.date;
  if(!date)return alert('Seleziona una data.');
+ if(obj.water!==''&&(!Number.isFinite(Number(obj.water))||Number(obj.water)<0||Number(obj.water)>20))return alert('Controlla la quantità di acqua inserita.');
  delete obj.estimatedCalories;
  const estimate=calorieEstimateDay(obj);
  let a=load(),i=a.findIndex(x=>x.date===date);
@@ -2042,6 +2045,7 @@ window.saveDay=()=>{
    // Rilegge i campi al momento della registrazione: se l'utente ha corretto,
    // il salvataggio successivo userà sempre il testo aggiornato.
    obj=formDataFromDOM();delete obj.estimatedCalories;date=obj.date;
+   if(obj.water!==''&&(!Number.isFinite(Number(obj.water))||Number(obj.water)<0||Number(obj.water)>20))return alert('Controlla la quantità di acqua inserita.');
    a=load();i=a.findIndex(x=>x.date===date);
    if(i>=0)a[i]=obj;else a.push(obj);
    save(a);
@@ -2072,6 +2076,7 @@ function pdfTableData(){
   return sorted().map(x=>[
     fmtShort(x.date),
     x.weight===''||x.weight==null?'':Number(x.weight).toFixed(1).replace('.',','),
+    x.water===''||x.water==null?'':Number(x.water).toFixed(1).replace('.',','),
     x.coffee===''||x.coffee==null?'':String(x.coffee),
     x.sweetener||'',
     x.breakfast||'',x.snack1||'',x.lunch||'',x.snack2||'',x.dinner||'',x.notes||''
@@ -2079,8 +2084,8 @@ function pdfTableData(){
 }
 function makePdfBlob(){
   const rows=pdfTableData();
-  const headers=['Data','Peso','Caffe','Zucchero / dolc.','Colazione','Spuntino mattina','Pranzo','Spuntino pomeriggio','Cena','Sport / Note'];
-  const widths=[46,38,30,72,88,78,92,78,92,105];
+  const headers=['Data','Peso','Acqua L','Caffe','Zucchero / dolc.','Colazione','Spuntino mattina','Pranzo','Spuntino pomeriggio','Cena','Sport / Note'];
+  const widths=[42,34,36,28,62,82,70,86,70,86,98];
   const x0=22, pageW=842, pageH=595, top=548, bottom=28;
   const fontSize=6.5, lineH=8, pad=3;
   let pages=[],current=[],y=top;

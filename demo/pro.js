@@ -12,6 +12,7 @@ const EXTRA_PATIENTS_KEY='diario-pro-extra-patients-v1';
 const DEMO_MEASURES_KEY='diario-pro-demo-measures-overrides-v1';
 const DELETED_PATIENTS_KEY='diario-pro-deleted-patients-v1';
 const LABS_KEY='diario-pro-labs-v1',PLAN_META_KEY='diario-pro-plan-meta-v1',PLAN_DB='diario-pro-documents-v1',PLAN_STORE='plans',ACCOUNT_KEY='diario-pro-accounts-v1',PRIVACY_META_KEY='diario-pro-privacy-meta-v1',PENDING_LABS_KEY='diario-pro-pending-labs-v1';
+const PRO_LOGIN_KEY='monubi-pro-login-v1',PRO_SESSION_KEY='monubi-pro-session-v1';
 
 const el=id=>document.getElementById(id);
 const load=(k,d)=>{try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}};
@@ -33,6 +34,41 @@ const parseIt=s=>{
   return iso;
 };
 const bmi=(w,h)=>w&&h?Number(w)/Math.pow(Number(h)/100,2):null;
+
+
+function proLoginData(){return load(PRO_LOGIN_KEY,null)}
+function proSessionActive(){return localStorage.getItem(PRO_SESSION_KEY)==='1'}
+function setProSession(v){if(v)localStorage.setItem(PRO_SESSION_KEY,'1');else localStorage.removeItem(PRO_SESSION_KEY)}
+function proAccessScreen(){
+ const c=proLoginData();
+ const setup=!c;
+ return `<div class="login-shell pro-login-shell"><section class="card login-card pro-login-card">
+   <div class="login-brand-mark"><img src="../assets/nubemo-logo-clean.png" alt=""><div><b>NUBEMO</b><span>Professional · Demo</span></div></div>
+   <div class="eyebrow">${setup?'PRIMO ACCESSO':'ACCESSO PROFESSIONISTA'}</div>
+   <h1>${setup?'Configura il tuo accesso.':'Bentornato in NUBEMO.'}</h1>
+   <p class="muted">${setup?'Crea le credenziali locali della demo. Nel prodotto reale saranno gestite da un sistema di autenticazione sicuro.':'Inserisci le credenziali del professionista per accedere a pazienti e agenda.'}</p>
+   <label>Username</label><input id="proLoginUser" autocomplete="username" value="${esc(setup?'':c?.username||'')}">
+   <label>Password</label><input id="proLoginPass" type="password" autocomplete="${setup?'new-password':'current-password'}">
+   <button class="primary" id="${setup?'createProLogin':'doProLogin'}">${setup?'Crea accesso professionista':'Accedi a NUBEMO'}</button>
+   <a href="./index.html" class="mini login-area-link">Cambia area</a>
+ </section></div>`;
+}
+function bindProAccess(){
+ const create=el('createProLogin');
+ if(create)create.onclick=()=>{
+   const username=(el('proLoginUser')?.value||'').trim(),password=el('proLoginPass')?.value||'';
+   if(!username||!password)return alert('Inserisci username e password.');
+   save(PRO_LOGIN_KEY,{username,password});
+   setProSession(true);render();
+ };
+ const login=el('doProLogin');
+ if(login)login.onclick=()=>{
+   const c=proLoginData(),username=(el('proLoginUser')?.value||'').trim().toLowerCase(),password=el('proLoginPass')?.value||'';
+   if(!c||String(c.username||'').toLowerCase()!==username||String(c.password||'')!==password)return alert('Credenziali non valide.');
+   setProSession(true);render();
+ };
+}
+window.monubiProLogout=()=>{setProSession(false);render()};
 
 const SETTINGS_DEFAULT={name:'Dott.ssa Demo',first:60,control:30,dayStart:'08:00',dayEnd:'19:00',workDays:5};
 const DEMOS=[
@@ -171,14 +207,14 @@ function iso(d){
 }
 
 function top(title){
- return `<div class="pro3-top"><div><div class="eyebrow">AREA PROFESSIONISTA · DEMO</div><h1>${title}</h1></div><a href="./index.html" class="mini">Cambia area</a></div>`;
+ return `<div class="pro3-top"><div><div class="eyebrow">NUBEMO PROFESSIONAL · DEMO</div><h1>${title}</h1></div></div>`;
 }
 function nav(){
- return `<div class="pro3-nav">
-  <button data-view="dashboard" class="${view==='dashboard'?'active':''}">Dashboard</button>
-  <button data-view="patients" class="${view==='patients'?'active':''}">Pazienti</button>
-  <button data-view="agenda" class="${view==='agenda'?'active':''}">Agenda</button>
-  <button data-view="settings" class="${view==='settings'?'active':''}">Profilo professionista</button>
+ return `<div class="pro3-nav" aria-label="Navigazione professionista">
+  <button data-view="dashboard" class="${view==='dashboard'?'active':''}"><i>⌂</i><span>Dashboard</span></button>
+  <button data-view="patients" class="${view==='patients'?'active':''}"><i>●</i><span>Pazienti</span></button>
+  <button data-view="agenda" class="${view==='agenda'?'active':''}"><i>□</i><span>Agenda</span></button>
+  <button data-view="settings" class="${view==='settings'?'active':''}"><i>◉</i><span>Profilo professionista</span></button>
  </div>`;
 }
 
@@ -493,6 +529,7 @@ function proDiaryPdfRows(p){
  return (p.entries||[]).slice().sort((a,b)=>String(a.date).localeCompare(String(b.date))).map(x=>[
    fmt(x.date),
    x.weight===''||x.weight==null?'':Number(x.weight).toFixed(1).replace('.',','),
+   x.water===''||x.water==null?'':Number(x.water).toFixed(1).replace('.',','),
    x.coffee===''||x.coffee==null?'':String(x.coffee),
    x.sweetener||'',
    x.breakfast||'',
@@ -505,8 +542,8 @@ function proDiaryPdfRows(p){
 }
 function proDiaryPdfBlob(p){
  const rows=proDiaryPdfRows(p);
- const headers=['Data','Peso','Caffe','Zucchero / dolc.','Colazione','Spuntino mattina','Pranzo','Spuntino pomeriggio','Cena','Sport / Note'];
- const widths=[46,38,30,72,88,78,92,78,92,105];
+ const headers=['Data','Peso','Acqua L','Caffe','Zucchero / dolc.','Colazione','Spuntino mattina','Pranzo','Spuntino pomeriggio','Cena','Sport / Note'];
+ const widths=[42,34,36,28,62,82,70,86,70,86,98];
  const x0=22,pageW=842,pageH=595,top=548,bottom=28;
  const fontSize=6.5,lineH=8,pad=3;
  let pages=[],current=[],y=top;
@@ -589,7 +626,7 @@ function exportProDiaryPdf(){
 function proDiaryHistory(p){
  const q=proDiarySearch.trim().toLowerCase();
  const history=(p.entries||[]).slice().sort((a,b)=>String(b.date).localeCompare(String(a.date))).filter(x=>
-   !q || [x.date,x.breakfast,x.snack1,x.lunch,x.snack2,x.dinner,x.notes,x.sweetener,String(x.weight),String(x.coffee)].join(' ').toLowerCase().includes(q)
+   !q || [x.date,x.breakfast,x.snack1,x.lunch,x.snack2,x.dinner,x.notes,x.sweetener,String(x.weight),String(x.water),String(x.coffee)].join(' ').toLowerCase().includes(q)
  );
 
  return `<div class="section-head"><h2>Storico</h2><div class="head-actions"><button class="mini" id="exportProDiaryPdf">↓ Esporta PDF</button></div></div>
@@ -604,6 +641,7 @@ function proDiaryHistory(p){
      </span>
      <div class="history-right">
        <b>${w!=null?w.toFixed(1).replace('.',',')+' kg':'—'}</b>
+       ${x.water!==''&&x.water!=null?`<small>💧 ${Number(x.water).toFixed(1).replace('.',',')} L acqua</small>`:''}
        ${b!=null?`<small>BMI ${b.toFixed(1).replace('.',',')}</small>`:''}
        ${(()=>{const ce=calorieEstimateDay(x);return ce.calculated?`<small>${ce.calories} kcal · stima ${ce.qualityLabel.toLowerCase()}</small>`:''})()}
      </div>
@@ -635,6 +673,7 @@ function proDiaryDayView(){
    <div class="pro3-detail">
      <div><span>Peso</span><b>${weight!=null?weight.toFixed(1).replace('.',',')+' kg':'—'}</b></div>
      <div><span>BMI</span><b>${currentBmi!=null?currentBmi.toFixed(1).replace('.',','):'—'}</b></div>
+     <div class="water-detail"><span>Acqua bevuta</span><b>${d.water!==''&&d.water!=null?Number(d.water).toFixed(1).replace('.',',')+' L':'—'}</b></div>
      <div><span>Caffè</span><b>${d.coffee!==''&&d.coffee!=null?esc(d.coffee):'—'}</b></div>
      <div><span>Zucchero / dolcificante</span><b>${esc(d.sweetener||'—')}</b></div>
      <div><span>Calorie stimate</span><b>${dayEstimatedCalories(d)?dayEstimatedCalories(d)+' kcal':'—'}</b><small>${calorieEstimateDay(d).calculated?'Stima '+calorieEstimateDay(d).qualityLabel.toLowerCase():''}</small></div>
@@ -657,7 +696,7 @@ function proDiaryDayView(){
 function details(){
  const p=patient(selected)||mainPatient();
  const b=p.last&&p.height?bmi(p.last,p.height):null;
- return `${top(esc(p.name))}<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:10px"><button class="pro3-back" id="backPatients" style="margin-bottom:0">‹ Torna ai pazienti</button>${p.id!=='main'?'<button class="mini" id="deletePatient" style="color:#9a4646">Elimina paziente</button>':''}</div>
+ return `${top(esc(p.name))}${nav()}<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:10px"><button class="pro3-back" id="backPatients" style="margin-bottom:0">‹ Torna ai pazienti</button>${p.id!=='main'?'<button class="mini" id="deletePatient" style="color:#9a4646">Elimina paziente</button>':''}</div>
  <div class="pro3-kpis">
   <div><span>Peso iniziale</span><b>${p.first!=null?p.first.toFixed(1).replace('.',',')+' kg':'—'}</b></div>
   <div><span>Ultimo peso</span><b>${p.last!=null?p.last.toFixed(1).replace('.',',')+' kg':'—'}</b></div>
@@ -2102,7 +2141,7 @@ function agenda(){
  for(let m=start;m<end;m+=step)slots.push(m);
 
  const evs=appointments().filter(a=>days.some(d=>iso(d)===a.date));
- let grid=`<div class="pro3-calendar" style="grid-template-columns:55px repeat(${days.length},minmax(135px,1fr));grid-template-rows:42px repeat(${slots.length},32px)">`;
+ let grid=`<div class="pro3-calendar" style="grid-template-columns:55px repeat(${days.length},minmax(135px,1fr));grid-template-rows:48px repeat(${slots.length},46px)">`;
  grid+=`<div></div>`;
  days.forEach((d,i)=>grid+=`<div class="pro3-dayhead" style="grid-column:${i+2};grid-row:1"><b>${d.toLocaleDateString('it-IT',{weekday:'short'})}</b><span>${d.getDate()}</span></div>`);
  slots.forEach((m,i)=>grid+=`<div class="pro3-time" style="grid-column:1;grid-row:${i+2}">${minTime(m)}</div>`);
@@ -2186,6 +2225,11 @@ function settingsPage(){
  </select>
  <p class="muted">L'Agenda mostrerà solo i giorni lavorativi selezionati.</p>
  <button class="primary" id="saveSettings">Salva impostazioni</button></section>
+ <section class="card"><div class="section-head"><h2>Accesso professionista</h2><span class="pill">Demo locale</span></div>
+ <p class="muted">Modifica le credenziali utilizzate per entrare nell’Area Professionista.</p>
+ <label>Username</label><input id="proAccountUser" value="${esc(proLoginData()?.username||'')}">
+ <label>Nuova password</label><input id="proAccountPass" type="password" placeholder="Lascia vuoto per mantenerla invariata">
+ <button class="secondary" id="saveProAccount">Aggiorna credenziali</button></section>
  <section class="card"><div class="section-head"><h2>Backup pazienti</h2><span class="pill">JSON</span></div>
  <p class="muted">Scarica una copia dei dati locali della demo oppure ripristina un backup precedente. I PDF dei piani alimentari non sono inclusi.</p>
  <div class="pro3-actions"><button class="secondary" id="downloadProBackup">↓ Scarica backup</button><button class="secondary" id="uploadProBackup">↑ Carica backup</button></div>
@@ -2218,6 +2262,13 @@ function conflict(obj){
 }
 
 function render(){
+ document.body.dataset.proView=view;
+ const logoutBtn=document.getElementById('proLogoutBtn');
+ if(!proLoginData()||!proSessionActive()){
+   if(logoutBtn)logoutBtn.style.display='none';
+   el('proApp').innerHTML=proAccessScreen();bindProAccess();return;
+ }
+ if(logoutBtn)logoutBtn.style.display='inline-flex';
  try{
   let html=view==='dashboard'?dashboard():view==='patients'?patientsPage():view==='agenda'?agenda():view==='settings'?settingsPage():view==='details'?details():view==='newPatient'?newPatientForm():view==='editProfile'?editPatientProfileForm():view==='patientMeasure'?patientMeasureForm():view==='labForm'?labForm():view==='labReview'?labReview():view==='diaryDay'?proDiaryDayView():eventForm(window.prefill||null);
   el('proApp').innerHTML=html; bind();
@@ -2317,6 +2368,11 @@ el('newLab')?.addEventListener('click',()=>{window.editLabId='';view='labForm';r
 
  el('deletePatient')?.addEventListener('click',deleteSelectedPatient);
  el('searchPatient')?.addEventListener('input',e=>document.querySelectorAll('.pro3-patient').forEach(x=>x.style.display=x.innerText.toLowerCase().includes(e.target.value.toLowerCase())?'grid':'none'));
+ el('saveProAccount')?.addEventListener('click',()=>{
+   const old=proLoginData()||{},username=(el('proAccountUser')?.value||'').trim(),password=el('proAccountPass')?.value||old.password||'';
+   if(!username||!password)return alert('Inserisci username e password.');
+   save(PRO_LOGIN_KEY,{username,password});alert('Credenziali professionista aggiornate.');
+ });
  el('saveSettings')?.addEventListener('click',()=>{save(SETTINGS_KEY,{name:el('sName').value,first:+el('sFirst').value||60,control:+el('sControl').value||30,dayStart:el('sStart').value||'08:00',dayEnd:el('sEnd').value||'19:00',workDays:+el('sWorkDays').value||5});alert('Impostazioni salvate')});
  el('downloadProBackup')?.addEventListener('click',downloadProBackup);
  el('uploadProBackup')?.addEventListener('click',()=>el('proBackupFile')?.click());

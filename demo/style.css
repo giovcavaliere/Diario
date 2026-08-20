@@ -1197,3 +1197,143 @@ nav{background:rgba(250,252,248,.94);backdrop-filter:blur(22px);border-color:rgb
     font-size:12px!important;
   }
 }
+
+
+/* NUBEMO 3.35 — drawer iPhone realmente compatto */
+@media (max-width:600px){
+  /* Nasconde la testata generale anche quando l'iPhone è orizzontale. */
+  .pro-body > .pro-brand{
+    display:none!important;
+  }
+
+  .pro-body #proApp{
+    padding-top:max(14px,env(safe-area-inset-top))!important;
+  }
+
+  .pro-drawer{
+    width:min(88vw,390px)!important;
+  }
+
+  .drawer-nav{
+    display:block!important;
+    padding:10px 14px 18px!important;
+  }
+
+  .drawer-root,
+  .drawer-link,
+  .drawer-node,
+  .drawer-sub button{
+    display:block!important;
+    width:100%!important;
+    text-align:left!important;
+    justify-content:initial!important;
+    align-items:initial!important;
+    box-sizing:border-box!important;
+    margin:0!important;
+  }
+
+  .drawer-root,
+  .drawer-link{
+    min-height:0!important;
+    padding:10px 12px!important;
+    font-size:15px!important;
+    line-height:1.2!important;
+  }
+
+  .drawer-group{
+    margin:2px 0 5px 14px!important;
+    padding:0 0 0 11px!important;
+    border-left:2px solid #d8e8d2!important;
+  }
+
+  .drawer-node{
+    min-height:0!important;
+    padding:9px 10px!important;
+    font-size:14px!important;
+    line-height:1.2!important;
+    cursor:pointer!important;
+  }
+
+  .drawer-chevron{
+    display:inline-block!important;
+    width:18px!important;
+    margin-right:4px!important;
+    text-align:center!important;
+  }
+
+  /* Su iPhone le sezioni del paziente sono chiuse di default. */
+  .drawer-group .drawer-sub{
+    display:none!important;
+    margin:0!important;
+    padding:0!important;
+  }
+
+  .drawer-group.expanded .drawer-sub{
+    display:block!important;
+  }
+
+  .drawer-sub button{
+    min-height:0!important;
+    padding:7px 10px 7px 32px!important;
+    font-size:13px!important;
+    line-height:1.15!important;
+  }
+
+  .drawer-sub button[data-drawer-clinical]{
+    margin-top:2px!important;
+  }
+
+  .drawer-separator{
+    margin:6px 4px!important;
+  }
+}
+
+/* iPhone landscape: stessa logica compatta, senza pannello NUBEMO permanente. */
+@media (orientation:landscape) and (max-height:500px) and (max-width:950px){
+  .pro-body > .pro-brand{
+    display:none!important;
+  }
+
+  .pro-body #proApp{
+    padding-top:12px!important;
+  }
+
+  .pro-drawer{
+    width:min(56vw,390px)!important;
+    max-width:390px!important;
+  }
+
+  .drawer-head{
+    padding:9px 12px!important;
+  }
+
+  .drawer-nav{
+    display:block!important;
+    padding:6px 11px 10px!important;
+  }
+
+  .drawer-root,
+  .drawer-link{
+    min-height:0!important;
+    padding:6px 9px!important;
+    font-size:13px!important;
+    line-height:1.15!important;
+  }
+
+  .drawer-group{
+    margin:1px 0 3px 11px!important;
+    padding-left:9px!important;
+  }
+
+  .drawer-node{
+    min-height:0!important;
+    padding:5px 8px!important;
+    font-size:12.5px!important;
+  }
+
+  .drawer-sub button{
+    min-height:0!important;
+    padding:4px 8px 4px 27px!important;
+    font-size:12px!important;
+  }
+}

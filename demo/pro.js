@@ -109,6 +109,7 @@ let editing=null;
 let eventReturnToPatient=false;
 let weekDate=new Date(today()+'T12:00:00');
 let proDrawerOpen=false;
+let drawerPatientExpanded=false;
 
 
 
@@ -221,9 +222,9 @@ function iso(d){
 function proDrawer(){
  const p=(view==='details'||view==='editProfile'||view==='patientMeasure'||view==='labForm'||view==='labReview'||view==='diaryDay')?patient(selected):null;
  const patientBranch=p?`
-   <div class="drawer-group open">
-     <button class="drawer-node drawer-patient-name" data-drawer-patient="${p.id}">
-       <span class="drawer-chevron">⌄</span><strong>${esc(p.name)}</strong>
+   <div class="drawer-group open ${drawerPatientExpanded?'expanded':''}">
+     <button class="drawer-node drawer-patient-name" data-drawer-patient="${p.id}" aria-expanded="${drawerPatientExpanded?'true':'false'}">
+       <span class="drawer-chevron">${drawerPatientExpanded?'⌃':'⌄'}</span><strong>${esc(p.name)}</strong>
      </button>
      <div class="drawer-sub">
        ${[
@@ -2940,8 +2941,14 @@ function closeProDrawer(){
 function bindProDrawer(){
  el('openProDrawer')?.addEventListener('click',()=>{
    proDrawerOpen=true;
+   if(window.matchMedia('(max-width:600px)').matches)drawerPatientExpanded=false;
    el('proDrawer')?.classList.add('open');
    el('proDrawerBackdrop')?.classList.add('open');
+   if(window.matchMedia('(max-width:600px)').matches){
+     el('proDrawer')?.querySelector('.drawer-group')?.classList.remove('expanded');
+     const b=el('proDrawer')?.querySelector('[data-drawer-patient]');
+     if(b){b.setAttribute('aria-expanded','false');const ch=b.querySelector('.drawer-chevron');if(ch)ch.textContent='⌄'}
+   }
  });
  el('closeProDrawer')?.addEventListener('click',closeProDrawer);
  el('proDrawerBackdrop')?.addEventListener('click',closeProDrawer);
@@ -2971,8 +2978,17 @@ function bindProDrawer(){
    setTimeout(clinicalDialog,0);
  });
 
- document.querySelector('[data-drawer-patient]')?.addEventListener('click',()=>{
-   // il nome paziente identifica il ramo corrente; click mantiene la scheda aperta.
+ document.querySelector('[data-drawer-patient]')?.addEventListener('click',e=>{
+   if(window.matchMedia('(max-width:600px)').matches){
+     e.preventDefault();
+     drawerPatientExpanded=!drawerPatientExpanded;
+     const group=e.currentTarget.closest('.drawer-group');
+     group?.classList.toggle('expanded',drawerPatientExpanded);
+     e.currentTarget.setAttribute('aria-expanded',drawerPatientExpanded?'true':'false');
+     const ch=e.currentTarget.querySelector('.drawer-chevron');
+     if(ch)ch.textContent=drawerPatientExpanded?'⌃':'⌄';
+     return;
+   }
    view='details';
    closeProDrawer();
    render();

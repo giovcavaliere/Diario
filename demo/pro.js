@@ -3246,24 +3246,34 @@ ensureImportedFriendPatient();
 window.addEventListener('orientationchange',()=>setTimeout(()=>{
  syncPhoneLandscapeClass();
 
- // iPad/tablet: se il drawer è aperto durante la rotazione,
- // forziamo il ricalcolo del layout mantenendolo aperto.
- if(!isPhoneLayout() && proDrawerOpen){
-   const drawer=document.getElementById('proDrawer');
-   const backdrop=document.getElementById('proDrawerBackdrop');
-   drawer?.classList.remove('open');
-   backdrop?.classList.remove('open');
+ const tabletDrawerWasOpen=!isPhoneLayout() && proDrawerOpen;
 
+ // Prima ricreiamo il DOM nel nuovo orientamento.
+ render();
+
+ // Poi, sul DOM NUOVO, forziamo davvero lo stesso ciclo
+ // chiudi/apri che manualmente risolve il problema su iPad.
+ if(tabletDrawerWasOpen){
    requestAnimationFrame(()=>{
+     const drawer=document.getElementById('proDrawer');
+     const backdrop=document.getElementById('proDrawerBackdrop');
+     if(!drawer)return;
+
+     drawer.classList.remove('open');
+     backdrop?.classList.remove('open');
+
+     // Forza il browser a calcolare lo stato chiuso nel nuovo orientamento.
+     void drawer.offsetWidth;
+
      requestAnimationFrame(()=>{
-       drawer?.classList.add('open');
+       proDrawerOpen=true;
+       drawer.classList.add('open');
        backdrop?.classList.add('open');
+       void drawer.offsetWidth;
      });
    });
  }
-
- render();
-},120));
+},180));
 window.addEventListener('resize',()=>{syncPhoneLandscapeClass()});
 render();
 })();

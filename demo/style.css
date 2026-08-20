@@ -2087,3 +2087,59 @@ body.iphone-landscape .card{
   width:100%!important;
   box-sizing:border-box!important;
 }
+
+
+/* NUBEMO 3.41 — fix reale spazio vuoto iPhone landscape */
+body.iphone-landscape.pro-body{
+  padding-left:0!important;
+  margin:0!important;
+  width:100%!important;
+  max-width:none!important;
+  overflow-x:hidden!important;
+}
+
+/* Neutralizza completamente il vecchio layout desktop >=900px */
+body.iphone-landscape.pro-body > .pro-brand{
+  display:none!important;
+}
+
+body.iphone-landscape .pro3-nav,
+body.iphone-landscape .desktop-pro-nav{
+  display:none!important;
+}
+
+body.iphone-landscape #proApp{
+  position:relative!important;
+  left:0!important;
+  right:auto!important;
+  width:calc(100vw - 205px)!important;
+  max-width:none!important;
+  margin:0 0 0 205px!important;
+  padding:12px 14px 28px!important;
+  box-sizing:border-box!important;
+}
+
+/* La sidebar parte esattamente dal bordo sinistro */
+body.iphone-landscape .pro-drawer{
+  left:0!important;
+  top:0!important;
+  width:205px!important;
+  max-width:205px!important;
+  margin:0!important;
+  transform:none!important;
+}
+
+/* Evita qualsiasi centratura residua del contenuto */
+body.iphone-landscape .pro3-top,
+body.iphone-landscape .pro3-kpis,
+body.iphone-landscape .patient-content-card,
+body.iphone-landscape .card{
+  margin-left:0!important;
+  margin-right:0!important;
+  max-width:none!important;
+}
+
+/* La navigazione paziente in landscape resta solo nella sidebar */
+body.iphone-landscape .patient-desktop-tabs{
+  display:none!important;
+}

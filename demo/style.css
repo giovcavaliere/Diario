@@ -2370,11 +2370,19 @@ body.iphone-landscape .patient-desktop-tabs{
   }
 }
 
+/* ==========================================================================
+   NUBEMO 3.53 — RESPONSIVE STABILIZATION
+   Baseline: 3.52
+   Scopo: consolidare le patch 3.43–3.52 senza cambiare la UI approvata.
+   ========================================================================== */
 
-/* NUBEMO 3.43 — uniforma Cambia area / Esci in iPhone landscape */
+/* --------------------------------------------------------------------------
+   A. AREA PROFESSIONISTA — iPhone landscape
+   -------------------------------------------------------------------------- */
 @media (orientation:landscape) and (max-width:950px){
   body.pro-body .drawer-link,
   body.pro-body .drawer-logout{
+    position:relative!important;
     font-family:inherit!important;
     font-size:12px!important;
     font-weight:800!important;
@@ -2384,6 +2392,22 @@ body.iphone-landscape .patient-desktop-tabs{
 
   body.pro-body .drawer-link{
     color:#17332d!important;
+    border-top:0!important;          /* niente riga arrotondata sul bottone */
+    margin-top:14px!important;
+    padding-top:14px!important;
+  }
+
+  /* Riga divisoria indipendente dal bordo/radius del pulsante */
+  body.pro-body .drawer-link::before{
+    content:""!important;
+    position:absolute!important;
+    left:0!important;
+    right:0!important;
+    top:0!important;
+    height:1px!important;
+    background:#dbe8d7!important;
+    border:0!important;
+    border-radius:0!important;
   }
 
   body.pro-body .drawer-logout{
@@ -2394,42 +2418,13 @@ body.iphone-landscape .patient-desktop-tabs{
   body.pro-body .drawer-logout strong{
     font:inherit!important;
     color:inherit!important;
+    text-decoration:none!important;
   }
 }
 
-
-/* NUBEMO 3.44 — micro-rifiniture menu */
-
-/* 1) Riga divisoria anche in landscape tra Profilo professionista e Cambia area */
-@media (orientation:landscape) and (max-width:950px){
-  body.pro-body .drawer-link{
-    border-top:1px solid #dbe8d7!important;
-    padding-top:14px!important;
-    margin-top:14px!important;
-  }
-}
-
-/* 2) Area paziente verticale: Cambia area ed Esci perfettamente allineati */
-@media (orientation:portrait) and (max-width:1024px){
-  body.patient-body .drawer-link,
-  body.patient-body .drawer-logout{
-    margin-top:0!important;
-    margin-bottom:0!important;
-    padding-top:12px!important;
-    padding-bottom:12px!important;
-    line-height:1.2!important;
-    min-height:44px!important;
-    box-sizing:border-box!important;
-    display:flex!important;
-    align-items:center!important;
-  }
-}
-
-
-/* NUBEMO 3.46 rebuild — fix mirati partendo dalla 3.45 */
-
-/* AREA PAZIENTE — portrait iPhone + iPad:
-   Cambia area ed Esci con identica altezza e baseline. */
+/* --------------------------------------------------------------------------
+   B. AREA PAZIENTE — portrait iPhone + iPad
+   -------------------------------------------------------------------------- */
 @media (orientation:portrait) and (max-width:1024px){
   body:not(.pro-body) .brand-rail>.area-switch:not(.patient-logout-header),
   body:not(.pro-body) .brand-rail>.patient-logout-header{
@@ -2454,8 +2449,9 @@ body.iphone-landscape .patient-desktop-tabs{
   }
 }
 
-/* AREA PAZIENTE — solo iPhone landscape:
-   il menu laterale desktop entra tutto nell'altezza disponibile. */
+/* --------------------------------------------------------------------------
+   C. AREA PAZIENTE — iPhone landscape
+   -------------------------------------------------------------------------- */
 @media (orientation:landscape) and (max-height:500px){
   body:not(.landing-body):not(.pro-body) .brand-rail{
     height:174px!important;
@@ -2478,12 +2474,24 @@ body.iphone-landscape .patient-desktop-tabs{
 
   body:not(.landing-body):not(.pro-body) .brand-rail>.area-switch:not(.patient-logout-header),
   body:not(.landing-body):not(.pro-body) .brand-rail>.patient-logout-header{
+    box-sizing:border-box!important;
+    display:flex!important;
+    align-items:center!important;
+    justify-content:center!important;
     height:28px!important;
     min-height:28px!important;
-    margin-top:5px!important;
     padding:0 8px!important;
     font-size:10px!important;
-    line-height:1!important;
+    line-height:28px!important;
+    vertical-align:middle!important;
+  }
+
+  body:not(.landing-body):not(.pro-body) .brand-rail>.area-switch:not(.patient-logout-header){
+    margin-top:9px!important;
+  }
+
+  body:not(.landing-body):not(.pro-body) .brand-rail>.patient-logout-header{
+    margin-top:6px!important;
   }
 
   body:not(.landing-body):not(.pro-body) nav{
@@ -2510,173 +2518,11 @@ body.iphone-landscape .patient-desktop-tabs{
   }
 }
 
-
-/* NUBEMO 3.47 — micro-fix area paziente iPhone landscape */
-@media (orientation:landscape) and (max-height:500px){
-
-  /* Abbassa leggermente il blocco Cambia area / Esci */
-  body:not(.landing-body):not(.pro-body) .brand-rail>.area-switch:not(.patient-logout-header){
-    margin-top:9px!important;
-  }
-
-  body:not(.landing-body):not(.pro-body) .brand-rail>.patient-logout-header{
-    margin-top:6px!important;
-  }
-
-  /* Testo perfettamente centrato verticalmente nei due riquadri */
-  body:not(.landing-body):not(.pro-body) .brand-rail>.area-switch:not(.patient-logout-header),
-  body:not(.landing-body):not(.pro-body) .brand-rail>.patient-logout-header{
-    box-sizing:border-box!important;
-    display:flex!important;
-    align-items:center!important;
-    justify-content:center!important;
-    height:28px!important;
-    min-height:28px!important;
-    padding:0 8px!important;
-    line-height:28px!important;
-    vertical-align:middle!important;
-  }
-}
-
-
-/* NUBEMO 3.48 — iPad drawer stabile in entrambi gli orientamenti
-   Nessuna differenza strutturale portrait/landscape. */
-@media (min-width:601px) and (max-width:1024px){
-
-  .pro-body .pro-drawer{
-    position:fixed!important;
-    left:0!important;
-    top:0!important;
-    bottom:0!important;
-    width:min(390px,86vw)!important;
-    max-width:390px!important;
-    height:100dvh!important;
-    display:flex!important;
-    flex-direction:column!important;
-    overflow:hidden!important;
-    background:#f8fbf6!important;
-    transform:translateX(-105%)!important;
-  }
-
-  .pro-body .pro-drawer.open{
-    transform:translateX(0)!important;
-  }
-
-  .pro-body .drawer-head{
-    flex:0 0 auto!important;
-    display:flex!important;
-    align-items:center!important;
-    justify-content:space-between!important;
-    gap:12px!important;
-    padding:22px 18px!important;
-    min-height:0!important;
-  }
-
-  .pro-body .drawer-brand{
-    display:flex!important;
-    align-items:center!important;
-    gap:12px!important;
-  }
-
-  .pro-body .drawer-brand img{
-    width:56px!important;
-    height:56px!important;
-    flex:0 0 56px!important;
-  }
-
-  .pro-body .drawer-close{
-    flex:0 0 40px!important;
-    width:40px!important;
-    height:40px!important;
-    display:grid!important;
-    place-items:center!important;
-  }
-
-  /* Punto chiave: nav sempre in alto, mai distribuita verticalmente. */
-  .pro-body .drawer-nav{
-    position:static!important;
-    inset:auto!important;
-    flex:1 1 auto!important;
-    min-height:0!important;
-    display:flex!important;
-    flex-direction:column!important;
-    align-items:stretch!important;
-    justify-content:flex-start!important;
-    gap:5px!important;
-    padding:16px 18px 24px!important;
-    margin:0!important;
-    overflow-y:auto!important;
-    overflow-x:hidden!important;
-    -webkit-overflow-scrolling:touch!important;
-  }
-
-  .pro-body .drawer-root,
-  .pro-body .drawer-node,
-  .pro-body .drawer-sub button,
-  .pro-body .drawer-link,
-  .pro-body .drawer-logout{
-    flex:0 0 auto!important;
-    width:100%!important;
-    box-sizing:border-box!important;
-    margin:0!important;
-  }
-
-  .pro-body .drawer-root{
-    min-height:48px!important;
-    padding:13px 14px!important;
-  }
-
-  .pro-body .drawer-group{
-    flex:0 0 auto!important;
-    width:100%!important;
-    margin:0 0 8px 12px!important;
-    padding:2px 0 4px 12px!important;
-  }
-
-  .pro-body .drawer-node{
-    min-height:42px!important;
-    padding:10px 12px!important;
-  }
-
-  .pro-body .drawer-sub{
-    display:flex!important;
-    flex-direction:column!important;
-    gap:2px!important;
-    margin:2px 0 0!important;
-  }
-
-  .pro-body .drawer-sub button{
-    min-height:42px!important;
-    padding:10px 12px 10px 28px!important;
-  }
-
-  .pro-body .drawer-separator{
-    flex:0 0 auto!important;
-    height:1px!important;
-    margin:9px 4px!important;
-  }
-}
-
-/* Safari iPad landscape: neutralizza qualsiasi vecchia regola desktop >=900px
-   che potrebbe interferire SOLO con il drawer. */
-@media (orientation:landscape) and (min-width:601px) and (max-width:1024px){
-  .pro-body .pro-drawer{
-    top:0!important;
-    bottom:0!important;
-    height:100dvh!important;
-  }
-
-  .pro-body .drawer-nav{
-    justify-content:flex-start!important;
-    align-content:flex-start!important;
-    padding-top:16px!important;
-    padding-bottom:24px!important;
-  }
-}
-
-
-/* NUBEMO 3.49 — iPad identificato per dispositivo, non per larghezza viewport.
-   Valido allo stesso modo in portrait e landscape. */
+/* --------------------------------------------------------------------------
+   D. AREA PROFESSIONISTA — iPad drawer overlay
+   La classe ipad-layout è stabile durante la rotazione e non dipende dalla
+   larghezza corrente del viewport.
+   -------------------------------------------------------------------------- */
 body.pro-body.ipad-layout .pro-drawer{
   position:fixed!important;
   left:0!important;
@@ -2722,13 +2568,17 @@ body.pro-body.ipad-layout .drawer-brand img{
 }
 
 body.pro-body.ipad-layout .drawer-close{
+  position:static!important;
   display:grid!important;
   place-items:center!important;
-  position:static!important;
+  align-self:center!important;
   flex:0 0 40px!important;
   width:40px!important;
   height:40px!important;
   margin:0!important;
+  top:auto!important;
+  bottom:auto!important;
+  transform:none!important;
 }
 
 body.pro-body.ipad-layout .drawer-nav{
@@ -2804,14 +2654,11 @@ body.pro-body.ipad-layout .drawer-separator{
   margin:9px 4px!important;
 }
 
-
-/* NUBEMO 3.50 — rifiniture menu iPad landscape */
+/* iPad: colori/decoro comuni */
 body.pro-body.ipad-layout .drawer-link{
+  position:relative!important;
   text-decoration:none!important;
   color:#17332d!important;
-  border-top:1px solid #dbe8d7!important;
-  margin-top:9px!important;
-  padding-top:14px!important;
 }
 
 body.pro-body.ipad-layout .drawer-link strong{
@@ -2827,68 +2674,37 @@ body.pro-body.ipad-layout .drawer-logout strong{
   color:inherit!important;
 }
 
-
-/* NUBEMO 3.51 — iPad: allineamento X con cerchio/logo verde */
-body.pro-body.ipad-layout .drawer-head{
-  align-items:center!important;
-}
-
-body.pro-body.ipad-layout .drawer-close{
-  align-self:center!important;
-  margin-top:0!important;
-  margin-bottom:0!important;
-  top:auto!important;
-  bottom:auto!important;
-  transform:none!important;
-}
-
-
-/* NUBEMO 3.52 — pulizia menu iPad */
-
-/* PORTRAIT: nessuna riga extra aggiunta dalla 3.50 */
+/* iPad portrait: nessuna linea extra */
 @media (orientation:portrait){
   body.pro-body.ipad-layout .drawer-link{
     border-top:0!important;
     margin-top:0!important;
     padding-top:13px!important;
-    text-decoration:none!important;
-    color:#17332d!important;
   }
 
-  body.pro-body.ipad-layout .drawer-link strong{
-    text-decoration:none!important;
-    color:inherit!important;
-  }
-
-  body.pro-body.ipad-layout .drawer-logout{
-    color:#a13f3f!important;
-  }
-
-  body.pro-body.ipad-layout .drawer-logout strong{
-    color:inherit!important;
+  body.pro-body.ipad-layout .drawer-link::before{
+    content:none!important;
   }
 }
 
-/* LANDSCAPE: una sola riga divisoria prima di Cambia area */
+/* iPad landscape: una sola linea piatta prima di Cambia area */
 @media (orientation:landscape){
   body.pro-body.ipad-layout .drawer-link{
-    text-decoration:none!important;
-    color:#17332d!important;
-    border-top:1px solid #dbe8d7!important;
+    border-top:0!important;
     margin-top:9px!important;
     padding-top:14px!important;
   }
 
-  body.pro-body.ipad-layout .drawer-link strong{
-    text-decoration:none!important;
-    color:inherit!important;
-  }
-
-  body.pro-body.ipad-layout .drawer-logout{
-    color:#a13f3f!important;
-  }
-
-  body.pro-body.ipad-layout .drawer-logout strong{
-    color:inherit!important;
+  body.pro-body.ipad-layout .drawer-link::before{
+    content:""!important;
+    position:absolute!important;
+    left:0!important;
+    right:0!important;
+    top:0!important;
+    height:1px!important;
+    background:#dbe8d7!important;
+    border:0!important;
+    border-radius:0!important;
   }
 }
+

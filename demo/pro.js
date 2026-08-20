@@ -3265,24 +3265,15 @@ el('newLab')?.addEventListener('click',()=>{window.editLabId='';view='labForm';r
 
 ensureImportedFriendPatient();
 
-window.addEventListener('orientationchange',()=>setTimeout(()=>{
+function syncResponsiveLayout(){
  syncPhoneLandscapeClass();
-},180));
-
-window.addEventListener('orientationchange',()=>setTimeout(()=>{
  syncIPadLayoutClass();
  syncIPadDrawerForOrientation();
-},120));
-window.addEventListener('resize',()=>{
- syncIPadLayoutClass();
- syncIPadDrawerForOrientation();
-});
-syncIPadLayoutClass();
+}
 
-window.addEventListener('resize',()=>{
- syncPhoneLandscapeClass();
-});
+window.addEventListener('orientationchange',()=>setTimeout(syncResponsiveLayout,160));
+window.addEventListener('resize',syncResponsiveLayout);
 
-syncIPadDrawerForOrientation();
+syncResponsiveLayout();
 render();
 })();

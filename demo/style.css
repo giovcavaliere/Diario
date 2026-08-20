@@ -1337,3 +1337,87 @@ nav{background:rgba(250,252,248,.94);backdrop-filter:blur(22px);border-color:rgb
     font-size:12px!important;
   }
 }
+
+
+/* NUBEMO 3.36 — solo iPhone orizzontale: layout pagina */
+@media (orientation:landscape) and (max-height:500px) and (max-width:950px){
+
+  /* La pagina non deve ereditare il layout desktop centrato. */
+  .pro-body #proApp{
+    width:100%!important;
+    max-width:none!important;
+    box-sizing:border-box!important;
+    margin:0!important;
+    padding:12px 16px 38px!important;
+  }
+
+  .pro3-top{
+    width:100%!important;
+    max-width:none!important;
+    margin:0 0 14px!important;
+    padding:0!important;
+  }
+
+  .pro-top-brand{
+    width:100%!important;
+    display:flex!important;
+    align-items:center!important;
+    justify-content:flex-start!important;
+    gap:11px!important;
+    text-align:left!important;
+    margin:0!important;
+    padding:0!important;
+  }
+
+  .pro-top-brand img{
+    width:46px!important;
+    height:46px!important;
+    flex:0 0 46px!important;
+    border-radius:14px!important;
+  }
+
+  .pro-top-brand .eyebrow{
+    font-size:9px!important;
+    letter-spacing:.14em!important;
+  }
+
+  .pro-top-brand h1{
+    font-size:30px!important;
+    line-height:1!important;
+    margin:3px 0 0!important;
+  }
+
+  /* I KPI passano da desktop 4-colonne a 2 colonne. */
+  .pro3-kpis{
+    display:grid!important;
+    grid-template-columns:repeat(2,minmax(0,1fr))!important;
+    gap:10px!important;
+    width:100%!important;
+  }
+
+  .pro3-kpis>div{
+    min-width:0!important;
+    padding:13px 15px!important;
+    border-radius:17px!important;
+  }
+
+  .pro3-kpis b{
+    font-size:28px!important;
+  }
+
+  /* Le sezioni dashboard non devono restare in colonne desktop rigide. */
+  .pro3-dashboard,
+  .pro-dashboard-grid{
+    grid-template-columns:1fr!important;
+    width:100%!important;
+    gap:12px!important;
+  }
+
+  .pro-body .card{
+    max-width:none!important;
+  }
+
+  .section-head{
+    gap:10px!important;
+  }
+}

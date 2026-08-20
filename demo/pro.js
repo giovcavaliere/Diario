@@ -3243,58 +3243,12 @@ el('newLab')?.addEventListener('click',()=>{window.editLabId='';view='labForm';r
 
 ensureImportedFriendPatient();
 
-let tabletDrawerReflowTimer=null;
-function reflowTabletDrawerAfterRotation(){
- if(isPhoneLayout() || !proDrawerOpen)return;
-
- clearTimeout(tabletDrawerReflowTimer);
- tabletDrawerReflowTimer=setTimeout(()=>{
-   const drawer=document.getElementById('proDrawer');
-   const backdrop=document.getElementById('proDrawerBackdrop');
-   if(!drawer || !proDrawerOpen)return;
-
-   // Riparte sempre dalla parte alta del drawer.
-   drawer.scrollTop=0;
-
-   // Replica realmente il ciclo chiudi/apri DOPO che Safari
-   // ha terminato il resize/orientation layout.
-   drawer.classList.remove('open');
-   backdrop?.classList.remove('open');
-   void drawer.offsetWidth;
-
-   requestAnimationFrame(()=>{
-     requestAnimationFrame(()=>{
-       proDrawerOpen=true;
-       drawer.classList.add('open');
-       backdrop?.classList.add('open');
-       drawer.scrollTop=0;
-       void drawer.offsetWidth;
-     });
-   });
- },320);
-}
-
-window.addEventListener('orientationchange',()=>{
- const tabletDrawerWasOpen=!isPhoneLayout() && proDrawerOpen;
-
- setTimeout(()=>{
-   syncPhoneLandscapeClass();
-   render();
-
-   if(tabletDrawerWasOpen){
-     proDrawerOpen=true;
-     document.getElementById('proDrawer')?.classList.add('open');
-     document.getElementById('proDrawerBackdrop')?.classList.add('open');
-     reflowTabletDrawerAfterRotation();
-   }
- },180);
-});
+window.addEventListener('orientationchange',()=>setTimeout(()=>{
+ syncPhoneLandscapeClass();
+},180));
 
 window.addEventListener('resize',()=>{
  syncPhoneLandscapeClass();
- if(!isPhoneLayout() && proDrawerOpen){
-   reflowTabletDrawerAfterRotation();
- }
 });
 
 render();

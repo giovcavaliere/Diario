@@ -593,3 +593,233 @@ nav{background:rgba(250,252,248,.94);backdrop-filter:blur(22px);border-color:rgb
   stroke:var(--accent)!important;
   stroke-width:2.4!important;
 }
+
+/* NUBEMO 3.19 — assi grafici realmente responsive */
+.chart-wrap{position:relative;overflow:hidden!important}
+.chart.responsive-chart{
+  width:100%!important;
+  height:clamp(210px,34vw,300px)!important;
+  display:block;
+  overflow:hidden!important;
+}
+.chart-y-label,.chart-x-label,.chart-unit-svg{
+  fill:#657780;
+  font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+}
+.chart-y-label{font-size:4.1px!important}
+.chart-x-label{font-size:4.2px;font-weight:650}
+.chart-unit-svg{font-size:4px;font-weight:800}
+.chart-dates,.chart-unit{display:none!important}
+@media(max-width:520px){
+  .chart.responsive-chart{height:220px!important}
+  .chart-y-label{font-size:4.3px!important}
+  .chart-x-label{font-size:4.3px}
+}
+@media(min-width:521px) and (max-width:1100px){
+  .chart.responsive-chart{height:270px!important}
+}
+
+/* NUBEMO 3.19 — cartella paziente e profilo professionista */
+.pro-profile-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.pro-profile-grid.three{grid-template-columns:.65fr 1.35fr .65fr}
+.pro-logo-editor{display:flex;align-items:center;gap:18px;flex-wrap:wrap;margin-top:14px}
+.pro-logo-preview{
+  width:180px;height:100px;border:1px dashed #cbdcd2;border-radius:18px;
+  display:grid;place-items:center;background:#f8fbf7;overflow:hidden;color:#7a8b83;font-size:12px
+}
+.pro-logo-preview img{max-width:100%;max-height:100%;object-fit:contain}
+.pro-logo-actions{display:flex;gap:8px;flex-wrap:wrap}
+.file-button{display:inline-flex;align-items:center;justify-content:center;cursor:pointer;padding:11px 14px!important;border-radius:14px}
+.patient-detail-toolbar{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap}
+.clinical-overlay{
+  position:fixed;inset:0;z-index:100000;display:grid;place-items:center;padding:18px;
+  background:rgba(3,27,23,.58);backdrop-filter:blur(10px)
+}
+.clinical-modal{
+  position:relative;width:min(540px,100%);background:#fbfdf9;border-radius:28px;padding:28px;
+  box-shadow:0 32px 85px rgba(0,0,0,.28);border:1px solid rgba(255,255,255,.75)
+}
+.clinical-modal h2{font-size:30px;line-height:1.04;letter-spacing:-.035em;margin:8px 0 12px}
+.clinical-check{
+  margin:20px 0 8px!important;padding:15px;border:1px solid #dce9d8;border-radius:17px;background:#f2f8ee;
+  display:flex!important;align-items:flex-start;gap:11px;cursor:pointer
+}
+.clinical-check input{width:auto;margin:3px 0 0}
+.clinical-check span{display:flex;flex-direction:column;gap:4px}
+.clinical-check small{font-weight:400;color:#72827b}
+.clinical-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:22px}
+@media(max-width:680px){
+  .pro-profile-grid,.pro-profile-grid.three{grid-template-columns:1fr}
+  .patient-detail-toolbar{align-items:stretch}
+  .patient-detail-toolbar>.head-actions{width:100%;display:grid;grid-template-columns:1fr 1fr}
+  .clinical-actions{grid-template-columns:1fr}
+}
+
+/* NUBEMO 3.20 — navigazione professionista a scomparsa */
+.pro-top-brand{
+  border:0;background:transparent;padding:0;display:flex;align-items:center;gap:12px;
+  text-align:left;cursor:pointer;color:inherit
+}
+.pro-top-brand img{width:54px;height:54px;border-radius:16px;object-fit:cover;display:block}
+.pro-top-brand h1{margin:2px 0 0}
+.pro-drawer-backdrop{
+  position:fixed;inset:0;background:rgba(3,25,21,.42);backdrop-filter:blur(3px);
+  z-index:20000;opacity:0;pointer-events:none;transition:opacity .2s ease
+}
+.pro-drawer-backdrop.open{opacity:1;pointer-events:auto}
+.pro-drawer{
+  position:fixed;left:0;top:0;bottom:0;width:min(390px,86vw);z-index:20001;
+  background:#f8fbf6;border-right:1px solid #d7e4d3;box-shadow:24px 0 60px rgba(0,0,0,.18);
+  transform:translateX(-105%);transition:transform .24s ease;overflow:auto
+}
+.pro-drawer.open{transform:translateX(0)}
+.drawer-head{
+  display:flex;align-items:center;justify-content:space-between;gap:12px;padding:22px 18px;
+  border-bottom:1px solid #dfe9dc;background:#fff
+}
+.drawer-brand{display:flex;align-items:center;gap:12px}
+.drawer-brand img{width:56px;height:56px;border-radius:17px;object-fit:cover}
+.drawer-brand b{display:block;font-size:20px;letter-spacing:.08em;color:#075449}
+.drawer-brand span{display:block;margin-top:4px;color:#74817b;font-size:12px}
+.drawer-close{border:0;background:#edf5e8;width:40px;height:40px;border-radius:50%;font-size:25px;color:#075449}
+.drawer-nav{padding:16px}
+.drawer-root,.drawer-node,.drawer-sub button{
+  width:100%;border:0;background:transparent;border-radius:14px;padding:13px 14px;
+  text-align:left;color:#17332d;font-size:15px;cursor:pointer
+}
+.drawer-root{display:flex;align-items:center;gap:9px;font-size:16px;margin-bottom:4px}
+.drawer-root.active,.drawer-sub button.active{background:#e5f2df;color:#075449}
+.drawer-group{margin:2px 0 10px 14px;padding-left:10px;border-left:2px solid #d8e8d2}
+.drawer-node{display:flex;align-items:center;gap:8px;color:#075449;padding-left:7px}
+.drawer-sub{display:grid;gap:2px;margin-top:2px}
+.drawer-sub button{padding-left:28px;font-size:14px}
+.drawer-sub button[data-drawer-clinical]{margin-top:8px;background:#eef6ea;font-weight:800}
+.patient-content-card{overflow:visible}
+.patient-section-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;margin-bottom:14px}
+.patient-section-head h2{margin:3px 0 0;font-size:28px}
+
+@media(max-width:899px){
+  .desktop-pro-nav{display:none!important}
+  .pro3-top{padding-top:4px}
+  .pro-top-brand{width:100%}
+  .pro-top-brand img{width:50px;height:50px}
+  .pro-top-brand .eyebrow{font-size:10px}
+  .pro-top-brand h1{font-size:24px}
+  .patient-content-card{margin-top:12px}
+}
+@media(min-width:900px){
+  .pro-drawer{width:390px}
+}
+
+/* NUBEMO 3.21 — rifiniture desktop */
+.patient-section-actions{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+@media(max-width:899px){
+  .desktop-clinical-pdf{display:none!important}
+}
+@media(min-width:900px){
+  .chart-wrap{overflow:hidden!important}
+  .chart.responsive-chart{
+    width:calc(100% + 54px)!important;
+    max-width:none!important;
+    margin-left:-54px!important;
+  }
+}
+
+/* NUBEMO 3.22 — scheda paziente desktop completa */
+.patient-desktop-tabs{
+  display:flex;flex-wrap:wrap;gap:8px;margin:0 0 14px;padding:12px;
+  background:#fff;border:1px solid #e0e9e2;border-radius:20px
+}
+.patient-desktop-tabs button{
+  border:0;background:#edf2f4;color:#18332e;padding:10px 14px;border-radius:14px;
+  font-weight:750;cursor:pointer
+}
+.patient-desktop-tabs button.active{background:#087b64;color:#fff}
+@media(max-width:899px){.patient-desktop-tabs{display:none!important}}
+
+/* NUBEMO 3.23 — unità grafici e rifiniture */
+.chart-wrap{position:relative!important}
+.chart-unit-fixed{
+  position:absolute;left:6px;top:7px;
+  color:#71828a;font-size:12px;font-weight:800;
+  line-height:1;z-index:2;pointer-events:none
+}
+.chart-unit-svg{display:none!important}
+.patient-section-head h2{margin:0;font-size:30px}
+@media(max-width:899px){
+  .patient-section-head{display:block}
+  .patient-section-actions{margin-top:10px}
+}
+
+/* NUBEMO 3.28 — azioni scheda paziente professionista */
+.patient-section-head-clean{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:18px;
+  margin-bottom:18px
+}
+.patient-section-head-clean h2{margin:0}
+.patient-summary-actions{
+  display:flex;
+  align-items:center;
+  justify-content:flex-end;
+  gap:9px;
+  flex-wrap:wrap
+}
+.patient-summary-actions button{white-space:nowrap}
+.patient-edit-btn{
+  min-width:auto!important;
+  padding:11px 16px!important
+}
+.desktop-clinical-pdf{
+  width:auto!important;
+  min-width:auto!important;
+  padding:11px 18px!important
+}
+.patient-more-wrap{position:relative}
+.patient-more-btn{
+  width:42px;height:42px;padding:0!important;border:1px solid #d8e5d5;
+  background:#f4f8f1;color:#075449;border-radius:14px;font-size:23px;
+  line-height:1;display:grid;place-items:center;cursor:pointer
+}
+.patient-more-menu{
+  display:none;position:absolute;right:0;top:48px;z-index:5000;
+  min-width:180px;padding:7px;background:#fff;border:1px solid #dce7da;
+  border-radius:14px;box-shadow:0 14px 35px rgba(0,0,0,.12)
+}
+.patient-more-menu.open{display:block}
+.patient-more-menu button{
+  width:100%;text-align:left;border:0;background:transparent;padding:10px 12px;
+  border-radius:10px;cursor:pointer;font-weight:700
+}
+.patient-more-menu .danger-link{color:#a13f3f}
+.patient-more-menu .danger-link:hover{background:#fff1f1}
+#editPatientProfileLegacy{display:none!important}
+
+@media(max-width:899px){
+  .patient-section-head-clean{
+    align-items:flex-start;
+    flex-direction:column;
+    gap:12px
+  }
+  .patient-summary-actions{
+    width:100%;
+    justify-content:flex-start
+  }
+  .patient-edit-btn,.desktop-clinical-pdf{
+    flex:1 1 150px
+  }
+}
+@media(max-width:520px){
+  .patient-summary-actions{
+    display:grid;
+    grid-template-columns:1fr 1fr auto;
+    gap:8px
+  }
+  .patient-edit-btn,.desktop-clinical-pdf{
+    width:100%!important;
+    padding:10px 9px!important;
+    font-size:13px
+  }
+}

@@ -1169,9 +1169,9 @@ function chart(items,days){
   let min=Math.floor((rawMin-pad)*2)/2;
   let max=Math.ceil((rawMax+pad)*2)/2;
   if(max===min)max=min+1;
-  let range=max-min;
+  const range=max-min;
 
-  const left=22,right=98,top=8,bottom=86;
+  const left=31,right=156,top=7,bottom=60,dateY=75;
   const xFor=(date)=>{
     const idx=w.findIndex(x=>x.date===date);
     return w.length===1?(left+right)/2:left+idx/(w.length-1)*(right-left);
@@ -1180,14 +1180,15 @@ function chart(items,days){
   const pts=w.map(x=>`${xFor(x.date).toFixed(2)},${yFor(+x.weight).toFixed(2)}`).join(' ');
   const avgPts=avgSeries.map(x=>`${xFor(x.date).toFixed(2)},${yFor(x.avg).toFixed(2)}`).join(' ');
 
-  let tickCount=5;
-  let ticks=Array.from({length:tickCount},(_,i)=>max-(range/(tickCount-1))*i);
-  let grid=ticks.map(v=>{
-    let y=yFor(v);
-    return `<line x1="${left}" y1="${y}" x2="${right}" y2="${y}" class="chart-grid"/><text x="${left-2}" y="${y}" text-anchor="end" dominant-baseline="middle" class="chart-y-label">${v.toFixed(1).replace('.',',')}</text>`;
+  const ticks=Array.from({length:5},(_,i)=>max-(range/4)*i);
+  const grid=ticks.map(v=>{
+    const y=yFor(v);
+    return `<line x1="${left}" y1="${y}" x2="${right}" y2="${y}" class="chart-grid"/><text x="${left-4}" y="${y}" text-anchor="end" dominant-baseline="middle" class="chart-y-label">${v.toFixed(1).replace('.',',')}</text>`;
   }).join('');
+  const startLabel=fmt(w[0].date).replace(/^[^ ]+ /,'');
+  const endLabel=fmt(w.at(-1).date).replace(/^[^ ]+ /,'');
 
-  return `<div class="chart-wrap"><svg class="chart" viewBox="0 0 100 100" preserveAspectRatio="none">${grid}<line x1="${left}" y1="${top}" x2="${left}" y2="${bottom}" class="chart-axis"/><line x1="${left}" y1="${bottom}" x2="${right}" y2="${bottom}" class="chart-axis"/><polyline points="${pts}" class="chart-line" fill="none" vector-effect="non-scaling-stroke"/>${w.map(x=>`<circle cx="${xFor(x.date)}" cy="${yFor(+x.weight)}" r="0.55" class="chart-point" vector-effect="non-scaling-stroke"/>`).join('')}${showMovingAverage&&avgPts?`<polyline points="${avgPts}" class="chart-average" fill="none" vector-effect="non-scaling-stroke"/>`:''}</svg><span class="chart-unit">kg</span></div><div class="chart-dates"><span>${fmt(w[0].date).replace(/^[^ ]+ /,'')}</span><span>${fmt(w.at(-1).date).replace(/^[^ ]+ /,'')}</span></div>`;
+  return `<div class="chart-wrap"><svg class="chart responsive-chart" viewBox="0 0 160 80" preserveAspectRatio="none">${grid}<line x1="${left}" y1="${top}" x2="${left}" y2="${bottom}" class="chart-axis"/><line x1="${left}" y1="${bottom}" x2="${right}" y2="${bottom}" class="chart-axis"/><polyline points="${pts}" class="chart-line" fill="none" vector-effect="non-scaling-stroke"/>${w.map(x=>`<circle cx="${xFor(x.date)}" cy="${yFor(+x.weight)}" r="0.8" class="chart-point" vector-effect="non-scaling-stroke"/>`).join('')}${showMovingAverage&&avgPts?`<polyline points="${avgPts}" class="chart-average" fill="none" vector-effect="non-scaling-stroke"/>`:''}<text x="${left}" y="${dateY}" text-anchor="start" class="chart-x-label">${startLabel}</text><text x="${right}" y="${dateY}" text-anchor="end" class="chart-x-label">${endLabel}</text></svg><span class="chart-unit-fixed">kg</span></div>`;
 }
 
 function bmiChart(items,days){
@@ -1197,23 +1198,26 @@ function bmiChart(items,days){
   data=filteredByDays(data,days);
   if(!data.length)return '<p class="muted">Nessun dato BMI disponibile.</p>';
 
-  let vals=data.map(x=>x.bmi);
-  let rawMin=Math.min(...vals),rawMax=Math.max(...vals);
-  let pad=Math.max(.4,(rawMax-rawMin)*.12);
+  const vals=data.map(x=>x.bmi);
+  const rawMin=Math.min(...vals),rawMax=Math.max(...vals);
+  const pad=Math.max(.4,(rawMax-rawMin)*.12);
   let min=Math.floor((rawMin-pad)*2)/2;
   let max=Math.ceil((rawMax+pad)*2)/2;
   if(max===min)max=min+1;
-  const range=max-min,left=22,right=98,top=8,bottom=86;
+  const range=max-min,left=31,right=156,top=7,bottom=60,dateY=75;
   const xFor=i=>data.length===1?(left+right)/2:left+i/(data.length-1)*(right-left);
   const yFor=v=>bottom-((v-min)/range)*(bottom-top);
   const pts=data.map((x,i)=>`${xFor(i).toFixed(2)},${yFor(x.bmi).toFixed(2)}`).join(' ');
   const ticks=Array.from({length:5},(_,i)=>max-(range/4)*i);
   const grid=ticks.map(v=>{
     const y=yFor(v);
-    return `<line x1="${left}" y1="${y}" x2="${right}" y2="${y}" class="chart-grid"/><text x="${left-2}" y="${y}" text-anchor="end" dominant-baseline="middle" class="chart-y-label">${v.toFixed(1).replace('.',',')}</text>`;
+    return `<line x1="${left}" y1="${y}" x2="${right}" y2="${y}" class="chart-grid"/><text x="${left-4}" y="${y}" text-anchor="end" dominant-baseline="middle" class="chart-y-label">${v.toFixed(1).replace('.',',')}</text>`;
   }).join('');
-  return `<div class="chart-wrap"><svg class="chart" viewBox="0 0 100 100" preserveAspectRatio="none">${grid}<line x1="${left}" y1="${top}" x2="${left}" y2="${bottom}" class="chart-axis"/><line x1="${left}" y1="${bottom}" x2="${right}" y2="${bottom}" class="chart-axis"/><polyline points="${pts}" class="chart-bmi-line" fill="none" vector-effect="non-scaling-stroke"/>${data.map((x,i)=>`<circle cx="${xFor(i)}" cy="${yFor(x.bmi)}" r="0.55" class="chart-bmi-point" vector-effect="non-scaling-stroke"/>`).join('')}</svg><span class="chart-unit">BMI</span></div><div class="chart-dates"><span>${fmt(data[0].date).replace(/^[^ ]+ /,'')}</span><span>${fmt(data.at(-1).date).replace(/^[^ ]+ /,'')}</span></div>`;
+  const startLabel=fmt(data[0].date).replace(/^[^ ]+ /,'');
+  const endLabel=fmt(data.at(-1).date).replace(/^[^ ]+ /,'');
+  return `<div class="chart-wrap"><svg class="chart responsive-chart" viewBox="0 0 160 80" preserveAspectRatio="none">${grid}<line x1="${left}" y1="${top}" x2="${left}" y2="${bottom}" class="chart-axis"/><line x1="${left}" y1="${bottom}" x2="${right}" y2="${bottom}" class="chart-axis"/><polyline points="${pts}" class="chart-bmi-line" fill="none" vector-effect="non-scaling-stroke"/>${data.map((x,i)=>`<circle cx="${xFor(i)}" cy="${yFor(x.bmi)}" r="0.8" class="chart-bmi-point" vector-effect="non-scaling-stroke"/>`).join('')}<text x="${left}" y="${dateY}" text-anchor="start" class="chart-x-label">${startLabel}</text><text x="${right}" y="${dateY}" text-anchor="end" class="chart-x-label">${endLabel}</text></svg><span class="chart-unit-fixed">BMI</span></div>`;
 }
+
 
 const PLAN_META_KEY='diario-pro-plan-meta-v1',PLAN_DB='diario-pro-documents-v1',PLAN_STORE='plans';function planMetaMap(){try{return JSON.parse(localStorage.getItem(PLAN_META_KEY)||'{}')||{}}catch(e){return {}}}function mainPlanMeta(){return planMetaMap()[activePatientId()||'main']||null}function openPlanDb(){return new Promise((res,rej)=>{const r=indexedDB.open(PLAN_DB,2);r.onupgradeneeded=()=>{if(!r.result.objectStoreNames.contains(PLAN_STORE))r.result.createObjectStore(PLAN_STORE);if(!r.result.objectStoreNames.contains('labUploads'))r.result.createObjectStore('labUploads');if(!r.result.objectStoreNames.contains('privacy'))r.result.createObjectStore('privacy')};r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)})}async function readPlanPdf(id='main'){const db=await openPlanDb();return new Promise((res,rej)=>{const r=db.transaction(PLAN_STORE,'readonly').objectStore(PLAN_STORE).get(id);r.onsuccess=()=>res(r.result||null);r.onerror=()=>rej(r.error)})}window.openPatientPlan=async()=>{
   const win=window.open('about:blank','_blank');

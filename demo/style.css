@@ -823,3 +823,72 @@ nav{background:rgba(250,252,248,.94);backdrop-filter:blur(22px);border-color:rgb
     font-size:13px
   }
 }
+
+
+/* NUBEMO 3.32 — navigazione professionista portrait iPhone/iPad */
+@media (orientation:portrait) and (max-width:1024px){
+  /* La testata globale è ridondante in portrait: resta la testata contestuale cliccabile. */
+  .pro-body > .pro-brand{display:none!important}
+  .pro-body #proApp{padding-top:max(18px,env(safe-area-inset-top))!important}
+
+  .pro3-top{padding-top:0!important;margin-bottom:18px}
+  .pro-top-brand{
+    width:100%!important;display:flex!important;align-items:center!important;
+    justify-content:flex-start!important;gap:14px!important;text-align:left!important;
+    padding:0!important;border:0!important;background:transparent!important
+  }
+  .pro-top-brand img{width:58px!important;height:58px!important;flex:0 0 58px;border-radius:17px}
+  .pro-top-brand .eyebrow{font-size:10px!important;letter-spacing:.17em!important}
+  .pro-top-brand h1{font-size:clamp(30px,6vw,42px)!important;line-height:1!important;margin-top:6px!important}
+
+  /* Drawer: vera colonna verticale, niente navigazione appoggiata in fondo. */
+  .pro-drawer{
+    width:min(88vw,430px)!important;max-width:none!important;
+    display:flex!important;flex-direction:column!important;
+    overflow-y:auto!important;overflow-x:hidden!important;
+    background:#fbfdf9!important
+  }
+  .drawer-head{
+    flex:0 0 auto!important;display:flex!important;align-items:center!important;
+    justify-content:space-between!important;gap:16px!important;
+    padding:22px 20px!important
+  }
+  .drawer-brand{min-width:0}
+  .drawer-brand img{width:58px!important;height:58px!important;flex:0 0 58px}
+  .drawer-close{
+    flex:0 0 44px!important;width:44px!important;height:44px!important;
+    padding:0!important;display:grid!important;place-items:center!important;
+    line-height:1!important;font-size:0!important
+  }
+  .drawer-close span{
+    display:block!important;font-size:31px!important;line-height:31px!important;
+    height:31px!important;width:31px!important;text-align:center!important;
+    transform:translateY(-1px)
+  }
+  .drawer-nav{
+    position:static!important;inset:auto!important;flex:1 1 auto!important;
+    display:flex!important;flex-direction:column!important;align-items:stretch!important;
+    justify-content:flex-start!important;gap:5px!important;
+    padding:16px 18px 30px!important;border:0!important
+  }
+  .drawer-root,.drawer-node,.drawer-sub button,.drawer-link{
+    width:100%!important;box-sizing:border-box!important;display:flex!important;
+    align-items:center!important;justify-content:flex-start!important;
+    text-align:left!important;margin:0!important
+  }
+  .drawer-root{padding:13px 14px!important;min-height:48px!important}
+  .drawer-link{text-decoration:none!important}
+  .drawer-group{
+    width:100%!important;margin:0 0 8px 12px!important;padding:2px 0 4px 12px!important;
+    border-left:2px solid #d8e8d2!important
+  }
+  .drawer-node{padding:10px 12px!important;gap:8px!important}
+  .drawer-sub{display:flex!important;flex-direction:column!important;gap:2px!important;margin:2px 0 0!important}
+  .drawer-sub button{padding:10px 12px 10px 28px!important;min-height:42px!important}
+  .drawer-sub button[data-drawer-clinical]{margin-top:5px!important}
+  .drawer-separator{height:1px;background:#dfe9dc;margin:9px 4px!important}
+  .drawer-logout{color:#9a4646!important}
+
+  /* La vecchia nav professionista non deve comparire in portrait. */
+  .desktop-pro-nav{display:none!important}
+}

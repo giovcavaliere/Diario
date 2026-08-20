@@ -219,11 +219,11 @@ function iso(d){
 }
 
 function proDrawer(){
- const p=view==='details'?patient(selected):null;
+ const p=(view==='details'||view==='editProfile'||view==='patientMeasure'||view==='labForm'||view==='labReview'||view==='diaryDay')?patient(selected):null;
  const patientBranch=p?`
    <div class="drawer-group open">
      <button class="drawer-node drawer-patient-name" data-drawer-patient="${p.id}">
-       <span>▾</span><strong>${esc(p.name)}</strong>
+       <span class="drawer-chevron">⌄</span><strong>${esc(p.name)}</strong>
      </button>
      <div class="drawer-sub">
        ${[
@@ -247,18 +247,21 @@ function proDrawer(){
  <aside class="pro-drawer ${proDrawerOpen?'open':''}" id="proDrawer">
    <div class="drawer-head">
      <div class="drawer-brand"><img src="assets/nubemo-brand-clean-v2.png" alt=""><div><b>NUBEMO</b><span>Professional · Demo</span></div></div>
-     <button class="drawer-close" id="closeProDrawer" aria-label="Chiudi">×</button>
+     <button class="drawer-close" id="closeProDrawer" aria-label="Chiudi"><span>×</span></button>
    </div>
 
    <nav class="drawer-nav">
-     <button class="drawer-root ${view==='patients'?'active':''}" data-drawer-view="patients"><span>▾</span><strong>Pazienti</strong></button>
+     <button class="drawer-root ${view==='dashboard'?'active':''}" data-drawer-view="dashboard"><strong>Dashboard</strong></button>
+     <button class="drawer-root ${view==='patients'||view==='details'?'active':''}" data-drawer-view="patients"><strong>Pazienti</strong></button>
      ${patientBranch}
      <button class="drawer-root ${view==='agenda'?'active':''}" data-drawer-view="agenda"><strong>Agenda</strong></button>
      <button class="drawer-root ${view==='settings'?'active':''}" data-drawer-view="settings"><strong>Profilo professionista</strong></button>
+     <div class="drawer-separator"></div>
+     <a class="drawer-root drawer-link" href="./index.html"><strong>Cambia area</strong></a>
+     <button class="drawer-root drawer-logout" id="drawerProLogout"><strong>Esci</strong></button>
    </nav>
  </aside>`;
 }
-
 function top(title){
  return `<div class="pro3-top">
    <button class="pro-top-brand" id="openProDrawer" aria-label="Apri menu NUBEMO">
@@ -2942,6 +2945,10 @@ function bindProDrawer(){
  });
  el('closeProDrawer')?.addEventListener('click',closeProDrawer);
  el('proDrawerBackdrop')?.addEventListener('click',closeProDrawer);
+ el('drawerProLogout')?.addEventListener('click',()=>{
+   closeProDrawer();
+   if(typeof monubiProLogout==='function')monubiProLogout();
+ });
 
  document.querySelectorAll('[data-drawer-view]').forEach(b=>b.addEventListener('click',()=>{
    view=b.dataset.drawerView;

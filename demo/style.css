@@ -2673,3 +2673,133 @@ body.iphone-landscape .patient-desktop-tabs{
     padding-bottom:24px!important;
   }
 }
+
+
+/* NUBEMO 3.49 — iPad identificato per dispositivo, non per larghezza viewport.
+   Valido allo stesso modo in portrait e landscape. */
+body.pro-body.ipad-layout .pro-drawer{
+  position:fixed!important;
+  left:0!important;
+  top:0!important;
+  bottom:0!important;
+  width:min(390px,86vw)!important;
+  max-width:390px!important;
+  height:100dvh!important;
+  margin:0!important;
+  display:flex!important;
+  flex-direction:column!important;
+  overflow:hidden!important;
+  background:#f8fbf6!important;
+  transform:translateX(-105%)!important;
+}
+
+body.pro-body.ipad-layout .pro-drawer.open{
+  transform:translateX(0)!important;
+}
+
+body.pro-body.ipad-layout .drawer-head{
+  position:static!important;
+  flex:0 0 auto!important;
+  display:flex!important;
+  align-items:center!important;
+  justify-content:space-between!important;
+  gap:12px!important;
+  min-height:0!important;
+  padding:22px 18px!important;
+  margin:0!important;
+}
+
+body.pro-body.ipad-layout .drawer-brand{
+  display:flex!important;
+  align-items:center!important;
+  gap:12px!important;
+}
+
+body.pro-body.ipad-layout .drawer-brand img{
+  width:56px!important;
+  height:56px!important;
+  flex:0 0 56px!important;
+}
+
+body.pro-body.ipad-layout .drawer-close{
+  display:grid!important;
+  place-items:center!important;
+  position:static!important;
+  flex:0 0 40px!important;
+  width:40px!important;
+  height:40px!important;
+  margin:0!important;
+}
+
+body.pro-body.ipad-layout .drawer-nav{
+  position:static!important;
+  inset:auto!important;
+  top:auto!important;
+  bottom:auto!important;
+  flex:1 1 auto!important;
+  min-height:0!important;
+  width:100%!important;
+  display:flex!important;
+  flex-direction:column!important;
+  align-items:stretch!important;
+  align-content:stretch!important;
+  justify-content:flex-start!important;
+  gap:5px!important;
+  padding:16px 18px 24px!important;
+  margin:0!important;
+  overflow-y:auto!important;
+  overflow-x:hidden!important;
+  -webkit-overflow-scrolling:touch!important;
+}
+
+body.pro-body.ipad-layout .drawer-root,
+body.pro-body.ipad-layout .drawer-node,
+body.pro-body.ipad-layout .drawer-sub button,
+body.pro-body.ipad-layout .drawer-link,
+body.pro-body.ipad-layout .drawer-logout{
+  position:static!important;
+  flex:0 0 auto!important;
+  width:100%!important;
+  box-sizing:border-box!important;
+  margin-left:0!important;
+  margin-right:0!important;
+}
+
+body.pro-body.ipad-layout .drawer-root{
+  min-height:48px!important;
+  padding:13px 14px!important;
+}
+
+body.pro-body.ipad-layout .drawer-group{
+  position:static!important;
+  flex:0 0 auto!important;
+  width:calc(100% - 12px)!important;
+  margin:0 0 8px 12px!important;
+  padding:2px 0 4px 12px!important;
+}
+
+body.pro-body.ipad-layout .drawer-node{
+  min-height:42px!important;
+  padding:10px 12px!important;
+}
+
+body.pro-body.ipad-layout .drawer-sub{
+  position:static!important;
+  display:flex!important;
+  flex-direction:column!important;
+  gap:2px!important;
+  margin:2px 0 0!important;
+  padding:0!important;
+}
+
+body.pro-body.ipad-layout .drawer-sub button{
+  min-height:42px!important;
+  padding:10px 12px 10px 28px!important;
+}
+
+body.pro-body.ipad-layout .drawer-separator{
+  position:static!important;
+  flex:0 0 auto!important;
+  height:1px!important;
+  margin:9px 4px!important;
+}

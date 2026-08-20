@@ -114,6 +114,16 @@ function isPhoneLayout(){
  const sw=Math.min(window.screen?.width||window.innerWidth,window.screen?.height||window.innerHeight);
  return sw<=600;
 }
+function isIPadLayout(){
+ const sw=window.screen?.width||window.innerWidth;
+ const sh=window.screen?.height||window.innerHeight;
+ const shortSide=Math.min(sw,sh);
+ const longSide=Math.max(sw,sh);
+ return shortSide>600 && shortSide<=1024 && longSide<=1400;
+}
+function syncIPadLayoutClass(){
+ document.body.classList.toggle('ipad-layout',isIPadLayout());
+}
 function isPhoneLandscape(){
  const shortSide=Math.min(
    window.screen?.width||window.innerWidth,
@@ -3028,6 +3038,7 @@ function bindProDrawer(){
 
 function render(){
  syncPhoneLandscapeClass();
+ syncIPadLayoutClass();
  document.body.dataset.proView=view;
  const logoutBtn=document.getElementById('proLogoutBtn');
  if(!proLoginData()||!proSessionActive()){
@@ -3246,6 +3257,10 @@ ensureImportedFriendPatient();
 window.addEventListener('orientationchange',()=>setTimeout(()=>{
  syncPhoneLandscapeClass();
 },180));
+
+window.addEventListener('orientationchange',()=>setTimeout(syncIPadLayoutClass,80));
+window.addEventListener('resize',syncIPadLayoutClass);
+syncIPadLayoutClass();
 
 window.addEventListener('resize',()=>{
  syncPhoneLandscapeClass();

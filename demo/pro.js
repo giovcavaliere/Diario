@@ -110,6 +110,10 @@ let eventReturnToPatient=false;
 let weekDate=new Date(today()+'T12:00:00');
 let proDrawerOpen=false;
 let drawerPatientExpanded=false;
+function isPhoneLayout(){
+ const sw=Math.min(window.screen?.width||window.innerWidth,window.screen?.height||window.innerHeight);
+ return sw<=600;
+}
 
 
 
@@ -2941,10 +2945,10 @@ function closeProDrawer(){
 function bindProDrawer(){
  el('openProDrawer')?.addEventListener('click',()=>{
    proDrawerOpen=true;
-   if(window.matchMedia('(max-width:600px)').matches)drawerPatientExpanded=false;
+   if(isPhoneLayout())drawerPatientExpanded=false;
    el('proDrawer')?.classList.add('open');
    el('proDrawerBackdrop')?.classList.add('open');
-   if(window.matchMedia('(max-width:600px)').matches){
+   if(isPhoneLayout()){
      el('proDrawer')?.querySelector('.drawer-group')?.classList.remove('expanded');
      const b=el('proDrawer')?.querySelector('[data-drawer-patient]');
      if(b){b.setAttribute('aria-expanded','false');const ch=b.querySelector('.drawer-chevron');if(ch)ch.textContent='⌄'}
@@ -2979,7 +2983,7 @@ function bindProDrawer(){
  });
 
  document.querySelector('[data-drawer-patient]')?.addEventListener('click',e=>{
-   if(window.matchMedia('(max-width:600px)').matches){
+   if(isPhoneLayout()){
      e.preventDefault();
      drawerPatientExpanded=!drawerPatientExpanded;
      const group=e.currentTarget.closest('.drawer-group');

@@ -2426,114 +2426,86 @@ body.iphone-landscape .patient-desktop-tabs{
 }
 
 
-/* NUBEMO 3.46 — fix reale allineamento Cambia area / Esci in portrait */
-@media (orientation:portrait) and (max-width:1024px){
+/* NUBEMO 3.46 rebuild — fix mirati partendo dalla 3.45 */
 
-  /* Il drawer è dell'Area Professionista: il body corretto è pro-body. */
-  body.pro-body .drawer-link,
-  body.pro-body .drawer-logout{
+/* AREA PAZIENTE — portrait iPhone + iPad:
+   Cambia area ed Esci con identica altezza e baseline. */
+@media (orientation:portrait) and (max-width:1024px){
+  body:not(.pro-body) .brand-rail>.area-switch:not(.patient-logout-header),
+  body:not(.pro-body) .brand-rail>.patient-logout-header{
     box-sizing:border-box!important;
-    display:flex!important;
+    display:inline-flex!important;
     align-items:center!important;
-    justify-content:flex-start!important;
-    width:100%!important;
-    height:44px!important;
-    min-height:44px!important;
-    margin:0!important;
+    justify-content:center!important;
+    height:40px!important;
+    min-height:40px!important;
+    margin-top:0!important;
+    margin-bottom:0!important;
     padding:0 14px!important;
     line-height:1!important;
     font-family:inherit!important;
-    font-size:15px!important;
+    font-size:13px!important;
     font-weight:800!important;
+    vertical-align:middle!important;
   }
 
-  body.pro-body .drawer-link strong,
-  body.pro-body .drawer-logout strong{
-    display:block!important;
-    margin:0!important;
-    padding:0!important;
-    line-height:1!important;
-    font:inherit!important;
-    color:inherit!important;
-  }
-
-  body.pro-body .drawer-link{
-    color:#17332d!important;
-  }
-
-  body.pro-body .drawer-logout{
-    color:#a13f3f!important;
+  body:not(.pro-body) .brand-rail>.patient-logout-header{
+    margin-left:8px!important;
   }
 }
 
-
-/* NUBEMO 3.47 — solo iPhone landscape: menu paziente tutto visibile */
-@media (orientation:landscape) and (max-width:950px){
-
-  body.pro-body .drawer-head{
-    min-height:54px!important;
-    padding:7px 9px!important;
+/* AREA PAZIENTE — solo iPhone landscape:
+   il menu laterale desktop entra tutto nell'altezza disponibile. */
+@media (orientation:landscape) and (max-height:500px){
+  body:not(.landing-body):not(.pro-body) .brand-rail{
+    height:174px!important;
+    padding:13px 12px!important;
   }
 
-  body.pro-body .drawer-brand img{
-    width:36px!important;
-    height:36px!important;
-    flex:0 0 36px!important;
-    border-radius:10px!important;
+  body:not(.landing-body):not(.pro-body) .brand-rail .brand-lock img{
+    width:45px!important;
+    height:45px!important;
   }
 
-  body.pro-body .drawer-brand b{
-    font-size:12px!important;
+  body:not(.landing-body):not(.pro-body) .brand-rail .brand-lock strong{
+    font-size:14px!important;
   }
 
-  body.pro-body .drawer-brand span{
-    font-size:7.5px!important;
-    margin-top:1px!important;
+  body:not(.landing-body):not(.pro-body) .brand-rail .brand-lock span{
+    font-size:8.5px!important;
+    line-height:1.1!important;
   }
 
-  body.pro-body .drawer-nav{
-    padding:5px 8px 8px!important;
-  }
-
-  body.pro-body .drawer-root,
-  body.pro-body .drawer-link,
-  body.pro-body .drawer-logout{
-    padding:4px 7px!important;
-    font-size:10.8px!important;
-    line-height:1.05!important;
-    min-height:0!important;
-    height:auto!important;
-  }
-
-  body.pro-body .drawer-group{
-    margin:0 0 2px 6px!important;
-    padding:0 0 0 6px!important;
-  }
-
-  body.pro-body .drawer-node{
-    padding:3px 5px!important;
-    font-size:10.4px!important;
-    line-height:1.05!important;
-  }
-
-  body.pro-body .drawer-chevron{
-    width:13px!important;
-    margin-right:2px!important;
-  }
-
-  body.pro-body .drawer-sub button{
-    padding:2.5px 5px 2.5px 17px!important;
-    font-size:9.8px!important;
+  body:not(.landing-body):not(.pro-body) .brand-rail>.area-switch:not(.patient-logout-header),
+  body:not(.landing-body):not(.pro-body) .brand-rail>.patient-logout-header{
+    height:28px!important;
+    min-height:28px!important;
+    margin-top:5px!important;
+    padding:0 8px!important;
+    font-size:10px!important;
     line-height:1!important;
+  }
+
+  body:not(.landing-body):not(.pro-body) nav{
+    top:174px!important;
+    padding:5px 8px!important;
+    gap:1px!important;
+    overflow:hidden!important;
+  }
+
+  body:not(.landing-body):not(.pro-body) nav button{
     min-height:0!important;
-    height:auto!important;
+    padding:5px 8px!important;
+    font-size:10.5px!important;
+    line-height:1!important;
   }
 
-  body.pro-body .drawer-sub button[data-drawer-clinical]{
-    margin-top:1px!important;
+  body:not(.landing-body):not(.pro-body) nav button i{
+    width:18px!important;
+    font-size:13px!important;
   }
 
-  body.pro-body .drawer-separator{
-    margin:3px 2px!important;
+  body:not(.landing-body):not(.pro-body) nav button span{
+    font-size:10.5px!important;
   }
 }

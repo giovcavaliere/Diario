@@ -3248,11 +3248,10 @@ window.addEventListener('orientationchange',()=>setTimeout(()=>{
 
  const tabletDrawerWasOpen=!isPhoneLayout() && proDrawerOpen;
 
- // Prima ricreiamo il DOM nel nuovo orientamento.
+ // Prima ricreiamo la schermata nel nuovo orientamento.
  render();
 
- // Poi, sul DOM NUOVO, forziamo davvero lo stesso ciclo
- // chiudi/apri che manualmente risolve il problema su iPad.
+ // Poi riallineiamo il drawer appena ricreato, mantenendolo aperto.
  if(tabletDrawerWasOpen){
    requestAnimationFrame(()=>{
      const drawer=document.getElementById('proDrawer');
@@ -3261,15 +3260,12 @@ window.addEventListener('orientationchange',()=>setTimeout(()=>{
 
      drawer.classList.remove('open');
      backdrop?.classList.remove('open');
-
-     // Forza il browser a calcolare lo stato chiuso nel nuovo orientamento.
      void drawer.offsetWidth;
 
      requestAnimationFrame(()=>{
        proDrawerOpen=true;
        drawer.classList.add('open');
        backdrop?.classList.add('open');
-       void drawer.offsetWidth;
      });
    });
  }

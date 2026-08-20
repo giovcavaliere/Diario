@@ -1776,3 +1776,153 @@ nav{background:rgba(250,252,248,.94);backdrop-filter:blur(22px);border-color:rgb
     max-width:none!important;
   }
 }
+
+
+/* NUBEMO 3.39 — sidebar iPhone landscape governata da JS, non dal viewport Safari */
+body.iphone-landscape.pro-body > .pro-brand{
+  display:none!important;
+}
+
+body.iphone-landscape .pro-drawer{
+  position:fixed!important;
+  left:0!important;
+  top:0!important;
+  bottom:0!important;
+  width:250px!important;
+  max-width:250px!important;
+  transform:translateX(0)!important;
+  display:flex!important;
+  flex-direction:column!important;
+  visibility:visible!important;
+  opacity:1!important;
+  pointer-events:auto!important;
+  z-index:20001!important;
+  overflow-y:auto!important;
+  overflow-x:hidden!important;
+  background:#fbfdf9!important;
+  border-right:1px solid #dce8d9!important;
+  box-shadow:8px 0 24px rgba(4,42,35,.08)!important;
+}
+
+body.iphone-landscape .pro-drawer-backdrop{
+  display:none!important;
+  opacity:0!important;
+  pointer-events:none!important;
+}
+
+body.iphone-landscape .drawer-close{
+  display:none!important;
+}
+
+body.iphone-landscape #proApp{
+  width:calc(100% - 250px)!important;
+  max-width:none!important;
+  margin-left:250px!important;
+  margin-right:0!important;
+  padding:12px 14px 32px!important;
+  box-sizing:border-box!important;
+}
+
+body.iphone-landscape .pro3-top{
+  width:100%!important;
+  max-width:none!important;
+  margin:0 0 12px!important;
+  padding:0!important;
+}
+
+body.iphone-landscape .pro-top-brand{
+  display:block!important;
+  width:100%!important;
+  margin:0!important;
+  padding:0!important;
+  pointer-events:none!important;
+}
+
+body.iphone-landscape .pro-top-brand img,
+body.iphone-landscape .pro-top-brand .eyebrow{
+  display:none!important;
+}
+
+body.iphone-landscape .pro-top-brand h1{
+  display:block!important;
+  margin:0!important;
+  font-size:28px!important;
+  line-height:1!important;
+}
+
+body.iphone-landscape .desktop-pro-nav,
+body.iphone-landscape .pro3-nav{
+  display:none!important;
+}
+
+body.iphone-landscape .drawer-head{
+  display:flex!important;
+  align-items:center!important;
+  justify-content:flex-start!important;
+  padding:12px 13px!important;
+}
+
+body.iphone-landscape .drawer-nav{
+  position:static!important;
+  display:block!important;
+  width:100%!important;
+  padding:8px 10px 14px!important;
+  margin:0!important;
+}
+
+body.iphone-landscape .drawer-root,
+body.iphone-landscape .drawer-link{
+  display:block!important;
+  width:100%!important;
+  padding:7px 9px!important;
+  margin:0!important;
+  text-align:left!important;
+  font-size:12.5px!important;
+  line-height:1.15!important;
+}
+
+body.iphone-landscape .drawer-group{
+  margin:1px 0 3px 9px!important;
+  padding:0 0 1px 8px!important;
+  border-left:2px solid #d8e8d2!important;
+}
+
+body.iphone-landscape .drawer-node{
+  display:block!important;
+  width:100%!important;
+  padding:5px 7px!important;
+  text-align:left!important;
+  font-size:12px!important;
+}
+
+body.iphone-landscape .drawer-group .drawer-sub{
+  display:none!important;
+}
+
+body.iphone-landscape .drawer-group.expanded .drawer-sub{
+  display:block!important;
+}
+
+body.iphone-landscape .drawer-sub button{
+  display:block!important;
+  width:100%!important;
+  padding:4px 7px 4px 23px!important;
+  margin:0!important;
+  text-align:left!important;
+  font-size:11.5px!important;
+}
+
+body.iphone-landscape .pro3-kpis{
+  display:grid!important;
+  grid-template-columns:repeat(2,minmax(0,1fr))!important;
+  gap:9px!important;
+}
+
+body.iphone-landscape .pro3-kpis>div{
+  padding:11px 13px!important;
+  border-radius:16px!important;
+}
+
+body.iphone-landscape .pro3-kpis b{
+  font-size:26px!important;
+}

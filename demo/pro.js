@@ -115,7 +115,13 @@ function isPhoneLayout(){
  return sw<=600;
 }
 function isPhoneLandscape(){
- return isPhoneLayout() && window.matchMedia('(orientation:landscape)').matches;
+ const sw=window.screen?.width||window.innerWidth;
+ const sh=window.screen?.height||window.innerHeight;
+ return Math.min(sw,sh)<=600 && sw>sh;
+}
+function syncPhoneLandscapeClass(){
+ document.body.classList.toggle('iphone-landscape',isPhoneLandscape());
+ if(isPhoneLandscape())proDrawerOpen=true;
 }
 
 
@@ -2941,6 +2947,12 @@ function conflict(obj){
 
 
 function closeProDrawer(){
+ if(isPhoneLandscape()){
+   proDrawerOpen=true;
+   document.getElementById('proDrawer')?.classList.add('open');
+   document.getElementById('proDrawerBackdrop')?.classList.remove('open');
+   return;
+ }
  proDrawerOpen=false;
  document.getElementById('proDrawer')?.classList.remove('open');
  document.getElementById('proDrawerBackdrop')?.classList.remove('open');
@@ -2948,6 +2960,12 @@ function closeProDrawer(){
 function bindProDrawer(){
  el('openProDrawer')?.addEventListener('click',()=>{
    proDrawerOpen=true;
+   if(isPhoneLandscape()){
+     syncPhoneLandscapeClass();
+     el('proDrawer')?.classList.add('open');
+     el('proDrawerBackdrop')?.classList.remove('open');
+     return;
+   }
    if(isPhoneLayout())drawerPatientExpanded=false;
    el('proDrawer')?.classList.add('open');
    el('proDrawerBackdrop')?.classList.add('open');
@@ -3007,6 +3025,7 @@ function bindProDrawer(){
 }
 
 function render(){
+ syncPhoneLandscapeClass();
  document.body.dataset.proView=view;
  const logoutBtn=document.getElementById('proLogoutBtn');
  if(!proLoginData()||!proSessionActive()){
@@ -3017,6 +3036,12 @@ function render(){
  try{
   let html=view==='dashboard'?dashboard():view==='patients'?patientsPage():view==='agenda'?agenda():view==='settings'?settingsPage():view==='details'?details():view==='newPatient'?newPatientForm():view==='editProfile'?editPatientProfileForm():view==='patientMeasure'?patientMeasureForm():view==='labForm'?labForm():view==='labReview'?labReview():view==='diaryDay'?proDiaryDayView():eventForm(window.prefill||null);
   el('proApp').innerHTML=html;
+  syncPhoneLandscapeClass();
+  if(isPhoneLandscape()){
+    proDrawerOpen=true;
+    el('proDrawer')?.classList.add('open');
+    el('proDrawerBackdrop')?.classList.remove('open');
+  }
  bindProDrawer(); bind();
  }catch(err){
   console.error(err);
@@ -3215,5 +3240,8 @@ el('newLab')?.addEventListener('click',()=>{window.editLabId='';view='labForm';r
 }
 
 ensureImportedFriendPatient();
+
+window.addEventListener('orientationchange',()=>setTimeout(()=>{syncPhoneLandscapeClass();render()},80));
+window.addEventListener('resize',()=>{syncPhoneLandscapeClass()});
 render();
 })();

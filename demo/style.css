@@ -2841,3 +2841,54 @@ body.pro-body.ipad-layout .drawer-close{
   bottom:auto!important;
   transform:none!important;
 }
+
+
+/* NUBEMO 3.52 — pulizia menu iPad */
+
+/* PORTRAIT: nessuna riga extra aggiunta dalla 3.50 */
+@media (orientation:portrait){
+  body.pro-body.ipad-layout .drawer-link{
+    border-top:0!important;
+    margin-top:0!important;
+    padding-top:13px!important;
+    text-decoration:none!important;
+    color:#17332d!important;
+  }
+
+  body.pro-body.ipad-layout .drawer-link strong{
+    text-decoration:none!important;
+    color:inherit!important;
+  }
+
+  body.pro-body.ipad-layout .drawer-logout{
+    color:#a13f3f!important;
+  }
+
+  body.pro-body.ipad-layout .drawer-logout strong{
+    color:inherit!important;
+  }
+}
+
+/* LANDSCAPE: una sola riga divisoria prima di Cambia area */
+@media (orientation:landscape){
+  body.pro-body.ipad-layout .drawer-link{
+    text-decoration:none!important;
+    color:#17332d!important;
+    border-top:1px solid #dbe8d7!important;
+    margin-top:9px!important;
+    padding-top:14px!important;
+  }
+
+  body.pro-body.ipad-layout .drawer-link strong{
+    text-decoration:none!important;
+    color:inherit!important;
+  }
+
+  body.pro-body.ipad-layout .drawer-logout{
+    color:#a13f3f!important;
+  }
+
+  body.pro-body.ipad-layout .drawer-logout strong{
+    color:inherit!important;
+  }
+}

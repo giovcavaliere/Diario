@@ -124,6 +124,17 @@ function isIPadLayout(){
 function syncIPadLayoutClass(){
  document.body.classList.toggle('ipad-layout',isIPadLayout());
 }
+function syncIPadDrawerForOrientation(){
+ if(!isIPadLayout())return;
+ const landscape=window.innerWidth>window.innerHeight;
+
+ if(landscape){
+   // In landscape l'iPad usa il menu fisso: il drawer overlay deve sparire.
+   proDrawerOpen=false;
+   document.getElementById('proDrawer')?.classList.remove('open');
+   document.getElementById('proDrawerBackdrop')?.classList.remove('open');
+ }
+}
 function isPhoneLandscape(){
  const shortSide=Math.min(
    window.screen?.width||window.innerWidth,
@@ -3258,13 +3269,20 @@ window.addEventListener('orientationchange',()=>setTimeout(()=>{
  syncPhoneLandscapeClass();
 },180));
 
-window.addEventListener('orientationchange',()=>setTimeout(syncIPadLayoutClass,80));
-window.addEventListener('resize',syncIPadLayoutClass);
+window.addEventListener('orientationchange',()=>setTimeout(()=>{
+ syncIPadLayoutClass();
+ syncIPadDrawerForOrientation();
+},120));
+window.addEventListener('resize',()=>{
+ syncIPadLayoutClass();
+ syncIPadDrawerForOrientation();
+});
 syncIPadLayoutClass();
 
 window.addEventListener('resize',()=>{
  syncPhoneLandscapeClass();
 });
 
+syncIPadDrawerForOrientation();
 render();
 })();

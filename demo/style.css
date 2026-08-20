@@ -2803,3 +2803,41 @@ body.pro-body.ipad-layout .drawer-separator{
   height:1px!important;
   margin:9px 4px!important;
 }
+
+
+/* NUBEMO 3.50 — rifiniture menu iPad landscape */
+body.pro-body.ipad-layout .drawer-link{
+  text-decoration:none!important;
+  color:#17332d!important;
+  border-top:1px solid #dbe8d7!important;
+  margin-top:9px!important;
+  padding-top:14px!important;
+}
+
+body.pro-body.ipad-layout .drawer-link strong{
+  text-decoration:none!important;
+  color:inherit!important;
+}
+
+body.pro-body.ipad-layout .drawer-logout{
+  color:#a13f3f!important;
+}
+
+body.pro-body.ipad-layout .drawer-logout strong{
+  color:inherit!important;
+}
+
+
+/* NUBEMO 3.51 — iPad: allineamento X con cerchio/logo verde */
+body.pro-body.ipad-layout .drawer-head{
+  align-items:center!important;
+}
+
+body.pro-body.ipad-layout .drawer-close{
+  align-self:center!important;
+  margin-top:0!important;
+  margin-bottom:0!important;
+  top:auto!important;
+  bottom:auto!important;
+  transform:none!important;
+}

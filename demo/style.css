@@ -892,3 +892,85 @@ nav{background:rgba(250,252,248,.94);backdrop-filter:blur(22px);border-color:rgb
   /* La vecchia nav professionista non deve comparire in portrait. */
   .desktop-pro-nav{display:none!important}
 }
+
+
+/* NUBEMO 3.33 — solo iPhone verticale */
+@media (orientation:portrait) and (max-width:600px){
+  .pro-drawer{
+    width:88vw!important;
+  }
+
+  .drawer-head{
+    padding:17px 16px!important;
+  }
+
+  .drawer-brand img{
+    width:50px!important;
+    height:50px!important;
+    flex:0 0 50px!important;
+  }
+
+  .drawer-brand b{
+    font-size:18px!important;
+  }
+
+  .drawer-brand span{
+    font-size:11px!important;
+    margin-top:2px!important;
+  }
+
+  .drawer-close{
+    width:40px!important;
+    height:40px!important;
+    flex:0 0 40px!important;
+  }
+
+  .drawer-close span{
+    font-size:28px!important;
+    line-height:28px!important;
+    width:28px!important;
+    height:28px!important;
+  }
+
+  .drawer-nav{
+    padding:12px 14px 18px!important;
+    gap:2px!important;
+  }
+
+  .drawer-root{
+    min-height:40px!important;
+    padding:9px 10px!important;
+    font-size:15px!important;
+  }
+
+  .drawer-group{
+    margin:0 0 4px 10px!important;
+    padding:0 0 2px 10px!important;
+  }
+
+  .drawer-node{
+    min-height:38px!important;
+    padding:8px 10px!important;
+    font-size:14px!important;
+  }
+
+  .drawer-sub{
+    gap:0!important;
+    margin-top:0!important;
+  }
+
+  .drawer-sub button{
+    min-height:34px!important;
+    padding:7px 10px 7px 22px!important;
+    font-size:13px!important;
+    line-height:1.15!important;
+  }
+
+  .drawer-sub button[data-drawer-clinical]{
+    margin-top:3px!important;
+  }
+
+  .drawer-separator{
+    margin:6px 2px!important;
+  }
+}

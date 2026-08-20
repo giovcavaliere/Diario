@@ -2369,3 +2369,30 @@ body.iphone-landscape .patient-desktop-tabs{
     box-sizing:border-box!important;
   }
 }
+
+
+/* NUBEMO 3.43 — uniforma Cambia area / Esci in iPhone landscape */
+@media (orientation:landscape) and (max-width:950px){
+  body.pro-body .drawer-link,
+  body.pro-body .drawer-logout{
+    font-family:inherit!important;
+    font-size:12px!important;
+    font-weight:800!important;
+    line-height:1.15!important;
+    text-decoration:none!important;
+  }
+
+  body.pro-body .drawer-link{
+    color:#17332d!important;
+  }
+
+  body.pro-body .drawer-logout{
+    color:#a13f3f!important;
+  }
+
+  body.pro-body .drawer-link strong,
+  body.pro-body .drawer-logout strong{
+    font:inherit!important;
+    color:inherit!important;
+  }
+}

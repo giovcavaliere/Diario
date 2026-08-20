@@ -1926,3 +1926,164 @@ body.iphone-landscape .pro3-kpis>div{
 body.iphone-landscape .pro3-kpis b{
   font-size:26px!important;
 }
+
+
+/* NUBEMO 3.40 — rifinitura grafica iPhone landscape */
+body.iphone-landscape .pro-drawer{
+  width:205px!important;
+  max-width:205px!important;
+}
+
+body.iphone-landscape .drawer-head{
+  min-height:68px!important;
+  padding:10px 12px 9px!important;
+  box-sizing:border-box!important;
+  overflow:visible!important;
+}
+
+body.iphone-landscape .drawer-brand{
+  width:100%!important;
+  display:flex!important;
+  align-items:center!important;
+  gap:9px!important;
+  min-width:0!important;
+}
+
+body.iphone-landscape .drawer-brand img{
+  width:44px!important;
+  height:44px!important;
+  flex:0 0 44px!important;
+  object-fit:cover!important;
+  border-radius:13px!important;
+  margin:0!important;
+}
+
+body.iphone-landscape .drawer-brand b{
+  display:block!important;
+  font-size:14px!important;
+  line-height:1.05!important;
+  letter-spacing:.08em!important;
+  white-space:nowrap!important;
+}
+
+body.iphone-landscape .drawer-brand span{
+  display:block!important;
+  margin-top:3px!important;
+  font-size:9px!important;
+  line-height:1.1!important;
+  white-space:nowrap!important;
+}
+
+body.iphone-landscape .drawer-nav{
+  padding:10px 9px 12px!important;
+}
+
+body.iphone-landscape .drawer-root,
+body.iphone-landscape .drawer-link{
+  padding:6px 8px!important;
+  font-size:12px!important;
+  line-height:1.15!important;
+}
+
+body.iphone-landscape .drawer-group{
+  margin:2px 0 4px 7px!important;
+  padding:0 0 1px 7px!important;
+}
+
+body.iphone-landscape .drawer-node{
+  padding:4px 6px!important;
+  font-size:11.5px!important;
+  line-height:1.15!important;
+}
+
+body.iphone-landscape .drawer-sub button{
+  padding:3.5px 6px 3.5px 20px!important;
+  font-size:11px!important;
+  line-height:1.1!important;
+}
+
+body.iphone-landscape .drawer-sub button[data-drawer-clinical]{
+  margin-top:2px!important;
+}
+
+/* Sposta tutto il contenuto a destra della sidebar più stretta */
+body.iphone-landscape #proApp{
+  width:calc(100% - 205px)!important;
+  margin-left:205px!important;
+  padding:12px 14px 28px!important;
+}
+
+/* Titolo pagina allineato con KPI e contenuto */
+body.iphone-landscape .pro3-top{
+  margin:0 0 10px!important;
+}
+
+body.iphone-landscape .pro-top-brand h1{
+  font-size:27px!important;
+  line-height:1!important;
+  margin:0!important;
+}
+
+/* KPI compatti e coerenti */
+body.iphone-landscape .pro3-kpis{
+  grid-template-columns:repeat(2,minmax(0,1fr))!important;
+  gap:8px!important;
+  margin-bottom:10px!important;
+}
+
+body.iphone-landscape .pro3-kpis>div{
+  padding:10px 12px!important;
+  border-radius:15px!important;
+}
+
+body.iphone-landscape .pro3-kpis span{
+  font-size:11px!important;
+}
+
+body.iphone-landscape .pro3-kpis b{
+  font-size:25px!important;
+}
+
+/* In landscape la sidebar è l'unica navigazione del paziente */
+body.iphone-landscape .patient-desktop-tabs{
+  display:none!important;
+}
+
+/* Evita spazio bianco ereditato dalla vecchia area tab */
+body.iphone-landscape .patient-content-card{
+  margin-top:0!important;
+}
+
+body.iphone-landscape .patient-section-head{
+  margin-bottom:10px!important;
+}
+
+body.iphone-landscape .patient-section-head h2{
+  font-size:24px!important;
+  margin:0!important;
+}
+
+/* Azioni riepilogo più compatte */
+body.iphone-landscape .patient-summary-actions{
+  gap:6px!important;
+}
+
+body.iphone-landscape .patient-edit-btn,
+body.iphone-landscape .desktop-clinical-pdf{
+  padding:8px 11px!important;
+  font-size:12px!important;
+}
+
+body.iphone-landscape .patient-more-btn{
+  width:36px!important;
+  height:36px!important;
+  border-radius:11px!important;
+}
+
+/* Card contenuto senza larghezze desktop rigide */
+body.iphone-landscape .patient-content-card,
+body.iphone-landscape .card{
+  max-width:none!important;
+  width:100%!important;
+  box-sizing:border-box!important;
+}

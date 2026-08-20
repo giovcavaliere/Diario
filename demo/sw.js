@@ -1,14 +1,14 @@
-const CACHE='nubemo-demo-v3.39.0';
+const CACHE='nubemo-demo-v3.40.0';
 const CORE=[
   './',
   './index.html',
   './patient.html',
   './pro.html',
-  './style.css?v=nubemo339',
-  './app.js?v=nubemo339',
-  './pro.js?v=nubemo339',
-  './monubi-ui.js?v=nubemo339',
-  './manifest.json?v=nubemo339',
+  './style.css?v=nubemo340',
+  './app.js?v=nubemo340',
+  './pro.js?v=nubemo340',
+  './monubi-ui.js?v=nubemo340',
+  './manifest.json?v=nubemo340',
   './assets/nubemo-brand-clean-v2.png',
   './assets/nubemo-n-icon-180.png',
   './assets/nubemo-n-icon-192.png',

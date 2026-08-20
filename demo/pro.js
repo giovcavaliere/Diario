@@ -3243,7 +3243,27 @@ el('newLab')?.addEventListener('click',()=>{window.editLabId='';view='labForm';r
 
 ensureImportedFriendPatient();
 
-window.addEventListener('orientationchange',()=>setTimeout(()=>{syncPhoneLandscapeClass();render()},80));
+window.addEventListener('orientationchange',()=>setTimeout(()=>{
+ syncPhoneLandscapeClass();
+
+ // iPad/tablet: se il drawer è aperto durante la rotazione,
+ // forziamo il ricalcolo del layout mantenendolo aperto.
+ if(!isPhoneLayout() && proDrawerOpen){
+   const drawer=document.getElementById('proDrawer');
+   const backdrop=document.getElementById('proDrawerBackdrop');
+   drawer?.classList.remove('open');
+   backdrop?.classList.remove('open');
+
+   requestAnimationFrame(()=>{
+     requestAnimationFrame(()=>{
+       drawer?.classList.add('open');
+       backdrop?.classList.add('open');
+     });
+   });
+ }
+
+ render();
+},120));
 window.addEventListener('resize',()=>{syncPhoneLandscapeClass()});
 render();
 })();

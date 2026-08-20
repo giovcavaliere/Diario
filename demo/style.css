@@ -2396,3 +2396,31 @@ body.iphone-landscape .patient-desktop-tabs{
     color:inherit!important;
   }
 }
+
+
+/* NUBEMO 3.44 — micro-rifiniture menu */
+
+/* 1) Riga divisoria anche in landscape tra Profilo professionista e Cambia area */
+@media (orientation:landscape) and (max-width:950px){
+  body.pro-body .drawer-link{
+    border-top:1px solid #dbe8d7!important;
+    padding-top:14px!important;
+    margin-top:14px!important;
+  }
+}
+
+/* 2) Area paziente verticale: Cambia area ed Esci perfettamente allineati */
+@media (orientation:portrait) and (max-width:1024px){
+  body.patient-body .drawer-link,
+  body.patient-body .drawer-logout{
+    margin-top:0!important;
+    margin-bottom:0!important;
+    padding-top:12px!important;
+    padding-bottom:12px!important;
+    line-height:1.2!important;
+    min-height:44px!important;
+    box-sizing:border-box!important;
+    display:flex!important;
+    align-items:center!important;
+  }
+}

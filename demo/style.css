@@ -2509,3 +2509,31 @@ body.iphone-landscape .patient-desktop-tabs{
     font-size:10.5px!important;
   }
 }
+
+
+/* NUBEMO 3.47 — micro-fix area paziente iPhone landscape */
+@media (orientation:landscape) and (max-height:500px){
+
+  /* Abbassa leggermente il blocco Cambia area / Esci */
+  body:not(.landing-body):not(.pro-body) .brand-rail>.area-switch:not(.patient-logout-header){
+    margin-top:9px!important;
+  }
+
+  body:not(.landing-body):not(.pro-body) .brand-rail>.patient-logout-header{
+    margin-top:6px!important;
+  }
+
+  /* Testo perfettamente centrato verticalmente nei due riquadri */
+  body:not(.landing-body):not(.pro-body) .brand-rail>.area-switch:not(.patient-logout-header),
+  body:not(.landing-body):not(.pro-body) .brand-rail>.patient-logout-header{
+    box-sizing:border-box!important;
+    display:flex!important;
+    align-items:center!important;
+    justify-content:center!important;
+    height:28px!important;
+    min-height:28px!important;
+    padding:0 8px!important;
+    line-height:28px!important;
+    vertical-align:middle!important;
+  }
+}

@@ -115,9 +115,11 @@ function isPhoneLayout(){
  return sw<=600;
 }
 function isPhoneLandscape(){
- const sw=window.screen?.width||window.innerWidth;
- const sh=window.screen?.height||window.innerHeight;
- return Math.min(sw,sh)<=600 && sw>sh;
+ const shortSide=Math.min(
+   window.screen?.width||window.innerWidth,
+   window.screen?.height||window.innerHeight
+ );
+ return shortSide<=600 && window.innerWidth>window.innerHeight;
 }
 function syncPhoneLandscapeClass(){
  document.body.classList.toggle('iphone-landscape',isPhoneLandscape());

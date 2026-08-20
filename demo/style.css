@@ -2143,3 +2143,229 @@ body.iphone-landscape .card{
 body.iphone-landscape .patient-desktop-tabs{
   display:none!important;
 }
+
+
+/* NUBEMO 3.42 — iPhone landscape definitivo
+   Non dipende da .iphone-landscape per annullare il vecchio desktop. */
+@media (orientation:landscape) and (max-width:950px){
+
+  /* QUESTO è il vecchio offset desktop che generava il buco di ~246px */
+  body.pro-body{
+    padding-left:0!important;
+    margin:0!important;
+    width:100vw!important;
+    max-width:none!important;
+    overflow-x:hidden!important;
+  }
+
+  body.pro-body > .pro-brand{
+    display:none!important;
+  }
+
+  /* Sidebar fissa, 205px reali */
+  body.pro-body .pro-drawer{
+    position:fixed!important;
+    left:0!important;
+    top:0!important;
+    bottom:0!important;
+    width:205px!important;
+    max-width:205px!important;
+    margin:0!important;
+    transform:translateX(0)!important;
+    display:flex!important;
+    flex-direction:column!important;
+    visibility:visible!important;
+    opacity:1!important;
+    pointer-events:auto!important;
+    overflow-y:auto!important;
+    overflow-x:hidden!important;
+    z-index:20001!important;
+    background:#fbfdf9!important;
+    border-right:1px solid #dce8d9!important;
+    box-shadow:8px 0 24px rgba(4,42,35,.08)!important;
+  }
+
+  body.pro-body .pro-drawer-backdrop{
+    display:none!important;
+    opacity:0!important;
+    pointer-events:none!important;
+  }
+
+  body.pro-body .drawer-close{
+    display:none!important;
+  }
+
+  body.pro-body .drawer-head{
+    min-height:64px!important;
+    box-sizing:border-box!important;
+    padding:10px 11px!important;
+    display:flex!important;
+    align-items:center!important;
+    justify-content:flex-start!important;
+    overflow:visible!important;
+  }
+
+  body.pro-body .drawer-brand{
+    display:flex!important;
+    align-items:center!important;
+    gap:8px!important;
+    min-width:0!important;
+  }
+
+  body.pro-body .drawer-brand img{
+    width:42px!important;
+    height:42px!important;
+    flex:0 0 42px!important;
+    border-radius:12px!important;
+    object-fit:cover!important;
+  }
+
+  body.pro-body .drawer-brand b{
+    display:block!important;
+    font-size:13px!important;
+    line-height:1.05!important;
+    white-space:nowrap!important;
+  }
+
+  body.pro-body .drawer-brand span{
+    display:block!important;
+    margin-top:2px!important;
+    font-size:8.5px!important;
+    line-height:1.1!important;
+    white-space:nowrap!important;
+  }
+
+  body.pro-body .drawer-nav{
+    position:static!important;
+    inset:auto!important;
+    width:100%!important;
+    display:block!important;
+    padding:8px 9px 12px!important;
+    margin:0!important;
+  }
+
+  body.pro-body .drawer-root,
+  body.pro-body .drawer-link{
+    display:block!important;
+    width:100%!important;
+    min-height:0!important;
+    box-sizing:border-box!important;
+    margin:0!important;
+    padding:6px 8px!important;
+    text-align:left!important;
+    font-size:12px!important;
+    line-height:1.15!important;
+  }
+
+  body.pro-body .drawer-group{
+    margin:1px 0 3px 7px!important;
+    padding:0 0 1px 7px!important;
+    border-left:2px solid #d8e8d2!important;
+  }
+
+  body.pro-body .drawer-node{
+    display:block!important;
+    width:100%!important;
+    min-height:0!important;
+    padding:4px 6px!important;
+    text-align:left!important;
+    font-size:11.5px!important;
+    line-height:1.1!important;
+  }
+
+  body.pro-body .drawer-group .drawer-sub{
+    display:none!important;
+  }
+
+  body.pro-body .drawer-group.expanded .drawer-sub{
+    display:block!important;
+  }
+
+  body.pro-body .drawer-sub button{
+    display:block!important;
+    width:100%!important;
+    min-height:0!important;
+    margin:0!important;
+    padding:3.5px 6px 3.5px 20px!important;
+    text-align:left!important;
+    font-size:10.8px!important;
+    line-height:1.08!important;
+  }
+
+  /* Il contenuto comincia ESATTAMENTE a x=205px.
+     Niente margin:auto, niente padding-left desktop, niente offset aggiuntivi. */
+  body.pro-body #proApp{
+    position:relative!important;
+    left:0!important;
+    right:auto!important;
+    width:calc(100vw - 205px)!important;
+    max-width:none!important;
+    margin:0 0 0 205px!important;
+    padding:12px 14px 28px!important;
+    box-sizing:border-box!important;
+  }
+
+  body.pro-body .desktop-pro-nav,
+  body.pro-body .pro3-nav,
+  body.pro-body .patient-desktop-tabs{
+    display:none!important;
+  }
+
+  body.pro-body .pro3-top{
+    width:100%!important;
+    max-width:none!important;
+    margin:0 0 10px!important;
+    padding:0!important;
+  }
+
+  body.pro-body .pro-top-brand{
+    display:block!important;
+    width:100%!important;
+    margin:0!important;
+    padding:0!important;
+    pointer-events:none!important;
+  }
+
+  body.pro-body .pro-top-brand img,
+  body.pro-body .pro-top-brand .eyebrow{
+    display:none!important;
+  }
+
+  body.pro-body .pro-top-brand h1{
+    display:block!important;
+    margin:0!important;
+    font-size:27px!important;
+    line-height:1!important;
+  }
+
+  body.pro-body .pro3-kpis{
+    display:grid!important;
+    grid-template-columns:repeat(2,minmax(0,1fr))!important;
+    gap:8px!important;
+    width:100%!important;
+    margin:0 0 10px!important;
+  }
+
+  body.pro-body .pro3-kpis>div{
+    min-width:0!important;
+    padding:10px 12px!important;
+    border-radius:15px!important;
+  }
+
+  body.pro-body .pro3-kpis span{
+    font-size:11px!important;
+  }
+
+  body.pro-body .pro3-kpis b{
+    font-size:25px!important;
+  }
+
+  body.pro-body .patient-content-card,
+  body.pro-body .card{
+    width:100%!important;
+    max-width:none!important;
+    margin-left:0!important;
+    margin-right:0!important;
+    box-sizing:border-box!important;
+  }
+}

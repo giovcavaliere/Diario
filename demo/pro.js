@@ -25,14 +25,28 @@ async function writeDocumentBlob(fileId,file){const db=await openPlanDb();return
 async function readDocumentBlob(fileId){const db=await openPlanDb();return new Promise((res,rej)=>{const r=db.transaction(DOCUMENT_STORE,'readonly').objectStore(DOCUMENT_STORE).get(fileId);r.onsuccess=()=>res(r.result||null);r.onerror=()=>rej(r.error)})}
 async function deleteDocumentBlob(fileId){const db=await openPlanDb();return new Promise((res,rej)=>{const tx=db.transaction(DOCUMENT_STORE,'readwrite');tx.objectStore(DOCUMENT_STORE).delete(fileId);tx.oncomplete=()=>res();tx.onerror=()=>rej(tx.error)})}
 async function openProfessionalDocument(id){
- const d=documentMetaList().find(x=>x.id===id&&x.patientId===selected);if(!d)return alert('Documento non trovato.');
- const blob=await readDocumentBlob(d.fileId);if(!blob)return alert('File non disponibile.');
+ const items=documentMetaList();
+ const d=items.find(x=>x.id===id&&x.patientId===selected);
+ if(!d)return alert('Documento non trovato.');
+ const blob=await readDocumentBlob(d.fileId);
+ if(!blob)return alert('File non disponibile.');
+
+ if(d.unreadForProfessional===true){
+   d.unreadForProfessional=false;
+   saveDocumentMetaList(items);
+ }
+
  const url=URL.createObjectURL(blob);
- // Stesso fix Safari mobile usato nell'area paziente: niente popup dopo await.
  window.location.href=url;
  setTimeout(()=>URL.revokeObjectURL(url),120000);
 }
 
+function patientsWithUnreadDocuments(){
+ return patients().filter(p=>hasUnreadProfessionalDocuments(p.id));
+}
+function hasAnyUnreadProfessionalDocuments(){
+ return patientsWithUnreadDocuments().length>0;
+}
 function hasUnreadProfessionalDocuments(patientId){
  return documentMetaList().some(d=>d.patientId===patientId&&d.unreadForProfessional===true);
 }
@@ -53,10 +67,9 @@ function proDocuments(p){
    <label>Data documento</label>${proDateControl('proDocumentDate',today())}
    <div class="pro3-actions"><button class="primary" id="saveProDocument">Salva documento</button><button class="secondary" id="cancelProDocument">Annulla</button></div>
  </div>
- ${docs.length?`<div class="document-list">${docs.map(d=>`<div class="document-row"><div><b>${esc(d.title)}</b><span>${d.documentDate?fmt(d.documentDate):'Data non indicata'} · ${esc(d.fileName||'Documento')} · ${d.uploadedBy==='patient'?'Caricato dal paziente':'Caricato dal professionista'}</span></div><div class="document-row-actions"><button class="secondary compact" data-open-pro-document="${d.id}">Apri</button><button class="mini danger-text" data-delete-pro-document="${d.id}">Elimina</button></div></div>`).join('')}</div>`:'<p class="muted">Nessun documento sanitario caricato.</p>'}`;
+ ${docs.length?`<div class="document-list">${docs.map(d=>`<div class="document-row ${d.unreadForProfessional===true?'document-row-unread':''}"><div><b>${esc(d.title)}${d.unreadForProfessional===true?'<span class="document-new-badge">NUOVO</span>':''}</b><span>${d.documentDate?fmt(d.documentDate):'Data non indicata'} · ${esc(d.fileName||'Documento')} · ${d.uploadedBy==='patient'?'Caricato dal paziente':'Caricato dal professionista'}</span></div><div class="document-row-actions"><button class="secondary compact" data-open-pro-document="${d.id}">Apri</button><button class="mini danger-text" data-delete-pro-document="${d.id}">Elimina</button></div></div>`).join('')}</div>`:'<p class="muted">Nessun documento sanitario caricato.</p>'}`;
 }
 function bindProDocuments(){
- markProfessionalDocumentsRead(selected);
  let selectedFile=null;
  const choose=el('chooseProDocument'),input=el('proDocumentFile'),form=el('proDocumentForm');
  if(choose&&input)choose.onclick=()=>input.click();
@@ -493,7 +506,7 @@ function dashboard(){
  const todays=appointments().filter(a=>a.date===today());
  const first=todays.filter(a=>a.type==='first').length;
  const controls=todays.filter(a=>a.type==='control').length;
- return `${top('Dashboard')}${nav()}
+ return `${top('Dashboard')}${nav()}${hasAnyUnreadProfessionalDocuments()?`<button class="document-dashboard-alert" id="openUnreadPatients"><span class="document-alert-dot">!</span><span>Alcuni tuoi pazienti hanno pubblicato nuovi documenti</span><b>Apri pazienti ›</b></button>`:''}
  <div class="pro3-kpis">
    <div><span>Pazienti attivi</span><b>${ps.length}</b></div>
    <div><span>Appuntamenti oggi</span><b>${todays.filter(a=>a.type!=='personal').length}</b></div>
@@ -564,7 +577,7 @@ function patientsPage(){
    return `<button data-patient="${p.id}" class="pro3-patient" style="font-weight:400">
      <div class="patient-avatar">${p.name.split(' ').map(x=>x[0]).slice(0,2).join('')}</div>
      <div>
-       <span style="display:block;font-size:15px;font-weight:700;color:#34484f">${esc(p.name)}</span>
+       <span style="display:block;font-size:15px;font-weight:700;color:#34484f">${esc(p.name)}${hasUnreadProfessionalDocuments(p.id)?'<span class="document-alert-inline">!</span>':''}</span>
        <span style="display:block;margin-top:3px;font-size:12px;color:#7b898f">${p.last!=null?'Ultimo peso '+p.last.toFixed(1).replace('.',',')+' kg':'Dati non disponibili'}</span>
      </div>
      <span style="font-size:12px;font-weight:600;color:${p.delta<0?'#3d8b69':p.delta>0?'#a66a45':'#7b898f'}">${delta}</span>
@@ -3332,6 +3345,11 @@ function render(){
 }
 
 function bind(){
+ el('openUnreadPatients')?.addEventListener('click',()=>{
+   view='patients';
+   render();
+   scrollTo(0,0);
+ });
  if(view==='details'&&tab==='documents')bindProDocuments();
  el('editPatientProfileTop')?.addEventListener('click',()=>{
    view='editProfile';render();scrollTo(0,0);

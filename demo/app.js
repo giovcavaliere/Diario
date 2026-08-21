@@ -1970,13 +1970,18 @@ async function readDocumentBlob(fileId){
   });
 }
 async function openStoredDocument(id){
-  const meta=documentMetaList().find(d=>d.id===id&&d.patientId===activePatientId());
+  const items=documentMetaList();
+  const meta=items.find(d=>d.id===id&&d.patientId===activePatientId());
   if(!meta)return alert('Documento non trovato.');
   const blob=await readDocumentBlob(meta.fileId);
   if(!blob)return alert('File non disponibile.');
+
+  if(meta.unreadForPatient===true){
+    meta.unreadForPatient=false;
+    saveDocumentMetaList(items);
+  }
+
   const url=URL.createObjectURL(blob);
-  // Safari iOS/iPadOS può bloccare window.open() se chiamato dopo l'await di IndexedDB.
-  // La navigazione diretta nello stesso tab non dipende dal popup blocker.
   window.location.href=url;
   setTimeout(()=>URL.revokeObjectURL(url),120000);
 }
@@ -1997,11 +2002,10 @@ function documentsPage(){
   </section>
   <section class="card">
     <div class="section-head"><h2>Archivio sanitario</h2><span class="pill">${docs.length}</span></div>
-    ${docs.length?`<div class="document-list">${docs.map(d=>`<div class="document-row"><div><b>${escapeHtml(d.title)}</b><span>${d.documentDate?fmtShort(d.documentDate):'Data non indicata'} · ${escapeHtml(d.fileName||'Documento')}</span></div><button class="secondary compact" data-open-patient-document="${d.id}">Apri</button></div>`).join('')}</div>`:'<p class="muted">Nessun documento sanitario caricato.</p>'}
+    ${docs.length?`<div class="document-list">${docs.map(d=>`<div class="document-row ${d.unreadForPatient===true?'document-row-unread':''}"><div><b>${escapeHtml(d.title)}${d.unreadForPatient===true?'<span class="document-new-badge">NUOVO</span>':''}</b><span>${d.documentDate?fmtShort(d.documentDate):'Data non indicata'} · ${escapeHtml(d.fileName||'Documento')}</span></div><button class="secondary compact" data-open-patient-document="${d.id}">Apri</button></div>`).join('')}</div>`:'<p class="muted">Nessun documento sanitario caricato.</p>'}
   </section>`;
 }
 function bindDocumentsPage(){
-  markPatientDocumentsRead();
   const choose=$('#choosePatientDocument'),input=$('#patientDocumentFile'),form=$('#patientDocumentForm');
   let selectedFile=null;
   if(choose&&input)choose.onclick=()=>input.click();

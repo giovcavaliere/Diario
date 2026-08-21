@@ -2708,3 +2708,25 @@ body.pro-body.ipad-layout .drawer-logout strong{
   }
 }
 
+
+
+/* NUBEMO 3.55 — Cartella PDF dinamica */
+.clinical-option-box{
+  margin-top:12px;
+  padding:14px 15px;
+  border:1px solid #dce8d9;
+  border-radius:16px;
+  background:#f7fbf5;
+}
+.clinical-option-box label{margin-top:0}
+.clinical-option-box small{
+  display:block;
+  margin-top:7px;
+  color:#72817a;
+  font-size:12px;
+  line-height:1.35;
+}
+
+/* NUBEMO 3.56 — PDF: pagina 2 tabellare + diario tabellare per giorno */
+
+/* NUBEMO 3.57 — PDF: sezioni stabili, misure tabellari, dettaglio settimanale, diario più leggibile */

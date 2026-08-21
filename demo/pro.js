@@ -833,18 +833,35 @@ function clinicalDialog(){
    <button class="monubi-x" id="closeClinicalPdf" type="button">×</button>
    <div class="eyebrow">CARTELLA PAZIENTE</div>
    <h2>Genera PDF di ${esc(p.name)}</h2>
-   <p class="muted">La cartella include anagrafica, sintesi, grafici Peso e BMI (dall'inizio, 30 giorni e 7 giorni), pesi periodici e misure.</p>
-   <label>Intervallo rilevazioni peso (giorni)</label>
-   <input id="clinicalWeightInterval" type="number" min="1" max="365" step="1" value="${interval}">
-   <label class="clinical-check"><input id="clinicalIncludeDiary" type="checkbox"><span><b>Aggiungi storico diario</b><small>Inserisce anche tutte le giornate registrate dal paziente.</small></span></label>
+   <p class="muted">La cartella raccoglie i dati clinico-nutrizionali realmente presenti nella scheda. Le sezioni vuote non vengono stampate.</p>
+
+   <label>Diario / storico peso da allegare</label>
+   <select id="clinicalDiaryMode">
+     <option value="none">Non includere</option>
+     <option value="weight">Diario sintetico – solo peso rilevato</option>
+     <option value="7">Diario – ultimi 7 giorni</option>
+     <option value="30">Diario – ultimi 30 giorni</option>
+     <option value="full">Diario completo</option>
+   </select>
+
+   <div id="clinicalWeightIntervalWrap" class="clinical-option-box">
+     <label>Intervallo storico peso sintetico (giorni)</label>
+     <input id="clinicalWeightInterval" type="number" min="1" max="365" step="1" value="${interval}">
+     <small>Usato solo per “Diario sintetico – solo peso rilevato”.</small>
+   </div>
+
    <div class="clinical-actions"><button class="secondary" id="cancelClinicalPdf">Annulla</button><button class="primary" id="createClinicalPdf">Genera cartella PDF</button></div>
  </section>`;
  document.body.appendChild(o);
+ const syncMode=()=>{el('clinicalWeightIntervalWrap').style.display=el('clinicalDiaryMode').value==='weight'?'block':'none'};
+ el('clinicalDiaryMode').onchange=syncMode;syncMode();
  el('closeClinicalPdf').onclick=el('cancelClinicalPdf').onclick=()=>o.remove();
  el('createClinicalPdf').onclick=async()=>{
-   const b=el('createClinicalPdf'),interval=Math.max(1,Math.min(365,+el('clinicalWeightInterval').value||30)),includeDiary=!!el('clinicalIncludeDiary').checked;
+   const b=el('createClinicalPdf');
+   const interval=Math.max(1,Math.min(365,+el('clinicalWeightInterval').value||30));
+   const diaryMode=el('clinicalDiaryMode').value||'none';
    b.disabled=true;b.textContent='Generazione…';
-   try{await exportClinicalPdf(p,{interval,includeDiary});o.remove()}
+   try{await exportClinicalPdf(p,{interval,diaryMode});o.remove()}
    catch(e){console.error(e);alert('Non riesco a generare la cartella PDF.');b.disabled=false;b.textContent='Genera cartella PDF'}
  };
 }
@@ -1034,6 +1051,95 @@ function clinicalFlowField(flow,pages,label,value){
  for(let i=1;i<lines.length;i++){flow.cmd+=pdfTextCmd(190,flow.y,lines[i],8.7,'F1');flow.y-=11}
  flow.y-=6;return flow;
 }
+
+function clinicalFlowTableSection(flow,pages,title,rows,opts={}){
+ const keepEmpty=!!opts.keepEmpty;
+ const clean=(rows||[]).filter(r=>r&&(keepEmpty||clinicalHasValue(r[1])));
+ if(!clean.length)return flow;
+ const labelW=150,totalW=511,valueW=totalW-labelW,lineH=10;
+ // Distacco fisso tra una sezione clinica e la precedente.
+ if(flow.y<735)flow.y-=14;
+ const firstValue=clinicalHasValue(clean[0][1])?String(clean[0][1]):'—';
+ const firstLines=clinicalWrap(firstValue,Math.max(12,Math.floor((valueW-14)/4.4))).length;
+ flow=clinicalFlowEnsure(flow,pages,50+Math.max(24,firstLines*lineH+12));
+ flow.cmd+=`0.94 0.97 0.93 rg 42 ${flow.y-8} 511 26 re f 0 0 0 rg\n`;
+ flow.cmd+=pdfTextCmd(54,flow.y,title,10,'F2');flow.y-=36;
+ clean.forEach((r,idx)=>{
+   const label=String(r[0]||''),value=clinicalHasValue(r[1])?String(r[1]):'—';
+   const lines=clinicalWrap(value,Math.max(12,Math.floor((valueW-14)/4.4)));
+   const h=Math.max(24,lines.length*lineH+12);
+   flow=clinicalFlowEnsure(flow,pages,h+2);
+   const y0=flow.y-h+6;
+   if(idx%2===0)flow.cmd+=`0.975 0.987 0.97 rg 42 ${y0} ${totalW} ${h} re f 0 0 0 rg\n`;
+   flow.cmd+=`0.86 0.90 0.85 RG .3 w 42 ${y0} ${labelW} ${h} re S 0 G\n`;
+   flow.cmd+=`0.86 0.90 0.85 RG .3 w ${42+labelW} ${y0} ${valueW} ${h} re S 0 G\n`;
+   flow.cmd+=pdfTextCmd(50,flow.y-9,label,7.1,'F2');
+   lines.forEach((line,li)=>flow.cmd+=pdfTextCmd(42+labelW+8,flow.y-9-li*lineH,line,7.7,'F1'));
+   flow.y-=h;
+ });
+ flow.y-=10;
+ return flow;
+}
+
+function clinicalFlowGridTable(flow,pages,title,headers,rows,widths){
+ const totalW=widths.reduce((a,b)=>a+b,0),x0=42;
+ if(flow.y<735)flow.y-=14;
+ flow=clinicalFlowEnsure(flow,pages,82);
+ flow.cmd+=`0.94 0.97 0.93 rg 42 ${flow.y-8} 511 26 re f 0 0 0 rg\n`;
+ flow.cmd+=pdfTextCmd(54,flow.y,title,10,'F2');flow.y-=38;
+ const drawHeader=()=>{
+   let x=x0;
+   headers.forEach((h,i)=>{
+     flow.cmd+=`0.88 0.95 0.86 rg ${x} ${flow.y-24} ${widths[i]} 24 re f 0 0 0 rg\n`;
+     flow.cmd+=`0.78 0.87 0.76 RG .35 w ${x} ${flow.y-24} ${widths[i]} 24 re S 0 G\n`;
+     flow.cmd+=pdfTextCmd(x+7,flow.y-16,h,7,'F2');x+=widths[i];
+   });
+   flow.y-=24;
+ };
+ drawHeader();
+ (rows||[]).forEach((r,rowIndex)=>{
+   const wraps=r.map((c,i)=>clinicalWrap(clinicalHasValue(c)?String(c):'—',Math.max(5,Math.floor((widths[i]-12)/4.4))));
+   const lines=Math.max(1,...wraps.map(a=>a.length)),h=Math.max(23,lines*10+10);
+   if(flow.y-h<60){
+     pages.push(flow.cmd);flow=clinicalFlowPage(flow.title);flow.y=742;
+     flow.cmd+=`0.94 0.97 0.93 rg 42 ${flow.y-8} 511 26 re f 0 0 0 rg\n`;
+     flow.cmd+=pdfTextCmd(54,flow.y,title+' · continua',10,'F2');flow.y-=38;drawHeader();
+   }
+   let x=x0;
+   if(rowIndex%2===0)flow.cmd+=`0.975 0.987 0.97 rg ${x0} ${flow.y-h} ${totalW} ${h} re f 0 0 0 rg\n`;
+   wraps.forEach((ls,i)=>{
+     flow.cmd+=`0.86 0.90 0.85 RG .3 w ${x} ${flow.y-h} ${widths[i]} ${h} re S 0 G\n`;
+     ls.forEach((line,li)=>flow.cmd+=pdfTextCmd(x+7,flow.y-15-li*10,line,7.2,i===0?'F2':'F1'));
+     x+=widths[i];
+   });
+   flow.y-=h;
+ });
+ flow.y-=10;return flow;
+}
+function clinicalWeeklyWeightRows(weights){
+ const src=(weights||[]).filter(x=>x&&x.date&&Number.isFinite(Number(x.weight))).slice().sort((a,b)=>String(a.date).localeCompare(String(b.date)));
+ if(!src.length)return [];
+ const groups=new Map();
+ src.forEach(x=>{
+   const d=new Date(String(x.date)+'T12:00:00');
+   const start=new Date(d);start.setDate(d.getDate()-d.getDay());
+   const end=new Date(start);end.setDate(start.getDate()+6);
+   const key=start.toISOString().slice(0,10);
+   if(!groups.has(key))groups.set(key,{start,end,items:[]});
+   groups.get(key).items.push(x);
+ });
+ const now=new Date(),todayDate=new Date(now.getFullYear(),now.getMonth(),now.getDate());
+ const monthNames=['gennaio','febbraio','marzo','aprile','maggio','giugno','luglio','agosto','settembre','ottobre','novembre','dicembre'];
+ const labelRange=(a,b)=>{
+   const sameMonth=a.getMonth()===b.getMonth();
+   return sameMonth?`${a.getDate()}–${b.getDate()} ${monthNames[b.getMonth()]}`:`${a.getDate()} ${monthNames[a.getMonth()]}–${b.getDate()} ${monthNames[b.getMonth()]}`;
+ };
+ return [...groups.values()].map(g=>{
+   const first=g.items[0],last=g.items[g.items.length-1],delta=Number(last.weight)-Number(first.weight);
+   const inCourse=todayDate>=new Date(g.start.getFullYear(),g.start.getMonth(),g.start.getDate())&&todayDate<=new Date(g.end.getFullYear(),g.end.getMonth(),g.end.getDate());
+   return [labelRange(g.start,g.end)+(inCourse?' (in corso)':''),clinicalNumberText(first.weight,'kg'),clinicalNumberText(last.weight,'kg'),(delta>0?'+':'')+delta.toFixed(1).replace('.',',')+' kg'];
+ });
+}
 function clinicalMetricCard(x,y,w,h,label,value,accent='.02 .34 .29'){
  let c=`1 1 1 rg ${x} ${y} ${w} ${h} re f 0 0 0 rg\n`;
  c+=`0.87 0.91 0.86 RG .55 w ${x} ${y} ${w} ${h} re S 0 G\n`;
@@ -1075,8 +1181,46 @@ function clinicalTablePage(title,headers,rows,widths){
 }
 
 
-async function exportClinicalPdf(p,opts){
+function clinicalHasValue(v){
+ return v!==undefined&&v!==null&&String(v).trim()!=='';
+}
+function clinicalNumberText(v,unit=''){
+ if(!clinicalHasValue(v)||!Number.isFinite(Number(v)))return '';
+ return Number(v).toFixed(1).replace('.',',')+(unit?' '+unit:'');
+}
+function clinicalFlowMultiline(flow,pages,label,text){
+ const raw=String(text??'').replace(/\r/g,'');
+ if(!raw.trim())return flow;
+ const paragraphs=raw.split('\n');
+ flow=clinicalFlowEnsure(flow,pages,28);
+ flow.cmd+=pdfTextCmd(54,flow.y,label,7,'F2');flow.y-=14;
+ paragraphs.forEach((p,i)=>{
+   if(!p.trim()){flow.y-=7;return}
+   const lines=clinicalWrap(p,78);
+   lines.forEach(line=>{
+     flow=clinicalFlowEnsure(flow,pages,15);
+     flow.cmd+=pdfTextCmd(68,flow.y,line,8.3,'F1');
+     flow.y-=11;
+   });
+   if(i<paragraphs.length-1)flow.y-=4;
+ });
+ flow.y-=7;
+ return flow;
+}
+function clinicalActivityFactorLabel(v){
+ const map={'1.2':'Sedentario','1.375':'Leggermente attivo','1.55':'Moderatamente attivo','1.725':'Molto attivo','1.9':'Estremamente attivo'};
+ return map[String(v||'')]||'';
+}
+function clinicalDiaryEntries(p,mode){
+ const entries=(p.entries||[]).slice().filter(x=>x&&x.date).sort((a,b)=>String(a.date).localeCompare(String(b.date)));
+ if(mode==='full')return entries;
+ if(mode==='7'||mode==='30')return clinicalFilterDays(entries,Number(mode));
+ return [];
+}
+
+async function exportClinicalPdf(p,opts={}){
  const s=settings(),weights=clinicalWeightSeries(p),interval=opts.interval||s.reportWeightInterval||30;
+ const diaryMode=opts.diaryMode||'none';
  const nubemo=await clinicalJpegAsset(NUBEMO_PDF_BRAND,1200).catch(()=>null);
  const nubemoIcon=await clinicalJpegAsset(NUBEMO_PDF_ICON,400).catch(()=>null);
  const professional=s.logoData?await clinicalJpegAsset(s.logoData,800).catch(()=>null):null;
@@ -1087,19 +1231,17 @@ async function exportClinicalPdf(p,opts){
  const currentBmi=current&&p.height?bmi(current.weight,p.height):null;
  const firstBmi=first&&p.height?bmi(first.weight,p.height):null;
  const delta=first&&current?current.weight-first.weight:null;
- const goal=p.goal?Number(p.goal):null;
+ const goal=clinicalHasValue(p.goal)?Number(p.goal):null;
  const generated=new Date().toLocaleDateString('it-IT');
 
  // -----------------------------------------------------------
- // 1. COPERTINA PREMIUM
+ // 1. COPERTINA
  // -----------------------------------------------------------
  let cover='';
  cover+=`1 1 1 rg 0 0 595 842 re f 0 0 0 rg\n`;
- // barra laterale e piccoli accenti
  cover+=`0.02 0.34 0.29 rg 0 0 12 842 re f 0 0 0 rg\n`;
  cover+=`0.39 0.78 0.03 rg 12 0 5 842 re f 0 0 0 rg\n`;
 
- // intestazione copertina: logo a sinistra + payoff a destra
  if(nubemo)cover+=clinicalImageCmd('Nubemo',nubemo,42,728,112,84);
  else cover+=pdfTextCmd(42,772,'NUBEMO',22,'F2');
  cover+=pdfTextCmd(176,773,'NUBEMO - Il tuo percorso, ogni giorno',11,'F2');
@@ -1118,8 +1260,6 @@ async function exportClinicalPdf(p,opts){
  if(patientSub)cover+=pdfTextCmd(42,541,patientSub,8.8,'F1');
  cover+=pdfTextCmd(42,518,'Documento generato il '+generated,8.2,'F1');
 
- // Copertina essenziale: le metriche sintetiche sono nella pagina 2.
- // professionista, elegante e compatto
  cover+=`0.97 0.985 0.965 rg 42 235 511 165 re f 0 0 0 rg\n`;
  cover+=`0.86 0.91 0.84 RG .6 w 42 235 511 165 re S 0 G\n`;
  cover+=pdfTextCmd(62,375,'A CURA DI',7.2,'F2');
@@ -1128,12 +1268,12 @@ async function exportClinicalPdf(p,opts){
  if(professional)cover+=clinicalImageCmd('ProLogo',professional,430,300,95,82);
 
  let py=300;
- const pLines=[
+ const professionalLines=[
    [s.address,[s.zip,s.city,s.province].filter(Boolean).join(' ')].filter(Boolean).join(' · '),
    [s.email,s.phone].filter(Boolean).join(' · '),
    [s.vat?'P.IVA '+s.vat:'',s.cf?'CF '+s.cf:''].filter(Boolean).join(' · ')
  ].filter(Boolean);
- pLines.forEach(line=>{cover+=pdfTextCmd(62,py,clinicalAscii(line),7.8,'F1');py-=17});
+ professionalLines.forEach(line=>{cover+=pdfTextCmd(62,py,clinicalAscii(line),7.8,'F1');py-=17});
 
  cover+=pdfLineCmd(42,88,553,88,.45,.86);
  cover+=pdfTextCmd(42,68,'NUBEMO · Il tuo percorso, ogni giorno.',7,'F1');
@@ -1141,183 +1281,214 @@ async function exportClinicalPdf(p,opts){
  pages.push(cover);
 
  // -----------------------------------------------------------
- // 2. PROFILO E SINTESI
+ // 2. PAGINA 2 — SINTESI DEL PERCORSO + DATI DEL PAZIENTE
+ // Pagina volutamente stabile: niente sezioni cliniche aggiunte in coda.
  // -----------------------------------------------------------
- let summary=clinicalInnerHeader('Profilo e sintesi del percorso',clinicalAscii(p.name));
- summary+=pdfTextCmd(42,742,'Sintesi del percorso',10,'F2');
+ let sf=clinicalFlowPage('Profilo e sintesi del percorso');
 
- const metricY=650,metricW=118,metricH=70,metricGap=9;
- const summaryMetrics=[
-   ['Peso iniziale',first?first.weight.toFixed(1).replace('.',',')+' kg':'—'],
-   ['Peso attuale',current?current.weight.toFixed(1).replace('.',',')+' kg':'—'],
-   ['Variazione',delta!=null?(delta>0?'+':'')+delta.toFixed(1).replace('.',',')+' kg':'—'],
-   ['BMI attuale',currentBmi?currentBmi.toFixed(1).replace('.',','):'—']
+ const metrics=[
+   first?['Peso iniziale',clinicalNumberText(first.weight,'kg')]:null,
+   current?['Peso attuale',clinicalNumberText(current.weight,'kg')]:null,
+   delta!=null?['Variazione',(delta>0?'+':'')+delta.toFixed(1).replace('.',',')+' kg']:null,
+   currentBmi?['BMI attuale',currentBmi.toFixed(1).replace('.',',')]:null
+ ].filter(Boolean);
+ if(metrics.length){
+   const gap=9,w=(511-gap*(metrics.length-1))/metrics.length;
+   metrics.forEach((m,i)=>sf.cmd+=clinicalMetricCard(42+i*(w+gap),650,w,70,m[0],m[1],i===2?'.39 .78 .03':'.02 .34 .29'));
+   sf.y=606;
+ }
+
+ const profileFields=[
+   ['Data di nascita',p.birth?fmt(p.birth):''],
+   ['Età',age==='—'?'':age+' anni'],
+   ['Sesso',p.sex||''],
+   ['Altezza',p.height?p.height+' cm':''],
+   ['Peso obiettivo',goal?clinicalNumberText(goal,'kg'):''],
+   ['Peso minimo storico',clinicalNumberText(p.minWeight,'kg')],
+   ['Peso massimo storico',clinicalNumberText(p.maxWeight,'kg')],
+   ['Peso ragionevole / concordato',clinicalNumberText(p.reasonableWeight,'kg')],
+   ['BMI iniziale',firstBmi?firstBmi.toFixed(1).replace('.',','):''],
+   ['Categoria BMI attuale',currentBmi?proBmiLabel(currentBmi):'']
  ];
- summaryMetrics.forEach((m,i)=>summary+=clinicalMetricCard(42+i*(metricW+metricGap),metricY,metricW,metricH,m[0],m[1],i===2?'.39 .78 .03':'.02 .34 .29'));
+ sf=clinicalFlowTableSection(sf,pages,'Dati del paziente',profileFields,{keepEmpty:true});
+ pages.push(sf.cmd);
 
- summary+=pdfTextCmd(42,620,'Dati del paziente',10,'F2');
- summary+=`0.97 0.985 0.965 rg 42 405 248 190 re f 0 0 0 rg\n`;
- summary+=`0.97 0.985 0.965 rg 305 405 248 190 re f 0 0 0 rg\n`;
- summary+=pdfTextCmd(58,570,'DATI ANAGRAFICI',8,'F2');
- summary+=pdfTextCmd(321,570,'INDICATORI CLINICI',8,'F2');
+ // -----------------------------------------------------------
+ // 3. PAGINA 3 — ANAMNESI + NOTE DEL PROFESSIONISTA
+ // Struttura autonoma e prevedibile.
+ // -----------------------------------------------------------
+ let af=clinicalFlowPage('Anamnesi e note del professionista');
 
- const leftFields=[
-   ['Data di nascita',p.birth?fmt(p.birth):'—'],
-   ['Età',age==='—'?'—':age+' anni'],
-   ['Sesso',p.sex||'—'],
-   ['Altezza',p.height?p.height+' cm':'—'],
-   ['Prossima visita',p.nextVisit?fmt(p.nextVisit):'—']
- ];
- let sy=540;
- leftFields.forEach(([l,v])=>{summary+=pdfTextCmd(58,sy,l,6.8,'F1');summary+=pdfTextCmd(158,sy,clinicalAscii(v),8.5,'F2');sy-=29});
-
- const rightFields=[
-   ['BMI iniziale',firstBmi?firstBmi.toFixed(1).replace('.',','):'—'],
-   ['BMI attuale',currentBmi?currentBmi.toFixed(1).replace('.',','):'—'],
-   ['Categoria BMI',currentBmi?proBmiLabel(currentBmi):'—'],
-   ['Peso obiettivo',goal?goal.toFixed(1).replace('.',',')+' kg':'—'],
-   ['Rilevazioni peso',String(weights.length)]
- ];
- sy=540;
- rightFields.forEach(([l,v])=>{summary+=pdfTextCmd(321,sy,l,6.8,'F1');summary+=pdfTextCmd(426,sy,clinicalAscii(v),8.5,'F2');sy-=29});
-
- summary+=pdfTextCmd(42,370,'Anamnesi e informazioni rilevanti',10,'F2');
- summary+=`0.98 0.99 0.98 rg 42 105 511 240 re f 0 0 0 rg\n`;
  const fam=[
-   p.famObesity?'obesità':'',p.famDiabetes?'diabete':'',p.famHypertension?'ipertensione':'',
-   p.famCardiovascular?'cardiovascolare':'',p.famDyslipidemia?'dislipidemia':'',
-   p.famThyroid?'tiroide':'',p.famGestational?'diabete gestazionale':''
+   p.famObesity?'Obesità':'',p.famDiabetes?'Diabete':'',p.famHypertension?'Ipertensione':'',
+   p.famCardiovascular?'Patologie cardiovascolari':'',p.famDyslipidemia?'Dislipidemie':'',
+   p.famThyroid?'Patologie tiroidee':'',p.famGestational?'Diabete gestazionale':''
  ].filter(Boolean).join(', ');
- const anam=[
+
+ const lifestyle=[
    ['Diagnosi / motivo',p.diagnosis],
-   ['Lavoro',p.work],
-   ['Attività',p.activity],
+   ['Peso teorico',clinicalNumberText(p.theoreticalWeight,'kg')],
+   ['Attività lavorativa',p.work],
+   ['Attività fisica abituale',p.activity],
+   ['Livello attività',clinicalActivityFactorLabel(p.activityFactor)],
+   ['Alvo',p.bowel],
    ['Fumo',p.smoking],
    ['Alcol',p.alcohol],
+   ['Metabolismo basale',p.metabolism],
+   ['FEEG / fabbisogno',p.feeg],
+   ['Impedenziometria',p.impedance]
+ ];
+
+ const pathological=[
+   ['Diete pregresse',p.previousDiets],
    ['Allergie / intolleranze',p.allergies],
    ['Farmaci / integrazione',p.medications],
-   ['Familiarità',fam],
+   ['Disturbi gastrointestinali',p.giIssues],
+   ['Patologie / interventi pregressi',p.pastConditions],
    ['Osservazioni',p.observations],
    ['Obiettivi',p.objectives]
- ].filter(x=>x[1]);
- let ay=320;
- if(!anam.length)summary+=pdfTextCmd(58,310,'Nessuna informazione anamnestica aggiuntiva registrata.',8,'F1');
- else anam.slice(0,9).forEach(([l,v])=>{
-   const lines=clinicalWrap(v,52);
-   summary+=pdfTextCmd(58,ay,l,6.7,'F2');
-   summary+=pdfTextCmd(185,ay,lines[0],7.7,'F1');
-   ay-=13;
-   for(let k=1;k<Math.min(lines.length,2);k++){summary+=pdfTextCmd(185,ay,lines[k],7.7,'F1');ay-=12}
-   ay-=10;
- });
- pages.push(summary);
+ ];
+
+ const anamnesisRows=[...lifestyle,['Familiarità',fam],...pathological];
+ af=clinicalFlowTableSection(af,pages,'Anamnesi',anamnesisRows,{keepEmpty:true});
+
+ const notesMap=load(NOTES_KEY,{});
+ const professionalNotes=String(notesMap[p.id]||'').trim();
+ af=clinicalFlowTableSection(af,pages,'Note del professionista',[['Note',professionalNotes]],{keepEmpty:true});
+ pages.push(af.cmd);
 
  // -----------------------------------------------------------
- // 3. ANDAMENTO PESO
+ // 4. PAGINA 4 — ANTROPOMETRIA/MISURE + ESAMI EMATICI
+ // Entrambe le sezioni sono tabellari e convivono nella stessa pagina.
+ // Esami: parametri sulle righe, ultime 5 date sulle colonne,
+ // ordinate dalla più vecchia alla più recente.
+ // -----------------------------------------------------------
+ let mf=clinicalFlowPage('Antropometria, misure ed esami');
+
+ const measures=(p.measures||[]).slice().filter(m=>m&&m.date).sort((a,b)=>String(a.date).localeCompare(String(b.date)));
+ const measureRows=measures.length?measures.map(m=>[
+   fmt(m.date),clinicalNumberText(m.professionalWeight,'kg'),
+   clinicalHasValue(m.waist)?String(m.waist)+' cm':'',
+   clinicalHasValue(m.hips)?String(m.hips)+' cm':'',
+   clinicalHasValue(m.notes)?String(m.notes):''
+ ]):[['—','—','—','—','—']];
+ mf=clinicalFlowGridTable(mf,pages,'Antropometria e misure',['Data','Peso rilevato','Vita','Fianchi','Note'],measureRows,[76,96,70,70,199]);
+
+ const allLabs=labsFor(p.id).slice().filter(x=>x&&x.date).sort((a,b)=>String(a.date).localeCompare(String(b.date)));
+ const labFields=[
+   ['glucose','Glicemia'],['cholesterol','Colesterolo'],['hdl','HDL'],['ldl','LDL'],['triglycerides','Trigliceridi'],
+   ['got','GOT'],['gpt','GPT'],['uricAcid','Acido urico'],['creatinine','Creatinina'],['ggt','γGT']
+ ];
+ const labs=allLabs.filter(r=>labFields.some(([k])=>clinicalHasValue(r[k]))).slice(-5);
+
+ const labHeaders=['Parametro',...(labs.length?labs.map(r=>fmt(r.date)):['—'])];
+ const paramW=116,dateW=(511-paramW)/(labs.length||1);
+ const labWidths=[paramW,...Array(labs.length||1).fill(dateW)];
+ const labRows=labFields.map(([key,label])=>[
+   label,
+   ...(labs.length?labs.map(r=>clinicalHasValue(r[key])?String(r[key]):'—'):['—'])
+ ]);
+ mf=clinicalFlowGridTable(mf,pages,'Esami ematici',labHeaders,labRows,labWidths);
+ pages.push(mf.cmd);
+
+ // -----------------------------------------------------------
+ // 4. DETTAGLIO SETTIMANALE DEL PESO — domenica/sabato
+ // -----------------------------------------------------------
+ const weeklyRows=clinicalWeeklyWeightRows(weights);
+ if(weeklyRows.length){
+   pages.push(...clinicalTablePage('Andamento settimanale del peso',['Settimana','Peso iniziale','Peso finale','Variazione'],weeklyRows,[205,102,102,102]));
+ }
+
+ // -----------------------------------------------------------
+ // 5. ANDAMENTO — 3 Peso + 3 BMI
  // -----------------------------------------------------------
  const chartRanges=[['Dall’inizio',0],['Ultimi 30 giorni',30],['Ultimi 7 giorni',7]];
- let pc=clinicalInnerHeader('Andamento peso','Evoluzione del peso corporeo');
- if(first&&current){
-   pc+=clinicalMetricCard(42,680,150,68,'Inizio',first.weight.toFixed(1).replace('.',',')+' kg');
-   pc+=clinicalMetricCard(205,680,150,68,'Attuale',current.weight.toFixed(1).replace('.',',')+' kg');
-   pc+=clinicalMetricCard(368,680,150,68,'Variazione',(delta>0?'+':'')+delta.toFixed(1).replace('.',',')+' kg','.39 .78 .03');
+ if(weights.length){
+   let pc=clinicalInnerHeader('Andamento peso','Evoluzione del peso corporeo');
+   if(first&&current){
+     pc+=clinicalMetricCard(42,680,150,68,'Inizio',clinicalNumberText(first.weight,'kg'));
+     pc+=clinicalMetricCard(205,680,150,68,'Attuale',clinicalNumberText(current.weight,'kg'));
+     pc+=clinicalMetricCard(368,680,150,68,'Variazione',(delta>0?'+':'')+delta.toFixed(1).replace('.',',')+' kg','.39 .78 .03');
+   }
+   chartRanges.forEach((r,i)=>pc+=clinicalPdfChart(clinicalFilterDays(weights,r[1]),x=>x.weight,r[0],'kg',42,470-i*185,511,155));
+   pages.push(pc);
  }
- chartRanges.forEach((r,i)=>{
-   const data=clinicalFilterDays(weights,r[1]);
-   pc+=clinicalPdfChart(data,x=>x.weight,r[0],'kg',42,470-i*185,511,155);
- });
- pages.push(pc);
 
- // -----------------------------------------------------------
- // 4. ANDAMENTO BMI
- // -----------------------------------------------------------
- let bc=clinicalInnerHeader('Andamento BMI','Indice di massa corporea');
- if(firstBmi&&currentBmi){
-   bc+=clinicalMetricCard(42,680,150,68,'BMI iniziale',firstBmi.toFixed(1).replace('.',','));
-   bc+=clinicalMetricCard(205,680,150,68,'BMI attuale',currentBmi.toFixed(1).replace('.',','));
-   bc+=clinicalMetricCard(368,680,150,68,'Categoria',clinicalAscii(proBmiLabel(currentBmi)),'.39 .78 .03');
- }
- chartRanges.forEach((r,i)=>{
-   const data=p.height?clinicalFilterDays(weights,r[1]).map(x=>({...x,bmi:bmi(x.weight,p.height)})):[];
-   bc+=clinicalPdfChart(data,x=>x.bmi,r[0],'BMI',42,470-i*185,511,155);
- });
- pages.push(bc);
-
- // -----------------------------------------------------------
- // 5. STORICO PESI
- // -----------------------------------------------------------
- const periodic=clinicalIntervalWeights(p,interval).map((x,i,a)=>{
-   const b=p.height?bmi(x.weight,p.height):null;
-   const d=i?x.weight-a[i-1].weight:null;
-   return [
-     fmt(x.date),
-     x.weight.toFixed(1).replace('.',',')+' kg',
-     b?b.toFixed(1).replace('.',','):'—',
-     d==null?'—':(d>0?'+':'')+d.toFixed(1).replace('.',',')+' kg'
-   ];
- });
- pages.push(...clinicalTablePage(
-   `Storico pesi · intervallo ${interval} giorni`,
-   ['Data','Peso','BMI','Variazione'],
-   periodic.length?periodic:[['—','—','—','Nessun peso registrato']],
-   [110,110,90,170]
- ));
-
- // -----------------------------------------------------------
- // 6. MISURE
- // -----------------------------------------------------------
- const measures=(p.measures||[]).slice().sort((a,b)=>String(a.date).localeCompare(String(b.date))).map((m,i,a)=>{
-   const dw=i&&m.waist!==''&&a[i-1].waist!==''?Number(m.waist)-Number(a[i-1].waist):null;
-   const dh=i&&m.hips!==''&&a[i-1].hips!==''?Number(m.hips)-Number(a[i-1].hips):null;
-   const change=[dw!=null?'Vita '+(dw>0?'+':'')+dw.toFixed(1).replace('.',','):'',dh!=null?'Fianchi '+(dh>0?'+':'')+dh.toFixed(1).replace('.',','):''].filter(Boolean).join(' · ');
-   return [
-     fmt(m.date),
-     m.waist!==''&&m.waist!=null?String(m.waist)+' cm':'—',
-     m.hips!==''&&m.hips!=null?String(m.hips)+' cm':'—',
-     change||m.notes||'—'
-   ];
- });
- pages.push(...clinicalTablePage(
-   'Misure corporee',
-   ['Data','Vita','Fianchi','Variazione / note'],
-   measures.length?measures:[['—','—','—','Nessuna misura registrata']],
-   [100,90,90,200]
- ));
-
- // -----------------------------------------------------------
- // 7+. DIARIO OPZIONALE
- // -----------------------------------------------------------
- if(opts.includeDiary){
-   const entries=(p.entries||[]).slice().sort((a,b)=>String(a.date).localeCompare(String(b.date)));
-   let dflow=clinicalFlowPage('Storico diario');
-   entries.forEach(d=>{
-     dflow=clinicalFlowEnsure(dflow,pages,125);
-     dflow.cmd+=`0.96 0.98 0.95 rg 42 ${dflow.y-4} 511 24 re f 0 0 0 rg\n`;
-     dflow.cmd+=pdfTextCmd(54,dflow.y+3,fmt(d.date),9,'F2');dflow.y-=27;
-
-     const meta=[
-       d.weight!==''&&d.weight!=null?'Peso '+Number(d.weight).toFixed(1).replace('.',',')+' kg':'',
-       d.water!==''&&d.water!=null?'Acqua '+Number(d.water).toFixed(1).replace('.',',')+' L':'',
-       d.coffee!==''&&d.coffee!=null?'Caffè '+d.coffee:''
-     ].filter(Boolean).join(' · ');
-     if(meta){dflow.cmd+=pdfTextCmd(54,dflow.y,meta,7.3,'F1');dflow.y-=14}
-
-     const fields=[
-       ['Colazione',d.breakfast],['Spuntino mattina',d.snack1],['Pranzo',d.lunch],
-       ['Spuntino pomeriggio',d.snack2],['Cena',d.dinner],['Sport / Note',d.notes]
-     ];
-     fields.forEach(([label,val])=>{
-       if(!val)return;
-       const lines=clinicalWrap(val,72);
-       dflow.cmd+=pdfTextCmd(54,dflow.y,label,6.8,'F2');
-       dflow.cmd+=pdfTextCmd(150,dflow.y,lines[0],7.3,'F1');
-       dflow.y-=10;
-       for(let k=1;k<lines.length;k++){dflow.cmd+=pdfTextCmd(150,dflow.y,lines[k],7.3,'F1');dflow.y-=9}
-       dflow.y-=5;
-     });
-     dflow.y-=9;
+ if(weights.length&&p.height){
+   let bc=clinicalInnerHeader('Andamento BMI','Indice di massa corporea');
+   if(firstBmi&&currentBmi){
+     bc+=clinicalMetricCard(42,680,150,68,'BMI iniziale',firstBmi.toFixed(1).replace('.',','));
+     bc+=clinicalMetricCard(205,680,150,68,'BMI attuale',currentBmi.toFixed(1).replace('.',','));
+     bc+=clinicalMetricCard(368,680,150,68,'Categoria',clinicalAscii(proBmiLabel(currentBmi)),'.39 .78 .03');
+   }
+   chartRanges.forEach((r,i)=>{
+     const data=clinicalFilterDays(weights,r[1]).map(x=>({...x,bmi:bmi(x.weight,p.height)}));
+     bc+=clinicalPdfChart(data,x=>x.bmi,r[0],'BMI',42,470-i*185,511,155);
    });
-   pages.push(dflow.cmd);
+   pages.push(bc);
+ }
+
+ // -----------------------------------------------------------
+ // 8. ALLEGATO OPZIONALE
+ // -----------------------------------------------------------
+ if(diaryMode==='weight'){
+   const periodic=clinicalIntervalWeights(p,interval);
+   if(periodic.length){
+     const rows=periodic.map(x=>[fmt(x.date),clinicalNumberText(x.weight,'kg')]);
+     pages.push(...clinicalTablePage('Storico rilevazioni peso',['Data','Peso registrato'],rows,[190,320]));
+   }
+ }else if(['7','30','full'].includes(diaryMode)){
+   const entries=clinicalDiaryEntries(p,diaryMode);
+   if(entries.length){
+     const title=diaryMode==='7'?'Diario alimentare · Ultimi 7 giorni':diaryMode==='30'?'Diario alimentare · Ultimi 30 giorni':'Diario alimentare';
+     let dflow=clinicalFlowPage(title);
+     entries.forEach(d=>{
+       const rows=[];
+       const meta=[
+         clinicalHasValue(d.weight)?'Peso '+clinicalNumberText(d.weight,'kg'):'',
+         clinicalHasValue(d.water)?'Acqua '+clinicalNumberText(d.water,'L'):'',
+         clinicalHasValue(d.coffee)?'Caffè '+d.coffee:''
+       ].filter(Boolean).join(' · ');
+       if(meta)rows.push(['Rilevazioni',meta]);
+       [
+         ['Colazione',d.breakfast],['Spuntino mattina',d.snack1],['Pranzo',d.lunch],
+         ['Spuntino pomeriggio',d.snack2],['Cena',d.dinner],['Sport / Note',d.notes]
+       ].forEach(([label,val])=>{if(clinicalHasValue(val))rows.push([label,String(val)]);});
+
+       // Ogni giorno è un blocco tabellare autonomo. Se non entra, parte dalla pagina successiva.
+       const labelW=108,valueW=403,lineH=9;
+       const estimated=34+rows.reduce((sum,r)=>{
+         const lines=clinicalWrap(String(r[1]),Math.max(12,Math.floor((valueW-14)/4.4))).length;
+         return sum+Math.max(22,lines*lineH+11);
+       },0)+10;
+       if(estimated<680)dflow=clinicalFlowEnsure(dflow,pages,estimated);
+       else dflow=clinicalFlowEnsure(dflow,pages,45);
+
+       // Più respiro tra due giornate, ma data e relativa tabella restano compatte.
+       if(dflow.y<735)dflow.y-=14;
+       dflow=clinicalFlowEnsure(dflow,pages,estimated+14);
+       dflow.cmd+=`0.88 0.95 0.86 rg 42 ${dflow.y-9} 511 30 re f 0 0 0 rg\n`;
+       dflow.cmd+=`0.02 0.34 0.29 rg 42 ${dflow.y-9} 5 30 re f 0 0 0 rg\n`;
+       dflow.cmd+=`0.78 0.87 0.76 RG .45 w 42 ${dflow.y-9} 511 30 re S 0 G\n`;
+       dflow.cmd+=pdfTextCmd(55,dflow.y,fmt(d.date),9.4,'F2');
+       dflow.y-=31;
+
+       rows.forEach((r,idx)=>{
+         const lines=clinicalWrap(String(r[1]),Math.max(12,Math.floor((valueW-14)/4.4)));
+         const h=Math.max(22,lines.length*lineH+11);
+         dflow=clinicalFlowEnsure(dflow,pages,h+2);
+         const y0=dflow.y-h+5;
+         if(idx%2===0)dflow.cmd+=`0.975 0.987 0.97 rg 42 ${y0} 511 ${h} re f 0 0 0 rg\n`;
+         dflow.cmd+=`0.86 0.90 0.85 RG .3 w 42 ${y0} ${labelW} ${h} re S 0 G\n`;
+         dflow.cmd+=`0.86 0.90 0.85 RG .3 w ${42+labelW} ${y0} ${valueW} ${h} re S 0 G\n`;
+         dflow.cmd+=pdfTextCmd(50,dflow.y-8,r[0],6.8,'F2');
+         lines.forEach((line,li)=>dflow.cmd+=pdfTextCmd(42+labelW+8,dflow.y-8-li*lineH,line,7.2,'F1'));
+         dflow.y-=h;
+       });
+       dflow.y-=6;
+     });
+     pages.push(dflow.cmd);
+   }
  }
 
  const blob=clinicalPdfBuild(pages,images,{patientName:p.name}),url=URL.createObjectURL(blob),a=document.createElement('a');
@@ -1325,7 +1496,6 @@ async function exportClinicalPdf(p,opts){
  a.href=url;a.download=`Cartella_NUBEMO_${safe}_${today().replace(/-/g,'')}.pdf`;
  document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),2500);
 }
-
 function details(){
  const p=patient(selected)||mainPatient();
  const b=p.last&&p.height?bmi(p.last,p.height):null;
@@ -2448,7 +2618,7 @@ function proSummary2(p){
   <div><span>Piano alimentare</span><b>${planMetaFor(p.id)?'Disponibile':'Non caricato'}</b></div>
  </div>`;
 }
-function proAnamnesis(p){return `<div class="section-head"><h2>Anamnesi</h2>${(p.id==='main'||p.id.startsWith('patient-'))?'<button class="mini" id="editPatientProfile">Modifica scheda</button>':''}</div><details class="pro-accordion" open><summary>Dati e stile di vita</summary><div class="pro-read-grid"><div><span>Diagnosi / motivo</span><b>${esc(p.diagnosis||'—')}</b></div><div><span>Peso teorico</span><b>${p.theoreticalWeight?p.theoreticalWeight+' kg':'—'}</b></div><div><span>Lavoro</span><b>${esc(p.work||'—')}</b></div><div><span>Attività fisica</span><b>${esc(p.activity||'—')}</b></div><div><span>Alvo</span><b>${esc(p.bowel||'—')}</b></div><div><span>Fumo</span><b>${esc(p.smoking||'—')}</b></div><div><span>Alcol</span><b>${esc(p.alcohol||'—')}</b></div><div><span>Metabolismo basale</span><b>${esc(p.metabolism||'—')}</b></div><div><span>FEEG</span><b>${esc(p.feeg||'—')}</b></div><div><span>Impedenziometria</span><b>${esc(p.impedance||'—')}</b></div></div></details><details class="pro-accordion"><summary>Familiarità</summary><div class="pro-read-grid"><div><span>Obesità</span><b>${p.famObesity?'Sì':'No'}</b></div><div><span>Diabete</span><b>${p.famDiabetes?'Sì':'No'}</b></div><div><span>Ipertensione</span><b>${p.famHypertension?'Sì':'No'}</b></div><div><span>Cardiovascolare</span><b>${p.famCardiovascular?'Sì':'No'}</b></div><div><span>Dislipidemie</span><b>${p.famDyslipidemia?'Sì':'No'}</b></div><div><span>Tiroide</span><b>${p.famThyroid?'Sì':'No'}</b></div></div></details><details class="pro-accordion"><summary>Anamnesi patologica</summary><div class="pro-read-grid"><div><span>Diete pregresse</span><b>${esc(p.previousDiets||'—')}</b></div><div><span>Allergie</span><b>${esc(p.allergies||'—')}</b></div><div><span>Farmaci</span><b>${esc(p.medications||'—')}</b></div><div><span>Disturbi GI</span><b>${esc(p.giIssues||'—')}</b></div><div><span>Patologie / interventi</span><b>${esc(p.pastConditions||'—')}</b></div><div><span>Osservazioni</span><b>${esc(p.observations||'—')}</b></div><div><span>Obiettivi</span><b>${esc(p.objectives||'—')}</b></div></div></details>`}function proLabs(p){const r=labsFor(p.id),f=[['glucose','Glicemia'],['cholesterol','Colesterolo'],['hdl','HDL'],['ldl','LDL'],['triglycerides','Trigliceridi'],['got','GOT'],['gpt','GPT'],['uricAcid','Acido urico'],['creatinine','Creatinina'],['ggt','γGT']];return `<div class="section-head"><h2>Esami ematici</h2><button class="mini" id="newLab">＋ Aggiungi esami</button></div>${r.length?`<div class="labs-table-desktop"><table class="labs-table"><thead><tr><th>Data</th>${f.map(x=>`<th>${x[1]}</th>`).join('')}<th></th></tr></thead><tbody>${r.slice().sort((a,b)=>b.date.localeCompare(a.date)).map(x=>`<tr><td>${fmt(x.date)}</td>${f.map(y=>`<td>${esc(x[y[0]]||'—')}</td>`).join('')}<td><button class="mini" data-edit-lab="${x.id}">Modifica</button></td></tr>`).join('')}</tbody></table></div><div class="labs-cards-mobile">${r.map(x=>`<div class="lab-card"><div class="section-head"><b>${fmt(x.date)}</b><button class="mini" data-edit-lab="${x.id}">Modifica</button></div><div class="lab-values">${f.map(y=>`<div><span>${y[1]}</span><b>${esc(x[y[0]]||'—')}</b></div>`).join('')}</div></div>`).join('')}</div>`:'<p class="muted">Nessun esame registrato.</p>'}`}function proPlan(p){const m=planMetaFor(p.id);return `<div class="section-head"><h2>Piano alimentare</h2><span class="pill">${m?'Attivo':'Non caricato'}</span></div><div class="plan-pro-card">${m?`<b>${esc(m.filename)}</b><div class="plan-actions"><button class="secondary" id="openProPlan">Apri PDF</button><button class="mini" id="replacePlan">Sostituisci</button><button class="mini danger-text" id="deletePlan">Elimina</button></div>`:`<p class="muted">Il professionista carica il PDF; il paziente può solo consultarlo.</p><button class="primary" id="uploadPlan">Carica PDF dieta</button>`}<input id="planFile" type="file" accept=".pdf,application/pdf" style="display:none"><label>Data piano</label>${proDateControl('planDate',m?.planDate||today())}</div>`}
+function proAnamnesis(p){return `<div class="section-head"><h2>Anamnesi</h2></div><details class="pro-accordion" open><summary>Dati e stile di vita</summary><div class="pro-read-grid"><div><span>Diagnosi / motivo</span><b>${esc(p.diagnosis||'—')}</b></div><div><span>Peso teorico</span><b>${p.theoreticalWeight?p.theoreticalWeight+' kg':'—'}</b></div><div><span>Lavoro</span><b>${esc(p.work||'—')}</b></div><div><span>Attività fisica</span><b>${esc(p.activity||'—')}</b></div><div><span>Alvo</span><b>${esc(p.bowel||'—')}</b></div><div><span>Fumo</span><b>${esc(p.smoking||'—')}</b></div><div><span>Alcol</span><b>${esc(p.alcohol||'—')}</b></div><div><span>Metabolismo basale</span><b>${esc(p.metabolism||'—')}</b></div><div><span>FEEG</span><b>${esc(p.feeg||'—')}</b></div><div><span>Impedenziometria</span><b>${esc(p.impedance||'—')}</b></div></div></details><details class="pro-accordion"><summary>Familiarità</summary><div class="pro-read-grid"><div><span>Obesità</span><b>${p.famObesity?'Sì':'No'}</b></div><div><span>Diabete</span><b>${p.famDiabetes?'Sì':'No'}</b></div><div><span>Ipertensione</span><b>${p.famHypertension?'Sì':'No'}</b></div><div><span>Cardiovascolare</span><b>${p.famCardiovascular?'Sì':'No'}</b></div><div><span>Dislipidemie</span><b>${p.famDyslipidemia?'Sì':'No'}</b></div><div><span>Tiroide</span><b>${p.famThyroid?'Sì':'No'}</b></div></div></details><details class="pro-accordion"><summary>Anamnesi patologica</summary><div class="pro-read-grid"><div><span>Diete pregresse</span><b>${esc(p.previousDiets||'—')}</b></div><div><span>Allergie</span><b>${esc(p.allergies||'—')}</b></div><div><span>Farmaci</span><b>${esc(p.medications||'—')}</b></div><div><span>Disturbi GI</span><b>${esc(p.giIssues||'—')}</b></div><div><span>Patologie / interventi</span><b>${esc(p.pastConditions||'—')}</b></div><div><span>Osservazioni</span><b>${esc(p.observations||'—')}</b></div><div><span>Obiettivi</span><b>${esc(p.objectives||'—')}</b></div></div></details>`}function proLabs(p){const r=labsFor(p.id),f=[['glucose','Glicemia'],['cholesterol','Colesterolo'],['hdl','HDL'],['ldl','LDL'],['triglycerides','Trigliceridi'],['got','GOT'],['gpt','GPT'],['uricAcid','Acido urico'],['creatinine','Creatinina'],['ggt','γGT']];return `<div class="section-head"><h2>Esami ematici</h2><button class="mini" id="newLab">＋ Aggiungi esami</button></div>${r.length?`<div class="labs-table-desktop"><table class="labs-table"><thead><tr><th>Data</th>${f.map(x=>`<th>${x[1]}</th>`).join('')}<th></th></tr></thead><tbody>${r.slice().sort((a,b)=>b.date.localeCompare(a.date)).map(x=>`<tr><td>${fmt(x.date)}</td>${f.map(y=>`<td>${esc(x[y[0]]||'—')}</td>`).join('')}<td><button class="mini" data-edit-lab="${x.id}">Modifica</button></td></tr>`).join('')}</tbody></table></div><div class="labs-cards-mobile">${r.map(x=>`<div class="lab-card"><div class="section-head"><b>${fmt(x.date)}</b><button class="mini" data-edit-lab="${x.id}">Modifica</button></div><div class="lab-values">${f.map(y=>`<div><span>${y[1]}</span><b>${esc(x[y[0]]||'—')}</b></div>`).join('')}</div></div>`).join('')}</div>`:'<p class="muted">Nessun esame registrato.</p>'}`}function proPlan(p){const m=planMetaFor(p.id);return `<div class="section-head"><h2>Piano alimentare</h2><span class="pill">${m?'Attivo':'Non caricato'}</span></div><div class="plan-pro-card">${m?`<b>${esc(m.filename)}</b><div class="plan-actions"><button class="secondary" id="openProPlan">Apri PDF</button><button class="mini" id="replacePlan">Sostituisci</button><button class="mini danger-text" id="deletePlan">Elimina</button></div>`:`<p class="muted">Il professionista carica il PDF; il paziente può solo consultarlo.</p><button class="primary" id="uploadPlan">Carica PDF dieta</button>`}<input id="planFile" type="file" accept=".pdf,application/pdf" style="display:none"><label>Data piano</label>${proDateControl('planDate',m?.planDate||today())}</div>`}
 
 function proAccount(p){const a=accountFor(p.id);return `<div class="section-head"><h2>Account paziente</h2><span class="pill">${a?'Attivo':'Non attivo'}</span></div><p class="muted">Credenziali demo locali. Dopo averle salvate, vai in Area Paziente e premi <b>Esci</b>: comparirà la schermata login dove puoi provare username e password.</p><label>Username</label><input id="accUser" value="${esc(a?.username||'')}"><label>Password demo</label><input id="accPass" value="${esc(a?.password||'')}"><div class="pro3-actions"><button class="primary" id="savePatientAccount">${a?'Aggiorna account':'Crea account'}</button>${a?'<button class="secondary" id="deletePatientAccount">Disattiva account</button>':''}</div>`}
 function privacyPdfBlob(p){const lines=['INFORMATIVA E CONSENSO - DEMO','',`Paziente: ${p.name||''}`,`Data di nascita: ${p.birth?fmt(p.birth):''}`,`Diagnosi/motivo: ${p.diagnosis||''}`,'','Modulo dimostrativo precompilato con i dati della scheda.','Il testo privacy definitivo dovra essere validato per il prodotto reale.','','Firma paziente: ______________________________','Data: __________________'];const ep=s=>String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^\x20-\x7E]/g,' ').replace(/\\/g,'\\\\').replace(/\(/g,'\\(').replace(/\)/g,'\\)');let st='BT /F1 11 Tf 50 800 Td '+lines.map((l,i)=>`${i?'0 -24 Td ':''}(${ep(l)}) Tj`).join('\n')+' ET\n',o=['<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>'];const add=x=>(o.push(x),o.length),pages=add('P'),content=add(`<< /Length ${st.length} >>\nstream\n${st}endstream`),page=add(`<< /Type /Page /Parent ${pages} 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 1 0 R >> >> /Contents ${content} 0 R >>`);o[pages-1]=`<< /Type /Pages /Count 1 /Kids [${page} 0 R] >>`;const cat=add(`<< /Type /Catalog /Pages ${pages} 0 R >>`);let pdf='%PDF-1.4\n',off=[0];o.forEach((x,i)=>{off[i+1]=pdf.length;pdf+=`${i+1} 0 obj\n${x}\nendobj\n`});const xr=pdf.length;pdf+=`xref\n0 ${o.length+1}\n0000000000 65535 f \n`;for(let i=1;i<=o.length;i++)pdf+=String(off[i]).padStart(10,'0')+' 00000 n \n';pdf+=`trailer\n<< /Size ${o.length+1} /Root ${cat} 0 R >>\nstartxref\n${xr}\n%%EOF`;return new Blob([pdf],{type:'application/pdf'})}
@@ -2470,11 +2640,11 @@ function tabContent(p){
  if(tab==='diary')return proDiaryHistory(p);
  if(tab==='trend')return proTrendContent(p);
  if(tab==='measures')return `<div class="section-head"><h2>Misure</h2><button class="mini" id="newPatientMeasure">＋ Aggiungi misura</button></div>
- <div class="measure-table-wrap"><table class="measure-table"><thead><tr><th>Data</th><th>Vita</th><th>Fianchi</th><th>Note</th><th></th></tr></thead><tbody>
+ <div class="measure-table-wrap"><table class="measure-table"><thead><tr><th>Data</th><th>Peso rilevato</th><th>Vita</th><th>Fianchi</th><th>Note</th><th></th></tr></thead><tbody>
  ${(p.measures||[]).slice().sort((a,b)=>String(b.date).localeCompare(String(a.date))).map(m=>`<tr>
-   <td>${fmt(m.date)}</td><td>${m.waist!==''&&m.waist!=null?m.waist:'—'}</td><td>${m.hips!==''&&m.hips!=null?m.hips:'—'}</td><td>${esc(m.notes||'')}</td>
+   <td>${fmt(m.date)}</td><td>${m.professionalWeight!==''&&m.professionalWeight!=null?Number(m.professionalWeight).toFixed(1).replace('.',',')+' kg':'—'}</td><td>${m.waist!==''&&m.waist!=null?m.waist:'—'}</td><td>${m.hips!==''&&m.hips!=null?m.hips:'—'}</td><td>${esc(m.notes||'')}</td>
    <td><button class="mini" data-edit-measure="${m.date}">Modifica</button></td>
- </tr>`).join('')||'<tr><td colspan="5">Nessuna misura.</td></tr>'}
+ </tr>`).join('')||'<tr><td colspan="6">Nessuna misura.</td></tr>'}
  </tbody></table></div>`;
  if(tab==='visits')return appointments().filter(a=>a.patientId===p.id&&a.type!=='personal').sort((a,b)=>(b.date+b.time).localeCompare(a.date+a.time)).map(a=>`<button class="pro3-event ${typeClass(a.type)} pro3-event-clickable" data-edit-visit="${a.id}"><b>${fmt(a.date)} · ${a.time}</b><span>${typeLabel(a.type)} · ${a.duration} min</span></button>`).join('')||'<p class="muted">Nessuna visita.</p>';
  const notes=load(NOTES_KEY,{});
@@ -2710,6 +2880,7 @@ function patientMeasureForm(){
  return `${top(existing?'Modifica misurazione':'Nuova misurazione')}
  <section class="card">
    <label>Data</label>${proDateControl('pmDate',existing?.date||today())}
+   <label>Peso rilevato dal professionista (kg)</label><input id="pmProfessionalWeight" type="number" min="30" max="300" step="0.1" value="${existing?.professionalWeight??''}" placeholder="Facoltativo">
    <label>Circonferenza vita (cm)</label><input id="pmWaist" type="number" min="20" max="300" step="0.1" value="${existing?.waist??''}">
    <label>Circonferenza fianchi (cm)</label><input id="pmHips" type="number" min="20" max="300" step="0.1" value="${existing?.hips??''}">
    <label>Note</label><textarea id="pmNotes" rows="3">${esc(existing?.notes||'')}</textarea>
@@ -2720,9 +2891,10 @@ function savePatientMeasure(){
  const p=patient(selected); if(!p)return;
  const date=readProDate('pmDate',true); if(!date)return;
  const num=id=>{const v=(el(id)?.value||'').trim().replace(',','.');return v===''?'':Number(v)};
- const waist=num('pmWaist'),hips=num('pmHips');
+ const professionalWeight=num('pmProfessionalWeight'),waist=num('pmWaist'),hips=num('pmHips');
+ if(professionalWeight!==''&&(!Number.isFinite(professionalWeight)||professionalWeight<30||professionalWeight>300))return alert('Controlla il peso rilevato.');
  for(const [label,v] of [['vita',waist],['fianchi',hips]])if(v!==''&&(!Number.isFinite(v)||v<20||v>300))return alert(`Controlla il valore ${label}.`);
- const obj={date,waist,hips,notes:(el('pmNotes')?.value||'').trim()};
+ const obj={date,professionalWeight,waist,hips,notes:(el('pmNotes')?.value||'').trim()};
  const oldDate=window.editMeasureDate;
 
  if(selected==='main'){

@@ -2280,4 +2280,9 @@ document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{
   if(b.dataset.page==='add')newDay();else go(b.dataset.page);
 });
 if('serviceWorker'in navigator)navigator.serviceWorker.register('sw.js');
+window.addEventListener('pageshow',e=>{
+  if(e.persisted){
+    render();
+  }
+});
 render();

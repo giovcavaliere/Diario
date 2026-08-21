@@ -3552,5 +3552,10 @@ window.addEventListener('orientationchange',()=>setTimeout(syncResponsiveLayout,
 window.addEventListener('resize',syncResponsiveLayout);
 
 syncResponsiveLayout();
+window.addEventListener('pageshow',e=>{
+ if(e.persisted){
+   render();
+ }
+});
 render();
 })();

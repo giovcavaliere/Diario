@@ -1932,6 +1932,15 @@ function documentMetaList(){
   catch(e){return []}
 }
 function saveDocumentMetaList(items){localStorage.setItem(DOCUMENT_META_KEY,JSON.stringify(items))}
+
+function hasUnreadPatientDocuments(){
+  return documentMetaList().some(d=>d.patientId===activePatientId()&&d.unreadForPatient===true);
+}
+function markPatientDocumentsRead(){
+  const items=documentMetaList();let changed=false;
+  items.forEach(d=>{if(d.patientId===activePatientId()&&d.unreadForPatient===true){d.unreadForPatient=false;changed=true}});
+  if(changed)saveDocumentMetaList(items);
+}
 function patientDocuments(){
   const pid=activePatientId();
   return documentMetaList()
@@ -1966,8 +1975,10 @@ async function openStoredDocument(id){
   const blob=await readDocumentBlob(meta.fileId);
   if(!blob)return alert('File non disponibile.');
   const url=URL.createObjectURL(blob);
-  window.open(url,'_blank');
-  setTimeout(()=>URL.revokeObjectURL(url),60000);
+  // Safari iOS/iPadOS può bloccare window.open() se chiamato dopo l'await di IndexedDB.
+  // La navigazione diretta nello stesso tab non dipende dal popup blocker.
+  window.location.href=url;
+  setTimeout(()=>URL.revokeObjectURL(url),120000);
 }
 function documentsPage(){
   const docs=patientDocuments();
@@ -1990,6 +2001,7 @@ function documentsPage(){
   </section>`;
 }
 function bindDocumentsPage(){
+  markPatientDocumentsRead();
   const choose=$('#choosePatientDocument'),input=$('#patientDocumentFile'),form=$('#patientDocumentForm');
   let selectedFile=null;
   if(choose&&input)choose.onclick=()=>input.click();
@@ -2014,7 +2026,7 @@ function bindDocumentsPage(){
     try{
       await writeDocumentBlob(fileId,selectedFile);
       const items=documentMetaList();
-      items.push({id,patientId:activePatientId(),category:'health',subCategory:'other',title,documentDate:date,fileId,fileName:selectedFile.name,mimeType:selectedFile.type||'application/octet-stream',fileSize:selectedFile.size,uploadedBy:'patient',uploadedAt:new Date().toISOString(),documentNumber:null,validFrom:null});
+      items.push({id,patientId:activePatientId(),category:'health',subCategory:'other',title,documentDate:date,fileId,fileName:selectedFile.name,mimeType:selectedFile.type||'application/octet-stream',fileSize:selectedFile.size,uploadedBy:'patient',uploadedAt:new Date().toISOString(),unreadForProfessional:true,unreadForPatient:false,documentNumber:null,validFrom:null});
       saveDocumentMetaList(items);render();
     }catch(e){console.error(e);alert('Non riesco a salvare il documento.')}
   });
@@ -2038,6 +2050,13 @@ function render(){
     document.head.appendChild(st);
   }
   if(page==='documents')bindDocumentsPage();
+  const docNav=document.querySelector('nav button[data-page="documents"]');
+  if(docNav){
+    docNav.querySelector('.document-alert-badge')?.remove();
+    if(page!=='documents'&&hasUnreadPatientDocuments()){
+      docNav.insertAdjacentHTML('beforeend','<span class="document-alert-badge" aria-label="Nuovi documenti">!</span>');
+    }
+  }
 }
 
 function go(p){

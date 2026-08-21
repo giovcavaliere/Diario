@@ -27,7 +27,19 @@ async function deleteDocumentBlob(fileId){const db=await openPlanDb();return new
 async function openProfessionalDocument(id){
  const d=documentMetaList().find(x=>x.id===id&&x.patientId===selected);if(!d)return alert('Documento non trovato.');
  const blob=await readDocumentBlob(d.fileId);if(!blob)return alert('File non disponibile.');
- const url=URL.createObjectURL(blob);window.open(url,'_blank');setTimeout(()=>URL.revokeObjectURL(url),60000);
+ const url=URL.createObjectURL(blob);
+ // Stesso fix Safari mobile usato nell'area paziente: niente popup dopo await.
+ window.location.href=url;
+ setTimeout(()=>URL.revokeObjectURL(url),120000);
+}
+
+function hasUnreadProfessionalDocuments(patientId){
+ return documentMetaList().some(d=>d.patientId===patientId&&d.unreadForProfessional===true);
+}
+function markProfessionalDocumentsRead(patientId){
+ const items=documentMetaList();let changed=false;
+ items.forEach(d=>{if(d.patientId===patientId&&d.unreadForProfessional===true){d.unreadForProfessional=false;changed=true}});
+ if(changed)saveDocumentMetaList(items);
 }
 function proDocuments(p){
  const docs=documentMetaList().filter(d=>d.patientId===p.id&&d.category==='health'&&d.subCategory==='other').sort((a,b)=>String(b.documentDate||b.uploadedAt).localeCompare(String(a.documentDate||a.uploadedAt)));
@@ -44,6 +56,7 @@ function proDocuments(p){
  ${docs.length?`<div class="document-list">${docs.map(d=>`<div class="document-row"><div><b>${esc(d.title)}</b><span>${d.documentDate?fmt(d.documentDate):'Data non indicata'} · ${esc(d.fileName||'Documento')} · ${d.uploadedBy==='patient'?'Caricato dal paziente':'Caricato dal professionista'}</span></div><div class="document-row-actions"><button class="secondary compact" data-open-pro-document="${d.id}">Apri</button><button class="mini danger-text" data-delete-pro-document="${d.id}">Elimina</button></div></div>`).join('')}</div>`:'<p class="muted">Nessun documento sanitario caricato.</p>'}`;
 }
 function bindProDocuments(){
+ markProfessionalDocumentsRead(selected);
  let selectedFile=null;
  const choose=el('chooseProDocument'),input=el('proDocumentFile'),form=el('proDocumentForm');
  if(choose&&input)choose.onclick=()=>input.click();
@@ -61,7 +74,7 @@ function bindProDocuments(){
    const id=documentId(),fileId=documentId('file');
    try{
      await writeDocumentBlob(fileId,selectedFile);
-     const items=documentMetaList();items.push({id,patientId:selected,category:'health',subCategory:'other',title,documentDate:date,fileId,fileName:selectedFile.name,mimeType:selectedFile.type||'application/octet-stream',fileSize:selectedFile.size,uploadedBy:'professional',uploadedAt:new Date().toISOString(),documentNumber:null,validFrom:null});
+     const items=documentMetaList();items.push({id,patientId:selected,category:'health',subCategory:'other',title,documentDate:date,fileId,fileName:selectedFile.name,mimeType:selectedFile.type||'application/octet-stream',fileSize:selectedFile.size,uploadedBy:'professional',uploadedAt:new Date().toISOString(),unreadForProfessional:false,unreadForPatient:true,documentNumber:null,validFrom:null});
      saveDocumentMetaList(items);render();
    }catch(e){console.error(e);alert('Non riesco a salvare il documento.')}
  });
@@ -317,7 +330,7 @@ function proDrawer(){
  const patientBranch=p?`
    <div class="drawer-group open ${drawerPatientExpanded?'expanded':''}">
      <button class="drawer-node drawer-patient-name" data-drawer-patient="${p.id}" aria-expanded="${drawerPatientExpanded?'true':'false'}">
-       <span class="drawer-chevron">${drawerPatientExpanded?'⌃':'⌄'}</span><strong>${esc(p.name)}</strong>
+       <span class="drawer-chevron">${drawerPatientExpanded?'⌃':'⌄'}</span><strong>${esc(p.name)}${hasUnreadProfessionalDocuments(p.id)?'<span class="document-alert-inline">!</span>':''}</strong>
      </button>
      <div class="drawer-sub">
        ${[
@@ -325,7 +338,7 @@ function proDrawer(){
          ['anamnesis','Anamnesi'],
          ['labs','Esami'],
          ['plan','Piano'],
-         ['documents','Documenti'],
+         ['documents',`Documenti${hasUnreadProfessionalDocuments(p.id)?' !':''}`],
          ['privacy','Privacy'],
          ['account','Account'],
          ['diary','Diario'],
@@ -1566,14 +1579,14 @@ function details(){
  </div>
  <div class="patient-desktop-tabs">
    ${[
-     ['summary','Riepilogo'],['anamnesis','Anamnesi'],['labs','Esami'],['plan','Piano'],['documents','Documenti'],
+     ['summary','Riepilogo'],['anamnesis','Anamnesi'],['labs','Esami'],['plan','Piano'],['documents',`Documenti${hasUnreadProfessionalDocuments(p.id)?' !':''}`],
      ['privacy','Privacy'],['account','Account'],['diary','Diario'],['trend','Andamento'],
      ['measures','Misure'],['visits','Visite'],['notes','Note']
    ].map(([k,l])=>`<button data-patient-tab="${k}" class="${tab===k?'active':''}">${l}</button>`).join('')}
  </div>
  <section class="card patient-content-card">
    <div class="patient-section-head patient-section-head-clean">
-     <div><h2>${[['summary','Riepilogo'],['anamnesis','Anamnesi'],['labs','Esami'],['plan','Piano'],['documents','Documenti'],['privacy','Privacy'],['account','Account'],['diary','Diario'],['trend','Andamento'],['measures','Misure'],['visits','Visite'],['notes','Note']].find(x=>x[0]===tab)?.[1]||'Riepilogo'}</h2></div>
+     <div><h2>${[['summary','Riepilogo'],['anamnesis','Anamnesi'],['labs','Esami'],['plan','Piano'],['documents',`Documenti${hasUnreadProfessionalDocuments(p.id)?' !':''}`],['privacy','Privacy'],['account','Account'],['diary','Diario'],['trend','Andamento'],['measures','Misure'],['visits','Visite'],['notes','Note']].find(x=>x[0]===tab)?.[1]||'Riepilogo'}</h2></div>
      ${tab==='summary'?`<div class="patient-summary-actions">
        <button class="secondary patient-edit-btn" id="editPatientProfileTop">Modifica scheda</button>
        <button class="primary desktop-clinical-pdf" id="desktopClinicalPdf">↓ Cartella PDF</button>

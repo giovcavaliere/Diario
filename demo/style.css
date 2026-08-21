@@ -2960,3 +2960,11 @@ body.android-phone-landscape:not(.landing-body):not(.pro-body) .card{
 @media(max-width:600px){
   .patient-dashboard-secondary{grid-template-columns:1fr}
 }
+
+/* NUBEMO 3.68 — Piani alimentari con decorrenza e storico */
+.plan-current-summary{display:flex;align-items:center;justify-content:space-between;gap:16px;margin:0 0 16px;padding:15px 16px;border:1px solid #dce8d9;border-radius:16px;background:#f7fbf5}
+.plan-current-summary div{min-width:0}.plan-current-summary span,.plan-current-summary b,.plan-current-summary small{display:block}.plan-current-summary span{font-size:10px;font-weight:900;letter-spacing:.08em;color:#6a8a3d}.plan-current-summary b{margin-top:4px;color:#17332d}.plan-current-summary small{margin-top:4px;color:#74827b}
+.plan-upload-form{margin:14px 0 18px;padding:16px;border:1px solid #dce8d9;border-radius:16px;background:#f8fbf6;scroll-margin-top:18px}.plan-history-head{margin-top:18px}
+.plan-status-badge,.plan-future-badge{display:inline-flex;align-items:center;margin-left:8px;padding:2px 7px;border-radius:999px;font-size:9px;font-weight:900;line-height:1.4;vertical-align:middle}
+.plan-status-badge{background:#e7f5de;color:#3d7614}.plan-future-badge{background:#eef2f6;color:#536372}
+@media(max-width:600px){.plan-current-summary{align-items:flex-start;flex-direction:column}.plan-current-summary button{width:100%}}

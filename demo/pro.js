@@ -259,7 +259,32 @@ function appointments(){
   return a;
 }
 
-function labsFor(id){const m=load(LABS_KEY,{});return Array.isArray(m[id])?m[id]:[]}function saveLabsFor(id,r){const m=load(LABS_KEY,{});m[id]=r;save(LABS_KEY,m)}function planMetaFor(id){return load(PLAN_META_KEY,{})[id]||null}function savePlanMeta(id,v){const m=load(PLAN_META_KEY,{});if(v)m[id]=v;else delete m[id];save(PLAN_META_KEY,m)}function openPlanDb(){return new Promise((res,rej)=>{const r=indexedDB.open(PLAN_DB,3);r.onupgradeneeded=()=>{if(!r.result.objectStoreNames.contains(PLAN_STORE))r.result.createObjectStore(PLAN_STORE);if(!r.result.objectStoreNames.contains('privacy'))r.result.createObjectStore('privacy');if(!r.result.objectStoreNames.contains('documents'))r.result.createObjectStore('documents');if(!r.result.objectStoreNames.contains('labUploads'))r.result.createObjectStore('labUploads')};r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)})}async function writePlanPdf(id,b){const db=await openPlanDb();return new Promise((res,rej)=>{const tx=db.transaction(PLAN_STORE,'readwrite');tx.objectStore(PLAN_STORE).put(b,id);tx.oncomplete=res;tx.onerror=()=>rej(tx.error)})}async function readPlanPdf(id){const db=await openPlanDb();return new Promise((res,rej)=>{const r=db.transaction(PLAN_STORE,'readonly').objectStore(PLAN_STORE).get(id);r.onsuccess=()=>res(r.result||null);r.onerror=()=>rej(r.error)})}async function deletePlanPdf(id){const db=await openPlanDb();return new Promise((res,rej)=>{const tx=db.transaction(PLAN_STORE,'readwrite');tx.objectStore(PLAN_STORE).delete(id);tx.oncomplete=res;tx.onerror=()=>rej(tx.error)})}
+function labsFor(id){const m=load(LABS_KEY,{});return Array.isArray(m[id])?m[id]:[]}function saveLabsFor(id,r){const m=load(LABS_KEY,{});m[id]=r;save(LABS_KEY,m)}function planMetaFor(id){return load(PLAN_META_KEY,{})[id]||null}
+function savePlanMeta(id,v){const m=load(PLAN_META_KEY,{});if(v)m[id]=v;else delete m[id];save(PLAN_META_KEY,m)}
+function professionalPlanDocuments(patientId){
+ return documentMetaList().filter(d=>d.patientId===patientId&&d.category==='plan').sort((a,b)=>String(b.validFrom||b.documentDate||b.uploadedAt).localeCompare(String(a.validFrom||a.documentDate||a.uploadedAt)));
+}
+function currentProfessionalPlan(patientId,date=today()){
+ const valid=professionalPlanDocuments(patientId).filter(d=>d.validFrom&&d.validFrom<=date).sort((a,b)=>String(b.validFrom).localeCompare(String(a.validFrom)));
+ if(valid.length)return valid[0];
+ const legacy=planMetaFor(patientId);
+ return legacy?{...legacy,id:'legacy-plan',patientId,category:'plan',title:documentTitleFromFile(legacy.filename||'Piano alimentare'),validFrom:legacy.planDate||'',legacy:true}:null;
+}
+async function archiveLegacyPlanIfNeeded(patientId){
+ const legacy=planMetaFor(patientId);if(!legacy)return false;
+ const existing=professionalPlanDocuments(patientId);
+ if(!existing.some(d=>d.fileName===legacy.filename&&d.validFrom===(legacy.planDate||''))){
+   const data=await readPlanPdf(patientId);
+   if(data){
+     const fileId=documentId('file'),id=documentId('plan');
+     await writeDocumentBlob(fileId,new Blob([data],{type:'application/pdf'}));
+     const items=documentMetaList();
+     items.push({id,patientId,category:'plan',subCategory:'meal_plan',title:documentTitleFromFile(legacy.filename||'Piano alimentare'),validFrom:legacy.planDate||today(),documentDate:legacy.planDate||today(),fileId,fileName:legacy.filename||'Piano alimentare.pdf',mimeType:'application/pdf',fileSize:data.byteLength||0,uploadedBy:'professional',uploadedAt:new Date().toISOString(),unreadForProfessional:false,unreadForPatient:false,documentNumber:null});
+     saveDocumentMetaList(items);
+   }
+ }
+ await deletePlanPdf(patientId);savePlanMeta(patientId,null);return true;
+}function openPlanDb(){return new Promise((res,rej)=>{const r=indexedDB.open(PLAN_DB,3);r.onupgradeneeded=()=>{if(!r.result.objectStoreNames.contains(PLAN_STORE))r.result.createObjectStore(PLAN_STORE);if(!r.result.objectStoreNames.contains('privacy'))r.result.createObjectStore('privacy');if(!r.result.objectStoreNames.contains('documents'))r.result.createObjectStore('documents');if(!r.result.objectStoreNames.contains('labUploads'))r.result.createObjectStore('labUploads')};r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)})}async function writePlanPdf(id,b){const db=await openPlanDb();return new Promise((res,rej)=>{const tx=db.transaction(PLAN_STORE,'readwrite');tx.objectStore(PLAN_STORE).put(b,id);tx.oncomplete=res;tx.onerror=()=>rej(tx.error)})}async function readPlanPdf(id){const db=await openPlanDb();return new Promise((res,rej)=>{const r=db.transaction(PLAN_STORE,'readonly').objectStore(PLAN_STORE).get(id);r.onsuccess=()=>res(r.result||null);r.onerror=()=>rej(r.error)})}async function deletePlanPdf(id){const db=await openPlanDb();return new Promise((res,rej)=>{const tx=db.transaction(PLAN_STORE,'readwrite');tx.objectStore(PLAN_STORE).delete(id);tx.oncomplete=res;tx.onerror=()=>rej(tx.error)})}
 function extraPatients(){
  return load(EXTRA_PATIENTS_KEY,[]);
 }
@@ -2708,8 +2733,18 @@ function proSummary2(p){
 }
 function proAnamnesis(p){return `<div class="section-head"><h2>Anamnesi</h2></div><details class="pro-accordion" open><summary>Dati e stile di vita</summary><div class="pro-read-grid"><div><span>Diagnosi / motivo</span><b>${esc(p.diagnosis||'—')}</b></div><div><span>Peso teorico</span><b>${p.theoreticalWeight?p.theoreticalWeight+' kg':'—'}</b></div><div><span>Lavoro</span><b>${esc(p.work||'—')}</b></div><div><span>Attività fisica</span><b>${esc(p.activity||'—')}</b></div><div><span>Alvo</span><b>${esc(p.bowel||'—')}</b></div><div><span>Fumo</span><b>${esc(p.smoking||'—')}</b></div><div><span>Alcol</span><b>${esc(p.alcohol||'—')}</b></div><div><span>Metabolismo basale</span><b>${esc(p.metabolism||'—')}</b></div><div><span>FEEG</span><b>${esc(p.feeg||'—')}</b></div><div><span>Impedenziometria</span><b>${esc(p.impedance||'—')}</b></div></div></details><details class="pro-accordion"><summary>Familiarità</summary><div class="pro-read-grid"><div><span>Obesità</span><b>${p.famObesity?'Sì':'No'}</b></div><div><span>Diabete</span><b>${p.famDiabetes?'Sì':'No'}</b></div><div><span>Ipertensione</span><b>${p.famHypertension?'Sì':'No'}</b></div><div><span>Cardiovascolare</span><b>${p.famCardiovascular?'Sì':'No'}</b></div><div><span>Dislipidemie</span><b>${p.famDyslipidemia?'Sì':'No'}</b></div><div><span>Tiroide</span><b>${p.famThyroid?'Sì':'No'}</b></div></div></details><details class="pro-accordion"><summary>Anamnesi patologica</summary><div class="pro-read-grid"><div><span>Diete pregresse</span><b>${esc(p.previousDiets||'—')}</b></div><div><span>Allergie</span><b>${esc(p.allergies||'—')}</b></div><div><span>Farmaci</span><b>${esc(p.medications||'—')}</b></div><div><span>Disturbi GI</span><b>${esc(p.giIssues||'—')}</b></div><div><span>Patologie / interventi</span><b>${esc(p.pastConditions||'—')}</b></div><div><span>Osservazioni</span><b>${esc(p.observations||'—')}</b></div><div><span>Obiettivi</span><b>${esc(p.objectives||'—')}</b></div></div></details>`}function proLabs(p){const r=labsFor(p.id),f=[['glucose','Glicemia'],['cholesterol','Colesterolo'],['hdl','HDL'],['ldl','LDL'],['triglycerides','Trigliceridi'],['got','GOT'],['gpt','GPT'],['uricAcid','Acido urico'],['creatinine','Creatinina'],['ggt','γGT']]; const bloodDocs=professionalBloodTestDocuments(p.id);
  const bloodDocsHtml=bloodDocs.length?`<div class="document-list">${bloodDocs.map(d=>`<div class="document-row ${d.unreadForProfessional===true?'document-row-unread':''}"><div><b>${esc(d.title)}${d.unreadForProfessional===true?'<span class="document-new-badge">NUOVO</span>':''}</b><span>${d.documentDate?fmt(d.documentDate):'Data non indicata'} · ${esc(d.fileName||'Documento')} · ${d.uploadedBy==='patient'?'Caricato dal paziente':'Caricato dal professionista'}</span></div><div class="document-row-actions">${pendingLabForDocument(d.id)?`<button class="primary compact" data-review-document-lab="${d.id}">Verifica valori</button>`:''}<button class="secondary compact" data-open-pro-document="${d.id}">Apri PDF</button><button class="mini danger-text" data-delete-pro-document="${d.id}">Elimina</button></div></div>`).join('')}</div>`:'<p class="muted">Nessun referto analisi caricato.</p>';
-return `<div class="section-head"><h2>Esami ematici</h2><button class="mini" id="newLab">＋ Aggiungi esami</button></div><section class="labs-document-panel"><div class="subsection-title">Referti allegati</div>${bloodDocsHtml}</section>${r.length?`<div class="labs-table-desktop"><table class="labs-table"><thead><tr><th>Data</th>${f.map(x=>`<th>${x[1]}</th>`).join('')}<th></th></tr></thead><tbody>${r.slice().sort((a,b)=>b.date.localeCompare(a.date)).map(x=>`<tr><td>${fmt(x.date)}</td>${f.map(y=>`<td>${esc(x[y[0]]||'—')}</td>`).join('')}<td><button class="mini" data-edit-lab="${x.id}">Modifica</button></td></tr>`).join('')}</tbody></table></div><div class="labs-cards-mobile">${r.map(x=>`<div class="lab-card"><div class="section-head"><b>${fmt(x.date)}</b><button class="mini" data-edit-lab="${x.id}">Modifica</button></div><div class="lab-values">${f.map(y=>`<div><span>${y[1]}</span><b>${esc(x[y[0]]||'—')}</b></div>`).join('')}</div></div>`).join('')}</div>`:'<p class="muted">Nessun esame registrato.</p>'}`}function proPlan(p){const m=planMetaFor(p.id);return `<div class="section-head"><h2>Piano alimentare</h2><span class="pill">${m?'Attivo':'Non caricato'}</span></div><div class="plan-pro-card">${m?`<b>${esc(m.filename)}</b><div class="plan-actions"><button class="secondary" id="openProPlan">Apri PDF</button><button class="mini" id="replacePlan">Sostituisci</button><button class="mini danger-text" id="deletePlan">Elimina</button></div>`:`<p class="muted">Il professionista carica il PDF; il paziente può solo consultarlo.</p><button class="primary" id="uploadPlan">Carica PDF dieta</button>`}<input id="planFile" type="file" accept=".pdf,application/pdf" style="display:none"><label>Data piano</label>${proDateControl('planDate',m?.planDate||today())}</div>`}
-
+return `<div class="section-head"><h2>Esami ematici</h2><button class="mini" id="newLab">＋ Aggiungi esami</button></div><section class="labs-document-panel"><div class="subsection-title">Referti allegati</div>${bloodDocsHtml}</section>${r.length?`<div class="labs-table-desktop"><table class="labs-table"><thead><tr><th>Data</th>${f.map(x=>`<th>${x[1]}</th>`).join('')}<th></th></tr></thead><tbody>${r.slice().sort((a,b)=>b.date.localeCompare(a.date)).map(x=>`<tr><td>${fmt(x.date)}</td>${f.map(y=>`<td>${esc(x[y[0]]||'—')}</td>`).join('')}<td><button class="mini" data-edit-lab="${x.id}">Modifica</button></td></tr>`).join('')}</tbody></table></div><div class="labs-cards-mobile">${r.map(x=>`<div class="lab-card"><div class="section-head"><b>${fmt(x.date)}</b><button class="mini" data-edit-lab="${x.id}">Modifica</button></div><div class="lab-values">${f.map(y=>`<div><span>${y[1]}</span><b>${esc(x[y[0]]||'—')}</b></div>`).join('')}</div></div>`).join('')}</div>`:'<p class="muted">Nessun esame registrato.</p>'}`}function proPlan(p){
+ const plans=professionalPlanDocuments(p.id),current=currentProfessionalPlan(p.id),legacy=planMetaFor(p.id),rows=[...plans];
+ if(legacy&&!plans.some(x=>x.fileName===legacy.filename&&x.validFrom===(legacy.planDate||'')))rows.push({...legacy,id:'legacy-plan',title:documentTitleFromFile(legacy.filename||'Piano alimentare'),validFrom:legacy.planDate||'',legacy:true});
+ rows.sort((a,b)=>String(b.validFrom||'').localeCompare(String(a.validFrom||'')));
+ return `<div class="section-head"><h2>Piano alimentare</h2><span class="pill">${current?'Attivo':'Non caricato'}</span></div>
+ ${current?`<section class="plan-current-summary"><div><span>PIANO IN VIGORE</span><b>${esc(current.title||documentTitleFromFile(current.filename||'Piano alimentare'))}</b><small>${current.validFrom?'Valido dal '+fmt(current.validFrom):'Decorrenza non indicata'}</small></div><button class="secondary" data-open-pro-plan="${current.id}">Apri PDF</button></section>`:'<p class="muted">Nessun piano attualmente in vigore.</p>'}
+ <button class="primary document-pro-upload" id="uploadPlan">＋ Carica nuovo piano</button>
+ <input id="planFile" type="file" accept=".pdf,application/pdf" hidden>
+ <section class="plan-upload-form" id="planUploadForm" hidden><label>File</label><div class="document-file-name" id="planUploadFileName"></div><label>Titolo piano</label><input id="planUploadTitle"><label>Valido dal</label>${proDateControl('planValidFrom',today())}<div class="pro3-actions"><button class="primary" id="saveNewPlan">Pubblica piano</button><button class="secondary" id="cancelNewPlan">Annulla</button></div></section>
+ <div class="section-head plan-history-head"><h3>Storico piani</h3><span class="pill">${rows.length}</span></div>
+ ${rows.length?`<div class="document-list">${rows.map(d=>{const future=d.validFrom&&d.validFrom>today(),isCurrent=current&&d.id===current.id;return `<div class="document-row"><div><b>${esc(d.title||documentTitleFromFile(d.filename||'Piano alimentare'))}${isCurrent?'<span class="plan-status-badge">IN VIGORE</span>':future?'<span class="plan-future-badge">PROGRAMMATO</span>':''}</b><span>${d.validFrom?'Valido dal '+fmt(d.validFrom):'Decorrenza non indicata'} · ${esc(d.fileName||d.filename||'Piano alimentare')}</span></div><div class="document-row-actions"><button class="secondary compact" data-open-pro-plan="${d.id}">Apri</button><button class="mini danger-text" data-delete-pro-plan="${d.id}">Elimina</button></div></div>`}).join('')}</div>`:'<p class="muted">Nessun piano nello storico.</p>'}`;
+}
 function proAccount(p){const a=accountFor(p.id);return `<div class="section-head"><h2>Account paziente</h2><span class="pill">${a?'Attivo':'Non attivo'}</span></div><p class="muted">Credenziali demo locali. Dopo averle salvate, vai in Area Paziente e premi <b>Esci</b>: comparirà la schermata login dove puoi provare username e password.</p><label>Username</label><input id="accUser" value="${esc(a?.username||'')}"><label>Password demo</label><input id="accPass" value="${esc(a?.password||'')}"><div class="pro3-actions"><button class="primary" id="savePatientAccount">${a?'Aggiorna account':'Crea account'}</button>${a?'<button class="secondary" id="deletePatientAccount">Disattiva account</button>':''}</div>`}
 function privacyPdfBlob(p){const lines=['INFORMATIVA E CONSENSO - DEMO','',`Paziente: ${p.name||''}`,`Data di nascita: ${p.birth?fmt(p.birth):''}`,`Diagnosi/motivo: ${p.diagnosis||''}`,'','Modulo dimostrativo precompilato con i dati della scheda.','Il testo privacy definitivo dovra essere validato per il prodotto reale.','','Firma paziente: ______________________________','Data: __________________'];const ep=s=>String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^\x20-\x7E]/g,' ').replace(/\\/g,'\\\\').replace(/\(/g,'\\(').replace(/\)/g,'\\)');let st='BT /F1 11 Tf 50 800 Td '+lines.map((l,i)=>`${i?'0 -24 Td ':''}(${ep(l)}) Tj`).join('\n')+' ET\n',o=['<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>'];const add=x=>(o.push(x),o.length),pages=add('P'),content=add(`<< /Length ${st.length} >>\nstream\n${st}endstream`),page=add(`<< /Type /Page /Parent ${pages} 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 1 0 R >> >> /Contents ${content} 0 R >>`);o[pages-1]=`<< /Type /Pages /Count 1 /Kids [${page} 0 R] >>`;const cat=add(`<< /Type /Catalog /Pages ${pages} 0 R >>`);let pdf='%PDF-1.4\n',off=[0];o.forEach((x,i)=>{off[i+1]=pdf.length;pdf+=`${i+1} 0 obj\n${x}\nendobj\n`});const xr=pdf.length;pdf+=`xref\n0 ${o.length+1}\n0000000000 65535 f \n`;for(let i=1;i<=o.length;i++)pdf+=String(off[i]).padStart(10,'0')+' 00000 n \n';pdf+=`trailer\n<< /Size ${o.length+1} /Root ${cat} 0 R >>\nstartxref\n${xr}\n%%EOF`;return new Blob([pdf],{type:'application/pdf'})}
 async function storePrivacyPdf(id,b){const db=await openPlanDb();return new Promise((res,rej)=>{const tx=db.transaction('privacy','readwrite');tx.objectStore('privacy').put(b,id);tx.oncomplete=res;tx.onerror=()=>rej(tx.error)})}
@@ -3469,7 +3504,61 @@ function bind(){
  render();
 });
  el('confirmLabReview')?.addEventListener('click',()=>{const item=pendingLabs()[window.reviewLabKey];if(!item)return;markBloodTestDocumentRead(item.documentId);const ids=['glucose','cholesterol','hdl','ldl','triglycerides','got','gpt','uricAcid','creatinine','ggt'],obj={id:'lab-'+Date.now(),date:readProDate('revDate')||today()};ids.forEach(k=>obj[k]=(el('rev'+k)?.value||'').trim());const rows=labsFor(item.patientId);rows.push(obj);saveLabsFor(item.patientId,rows);const m=pendingLabs();m[window.reviewLabKey]={...item,status:'Confermato'};savePendingLabs(m);selected=item.patientId;tab='labs';view='details';render()});
-el('newLab')?.addEventListener('click',()=>{window.editLabId='';view='labForm';render()});document.querySelectorAll('[data-edit-lab]').forEach(b=>b.addEventListener('click',()=>{window.editLabId=b.dataset.editLab;view='labForm';render()}));el('cancelLab')?.addEventListener('click',()=>{view='details';tab='labs';render()});el('saveLab')?.addEventListener('click',saveLab);el('deleteLab')?.addEventListener('click',deleteLab);const upload=()=>el('planFile')?.click();el('uploadPlan')?.addEventListener('click',upload);el('replacePlan')?.addEventListener('click',upload);el('planFile')?.addEventListener('change',async e=>{const f=e.target.files?.[0];if(!f)return;if(!f.name.toLowerCase().endsWith('.pdf'))return alert('Seleziona un PDF.');if(f.size>8*1024*1024)return alert('Per la demo usa un PDF inferiore a 8 MB.');await writePlanPdf(selected,await f.arrayBuffer());savePlanMeta(selected,{filename:f.name,planDate:readProDate('planDate')||today()});render()});el('openProPlan')?.addEventListener('click',async()=>{const d=await readPlanPdf(selected);if(!d)return alert('PDF non disponibile.');const u=URL.createObjectURL(new Blob([d],{type:'application/pdf'}));window.open(u,'_blank');setTimeout(()=>URL.revokeObjectURL(u),60000)});el('deletePlan')?.addEventListener('click',async()=>{if(!confirm('Eliminare il piano alimentare?'))return;await deletePlanPdf(selected);savePlanMeta(selected,null);render()});
+el('newLab')?.addEventListener('click',()=>{window.editLabId='';view='labForm';render()});document.querySelectorAll('[data-edit-lab]').forEach(b=>b.addEventListener('click',()=>{window.editLabId=b.dataset.editLab;view='labForm';render()}));el('cancelLab')?.addEventListener('click',()=>{view='details';tab='labs';render()});el('saveLab')?.addEventListener('click',saveLab);el('deleteLab')?.addEventListener('click',deleteLab);let pendingPlanFile=null;
+el('uploadPlan')?.addEventListener('click',()=>el('planFile')?.click());
+el('planFile')?.addEventListener('change',e=>{
+ const f=e.target.files?.[0];if(!f)return;
+ if(!f.name.toLowerCase().endsWith('.pdf')){e.target.value='';return alert('Seleziona un PDF.')}
+ if(f.size>10*1024*1024){e.target.value='';return alert('Il documento supera il limite di 10 MB previsto per la demo.')}
+ pendingPlanFile=f;
+ el('planUploadFileName').textContent=f.name;
+ el('planUploadTitle').value=documentTitleFromFile(f.name);
+ el('planUploadForm').hidden=false;
+ el('planUploadForm').scrollIntoView({behavior:'smooth',block:'start'});
+});
+el('cancelNewPlan')?.addEventListener('click',()=>{
+ pendingPlanFile=null;
+ if(el('planFile'))el('planFile').value='';
+ if(el('planUploadForm'))el('planUploadForm').hidden=true;
+});
+el('saveNewPlan')?.addEventListener('click',async()=>{
+ if(!pendingPlanFile)return alert('Seleziona un PDF.');
+ const title=(el('planUploadTitle')?.value||'').trim(),validFrom=readProDate('planValidFrom');
+ if(!title)return alert('Inserisci il titolo del piano.');
+ if(!validFrom)return alert('Inserisci la data di inizio validità.');
+ try{
+   await archiveLegacyPlanIfNeeded(selected);
+   const id=documentId('plan'),fileId=documentId('file');
+   await writeDocumentBlob(fileId,pendingPlanFile);
+   const items=documentMetaList();
+   items.push({id,patientId:selected,category:'plan',subCategory:'meal_plan',title,validFrom,documentDate:validFrom,fileId,fileName:pendingPlanFile.name,mimeType:pendingPlanFile.type||'application/pdf',fileSize:pendingPlanFile.size,uploadedBy:'professional',uploadedAt:new Date().toISOString(),unreadForProfessional:false,unreadForPatient:true,documentNumber:null});
+   saveDocumentMetaList(items);
+   pendingPlanFile=null;
+   render();
+ }catch(err){console.error(err);alert('Non riesco a pubblicare il piano alimentare.')}
+});
+document.querySelectorAll('[data-open-pro-plan]').forEach(b=>b.addEventListener('click',async()=>{
+ const id=b.dataset.openProPlan;
+ if(id==='legacy-plan'){
+   const d=await readPlanPdf(selected);if(!d)return alert('PDF non disponibile.');
+   const u=URL.createObjectURL(new Blob([d],{type:'application/pdf'}));location.href=u;setTimeout(()=>URL.revokeObjectURL(u),120000);return;
+ }
+ openProfessionalDocument(id);
+}));
+document.querySelectorAll('[data-delete-pro-plan]').forEach(b=>b.addEventListener('click',async()=>{
+ const id=b.dataset.deleteProPlan;
+ if(!confirm('Eliminare questo piano alimentare dallo storico?'))return;
+ try{
+   if(id==='legacy-plan'){
+     await deletePlanPdf(selected);savePlanMeta(selected,null);render();return;
+   }
+   const items=documentMetaList(),d=items.find(x=>x.id===id&&x.patientId===selected&&x.category==='plan');
+   if(!d)return;
+   await deleteDocumentBlob(d.fileId);
+   saveDocumentMetaList(items.filter(x=>x.id!==id));
+   render();
+ }catch(err){console.error(err);alert('Non riesco a eliminare il piano alimentare.')}
+}));
  el('exportProDiaryPdf')?.addEventListener('click',exportProDiaryPdf);
  document.querySelectorAll('[data-pro-diary-day]').forEach(b=>b.addEventListener('click',()=>{
    proDiaryDate=b.dataset.proDiaryDay;

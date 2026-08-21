@@ -1219,19 +1219,38 @@ function bmiChart(items,days){
 }
 
 
-const PLAN_META_KEY='diario-pro-plan-meta-v1',PLAN_DB='diario-pro-documents-v1',PLAN_STORE='plans';function planMetaMap(){try{return JSON.parse(localStorage.getItem(PLAN_META_KEY)||'{}')||{}}catch(e){return {}}}function mainPlanMeta(){return planMetaMap()[activePatientId()||'main']||null}function openPlanDb(){return new Promise((res,rej)=>{const r=indexedDB.open(PLAN_DB,3);r.onupgradeneeded=()=>{if(!r.result.objectStoreNames.contains(PLAN_STORE))r.result.createObjectStore(PLAN_STORE);if(!r.result.objectStoreNames.contains('labUploads'))r.result.createObjectStore('labUploads');if(!r.result.objectStoreNames.contains('privacy'))r.result.createObjectStore('privacy');if(!r.result.objectStoreNames.contains('documents'))r.result.createObjectStore('documents')};r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)})}async function readPlanPdf(id='main'){const db=await openPlanDb();return new Promise((res,rej)=>{const r=db.transaction(PLAN_STORE,'readonly').objectStore(PLAN_STORE).get(id);r.onsuccess=()=>res(r.result||null);r.onerror=()=>rej(r.error)})}window.openPatientPlan=async()=>{
-  const win=window.open('about:blank','_blank');
-  try{
-    const d=await readPlanPdf(activePatientId()||'main');
-    if(!d){if(win)win.close();return alert('Piano alimentare non disponibile.');}
-    const u=URL.createObjectURL(new Blob([d],{type:'application/pdf'}));
-    if(win)win.location.href=u;
-    else location.href=u;
-    setTimeout(()=>URL.revokeObjectURL(u),60000);
-  }catch(e){
-    if(win)win.close();
-    alert('Non riesco ad aprire il piano alimentare.');
-  }
+const PLAN_META_KEY='diario-pro-plan-meta-v1',PLAN_DB='diario-pro-documents-v1',PLAN_STORE='plans';
+function planMetaMap(){try{return JSON.parse(localStorage.getItem(PLAN_META_KEY)||'{}')||{}}catch(e){return {}}}
+function patientPlanDocuments(){
+ const pid=activePatientId()||'main';
+ return documentMetaList().filter(d=>d.patientId===pid&&d.category==='plan').sort((a,b)=>String(b.validFrom||b.documentDate||b.uploadedAt).localeCompare(String(a.validFrom||a.documentDate||a.uploadedAt)));
+}
+function legacyPatientPlanMeta(){
+ const pid=activePatientId()||'main',m=planMetaMap()[pid]||null;
+ return m?{...m,id:'legacy-plan',patientId:pid,category:'plan',title:documentTitleFromFile(m.filename||'Piano alimentare'),validFrom:m.planDate||'',legacy:true}:null;
+}
+function mainPlanMeta(){
+ const todayIso=isoToday();
+ const valid=patientPlanDocuments().filter(d=>d.validFrom&&d.validFrom<=todayIso).sort((a,b)=>String(b.validFrom).localeCompare(String(a.validFrom)));
+ return valid[0]||legacyPatientPlanMeta();
+}function openPlanDb(){return new Promise((res,rej)=>{const r=indexedDB.open(PLAN_DB,3);r.onupgradeneeded=()=>{if(!r.result.objectStoreNames.contains(PLAN_STORE))r.result.createObjectStore(PLAN_STORE);if(!r.result.objectStoreNames.contains('labUploads'))r.result.createObjectStore('labUploads');if(!r.result.objectStoreNames.contains('privacy'))r.result.createObjectStore('privacy');if(!r.result.objectStoreNames.contains('documents'))r.result.createObjectStore('documents')};r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)})}async function readPlanPdf(id='main'){const db=await openPlanDb();return new Promise((res,rej)=>{const r=db.transaction(PLAN_STORE,'readonly').objectStore(PLAN_STORE).get(id);r.onsuccess=()=>res(r.result||null);r.onerror=()=>rej(r.error)})}window.openPatientPlan=async planId=>{
+ const pid=activePatientId()||'main';
+ const meta=planId?(planId==='legacy-plan'?legacyPatientPlanMeta():documentMetaList().find(d=>d.id===planId&&d.patientId===pid&&d.category==='plan')):mainPlanMeta();
+ if(!meta)return alert('Piano alimentare non disponibile.');
+ try{
+   let blob=null;
+   if(meta.legacy){
+     const d=await readPlanPdf(pid);if(d)blob=new Blob([d],{type:'application/pdf'});
+   }else{
+     blob=await readDocumentBlob(meta.fileId);
+     if(meta.unreadForPatient===true){
+       const items=documentMetaList(),stored=items.find(d=>d.id===meta.id);
+       if(stored){stored.unreadForPatient=false;saveDocumentMetaList(items)}
+     }
+   }
+   if(!blob)return alert('Piano alimentare non disponibile.');
+   const u=URL.createObjectURL(blob);location.href=u;setTimeout(()=>URL.revokeObjectURL(u),120000);
+ }catch(err){console.error(err);alert('Non riesco ad aprire il piano alimentare.')}
 };
 
 const PATIENT_APPT_KEY='diario-pro-appts-recovery-v1';
@@ -1388,7 +1407,7 @@ function home(){
   <div class="patient-dashboard-care-grid">
     <div class="patient-dashboard-goal">${goalHtml}</div>
     <div class="patient-dashboard-secondary">
-      <div class="patient-dashboard-plan">${(()=>{const pm=mainPlanMeta();return pm?`<section class="card plan-card plan-card-current"><div class="plan-card-icon">📄</div><div class="plan-card-copy"><div class="plan-card-kicker">PIANO ALIMENTARE IN VIGORE</div><h2>Il mio piano alimentare</h2><b class="plan-card-file">${escapeHtml(pm.filename||'Piano alimentare')}</b><span class="plan-card-date">${pm.planDate?'Dal '+fmtShort(pm.planDate):'Pubblicato dal professionista'}</span></div><button class="secondary plan-card-open" onclick="openPatientPlan()">Apri PDF</button></section>`:''})()}</div>
+      <div class="patient-dashboard-plan">${(()=>{const pm=mainPlanMeta();return pm?`<section class="card plan-card plan-card-current"><div class="plan-card-icon">📄</div><div class="plan-card-copy"><div class="plan-card-kicker">PIANO ALIMENTARE IN VIGORE</div><h2>Il mio piano alimentare</h2><b class="plan-card-file">${escapeHtml(pm.title||documentTitleFromFile(pm.filename||'Piano alimentare'))}</b><span class="plan-card-date">${pm.validFrom?'Valido dal '+fmtShort(pm.validFrom):pm.planDate?'Valido dal '+fmtShort(pm.planDate):'Pubblicato dal professionista'}</span></div><button class="secondary plan-card-open" onclick="openPatientPlan()">Apri PDF</button></section>`:''})()}</div>
       <div class="patient-dashboard-visit">${visitHtml}</div>
     </div>
   </div>
@@ -1990,8 +2009,12 @@ async function openStoredDocument(id){
 }
 function documentsPage(){
   const blood=patientBloodTestDocuments(),other=patientOtherHealthDocuments();
+  const legacy=legacyPatientPlanMeta(),plans=patientPlanDocuments(),planRows=[...plans],current=mainPlanMeta();
+  if(legacy&&!plans.some(x=>x.filename===legacy.filename&&x.validFrom===legacy.validFrom))planRows.push(legacy);
+  planRows.sort((a,b)=>String(b.validFrom||'').localeCompare(String(a.validFrom||'')));
   const row=d=>`<div class="document-row ${d.unreadForPatient===true?'document-row-unread':''}"><div><b>${escapeHtml(d.title)}${d.unreadForPatient===true?'<span class="document-new-badge">NUOVO</span>':''}</b><span>${d.documentDate?fmtShort(d.documentDate):'Data non indicata'} · ${escapeHtml(d.fileName||'Documento')}</span></div><button class="secondary compact" data-open-patient-document="${d.id}">Apri</button></div>`;
   return `<div class="page-title"><button class="back" onclick="go('home')">‹</button><div><div class="eyebrow">ARCHIVIO PAZIENTE</div><h1>Documenti</h1></div></div>
+  <section class="card"><div class="section-head"><h2>Piani alimentari</h2><span class="pill">${planRows.length}</span></div><p class="muted">Il piano in vigore resta disponibile anche in Dashboard. Qui trovi lo storico pubblicato dal professionista.</p>${planRows.length?`<div class="document-list">${planRows.map(d=>`<div class="document-row ${d.unreadForPatient===true?'document-row-unread':''}"><div><b>${escapeHtml(d.title||documentTitleFromFile(d.filename||'Piano alimentare'))}${d.unreadForPatient===true?'<span class="document-new-badge">NUOVO</span>':''}${current&&d.id===current.id?'<span class="plan-status-badge">IN VIGORE</span>':''}</b><span>${d.validFrom?'Valido dal '+fmtShort(d.validFrom):'Decorrenza non indicata'} · ${escapeHtml(d.fileName||d.filename||'Piano alimentare')}</span></div><button class="secondary compact" data-open-patient-plan="${d.id}">Apri</button></div>`).join('')}</div>`:'<p class="muted">Nessun piano alimentare pubblicato.</p>'}</section>
   <section class="card"><div class="section-head"><h2>Analisi del sangue</h2><span class="pill">${blood.length}</span></div><p class="muted">Carica il referto PDF delle analisi. Il professionista lo ritroverà anche nella sezione Esami.</p><button class="primary" id="chooseBloodTestDocument">＋ Carica analisi</button>${blood.length?`<div class="document-list">${blood.map(row).join('')}</div>`:'<p class="muted">Nessun referto analisi caricato.</p>'}</section>
   <section class="card"><div class="section-head"><h2>Altri documenti sanitari</h2><span class="pill">${other.length}</span></div><p class="muted">Referti o documenti sanitari senza elaborazione specifica.</p><button class="secondary" id="chooseOtherHealthDocument">＋ Carica documento</button>${other.length?`<div class="document-list">${other.map(row).join('')}</div>`:'<p class="muted">Nessun altro documento sanitario caricato.</p>'}</section>
   <input id="patientDocumentFile" type="file" accept=".pdf,application/pdf,image/*" hidden>
@@ -2017,6 +2040,7 @@ function bindDocumentsPage(){
     const id=documentId(),fileId=documentId('file');
     try{await writeDocumentBlob(fileId,selectedFile);const items=documentMetaList();items.push({id,patientId:activePatientId(),category:'health',subCategory:selectedSubCategory,title,documentDate:date,fileId,fileName:selectedFile.name,mimeType:selectedFile.type||'application/octet-stream',fileSize:selectedFile.size,uploadedBy:'patient',uploadedAt:new Date().toISOString(),unreadForProfessional:true,unreadForPatient:false,documentNumber:null,validFrom:null});saveDocumentMetaList(items);if(selectedSubCategory==='blood_test')await queueBloodTestForReview(selectedFile,{documentId:id,patientId:activePatientId(),documentDate:date});render()}catch(e){console.error(e);alert('Non riesco a salvare il documento.')}
   });
+  document.querySelectorAll('[data-open-patient-plan]').forEach(b=>b.onclick=()=>openPatientPlan(b.dataset.openPatientPlan));
   document.querySelectorAll('[data-open-patient-document]').forEach(b=>b.onclick=()=>openStoredDocument(b.dataset.openPatientDocument));
 }
 function loginPage(){const hasAccounts=Object.keys(accountMap()).length>0;return `<div class="login-shell"><section class="card login-card"><div class="login-brand-mark"><img src="assets/nubemo-brand-clean-v2.png" alt=""><div><b>NUBEMO</b><span>Area Paziente · Demo</span></div></div><div class="eyebrow">ACCESSO PAZIENTE</div><h1>Il tuo percorso inizia qui.</h1><p class="muted">${hasAccounts?'Usa le credenziali create dal professionista.':'Prima crea le credenziali dalla scheda paziente nell’Area Professionista.'}</p><label>Username</label><input id="loginUser" autocomplete="username" ${hasAccounts?'':'disabled'}><label>Password</label><input id="loginPass" type="password" autocomplete="current-password" ${hasAccounts?'':'disabled'}><button class="primary" onclick="patientLogin()" ${hasAccounts?'':'disabled'}>Accedi a NUBEMO</button></section></div>`}

@@ -3481,7 +3481,14 @@ function bind(){
  document.querySelectorAll('[data-edit-measure]').forEach(b=>b.addEventListener('click',()=>{window.editMeasureDate=b.dataset.editMeasure;view='patientMeasure';render()}));
  el('cancelPatientMeasure')?.addEventListener('click',()=>{window.editMeasureDate=null;view='details';tab='measures';render()});
  el('savePatientMeasure')?.addEventListener('click',savePatientMeasure);
- document.querySelectorAll('[data-date-target]').forEach(p=>p.addEventListener('change',()=>{const t=el(p.dataset.dateTarget);if(t)t.value=fmt(p.value)}));
+ document.querySelectorAll('[data-date-target]').forEach(p=>{
+   const syncDatePicker=()=>{
+     const t=el(p.dataset.dateTarget);
+     if(t&&p.value)t.value=fmt(p.value);
+   };
+   p.addEventListener('input',syncDatePicker);
+   p.addEventListener('change',syncDatePicker);
+ });
  el('savePatientAccount')?.addEventListener('click',()=>{const u=(el('accUser')?.value||'').trim(),pw=el('accPass')?.value||'';if(!u||!pw)return alert('Inserisci username e password.');saveAccountFor(selected,{username:u,password:pw,active:true});alert('Account demo salvato.');render()});
  el('deletePatientAccount')?.addEventListener('click',()=>{saveAccountFor(selected,null);alert('Account demo disattivato.');render()});
  el('downloadPrivacyForm')?.addEventListener('click',()=>{const p=patient(selected),blob=privacyPdfBlob(p),u=URL.createObjectURL(blob),a=document.createElement('a');a.href=u;a.download=`Privacy_${String(p.name||'Paziente').replace(/\s+/g,'_')}.pdf`;a.click();setTimeout(()=>URL.revokeObjectURL(u),1500)});

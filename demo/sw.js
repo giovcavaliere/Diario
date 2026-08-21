@@ -1,4 +1,4 @@
-const CACHE='nubemo-demo-v3.58.0';
+const CACHE='nubemo-demo-v3.59.0';
 const CORE=[
   './',
   './index.html',

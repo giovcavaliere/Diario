@@ -3161,13 +3161,27 @@ function bindProDrawer(){
      el('proDrawerBackdrop')?.classList.remove('open');
      return;
    }
-   if(isPhoneLayout())drawerPatientExpanded=false;
+
+   if(isPhoneLayout()){
+     // Se il professionista è dentro la scheda di un paziente,
+     // il ramo paziente si apre già espanso, come su iPad.
+     drawerPatientExpanded=(view==='details');
+   }
+
    el('proDrawer')?.classList.add('open');
    el('proDrawerBackdrop')?.classList.add('open');
+
    if(isPhoneLayout()){
-     el('proDrawer')?.querySelector('.drawer-group')?.classList.remove('expanded');
+     const group=el('proDrawer')?.querySelector('.drawer-group');
      const b=el('proDrawer')?.querySelector('[data-drawer-patient]');
-     if(b){b.setAttribute('aria-expanded','false');const ch=b.querySelector('.drawer-chevron');if(ch)ch.textContent='⌄'}
+
+     group?.classList.toggle('expanded',drawerPatientExpanded);
+
+     if(b){
+       b.setAttribute('aria-expanded',drawerPatientExpanded?'true':'false');
+       const ch=b.querySelector('.drawer-chevron');
+       if(ch)ch.textContent=drawerPatientExpanded?'⌃':'⌄';
+     }
    }
  });
  el('closeProDrawer')?.addEventListener('click',closeProDrawer);

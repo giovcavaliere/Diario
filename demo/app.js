@@ -1313,45 +1313,42 @@ async function extractPdfText(file){
  }
  return t;
 }
-window.uploadBloodTests=async input=>{
- const f=input.files?.[0];
- if(!f)return;
- if(f.type!=='application/pdf'&&!f.name.toLowerCase().endsWith('.pdf'))
-   return alert('Seleziona un PDF.');
-
- const id=activePatientId()||'main';
+async function queueBloodTestForReview(file,{documentId=null,patientId=null,documentDate=null}={}){
+ const id=patientId||activePatientId()||'main';
  const key='lab-'+id+'-'+Date.now();
- let values={};
- let note='';
+ let values={},note='';
 
  try{
-   const extracted=await extractPdfText(f);
+   const extracted=await extractPdfText(file);
    values=parseLabValues(extracted);
-   const recognized=Object.keys(values)
-     .filter(k=>k!=='date'&&values[k]!==''&&values[k]!=null).length;
-
+   if(documentDate)values.date=documentDate;
+   const recognized=Object.keys(values).filter(k=>k!=='date'&&values[k]!==''&&values[k]!=null).length;
    note=recognized
      ? `PDF letto correttamente: ${recognized} valori riconosciuti.`
      : 'PDF letto, ma nessun valore ematico è stato riconosciuto automaticamente.';
  }catch(e){
    console.error('PDF extraction error',e);
-   values={date:isoToday()};
+   values={date:documentDate||isoToday()};
    note='Lettura automatica non riuscita: il professionista potrà completare i valori manualmente.';
  }
 
- await storeLabPdf(key,await f.arrayBuffer());
-
  const m=pendingLabMap();
  m[key]={
-   key,
-   patientId:id,
-   filename:f.name,
+   key,documentId,patientId:id,filename:file.name,
    uploadedAt:new Date().toISOString(),
-   status:'Da verificare',
-   values,
-   note
+   status:'Da verificare',values,note
  };
  localStorage.setItem(PENDING_LABS_KEY,JSON.stringify(m));
+ return key;
+}
+
+// Compatibilità legacy: non più esposta in Dashboard.
+window.uploadBloodTests=async input=>{
+ const f=input.files?.[0];
+ if(!f)return;
+ if(f.type!=='application/pdf'&&!f.name.toLowerCase().endsWith('.pdf'))return alert('Seleziona un PDF.');
+ const key=await queueBloodTestForReview(f);
+ await storeLabPdf(key,await f.arrayBuffer());
  input.value='';
  alert('Analisi inviate al professionista per la verifica.');
  render();
@@ -1388,9 +1385,13 @@ function home(){
   return `<div class="hero-title"><div><div class="eyebrow">IL MIO PERCORSO</div><h1>${profile.name?`Il percorso di ${escapeHtml([profile.name,profile.surname].filter(Boolean).join(' '))}`:'Il mio percorso'}</h1></div><div class="hero-brand-chip"><img src="assets/nubemo-brand-clean-v2.png" alt=""></div></div>
   <section class="card highlight"><div class="muted caps">ULTIMA RILEVAZIONE</div>${last?`<div class="weight">${(+last.weight).toFixed(1).replace('.',',')} <small>kg</small></div><div class="delta ${deltaClass}">${delta>0?'+':''}${delta.toFixed(1).replace('.',',')} kg dall'inizio</div>${currentBmi?`<div class="bmi-now"><span>BMI</span><b>${currentBmi.toFixed(1).replace('.',',')}</b><small>${bmiLabel(currentBmi)}</small></div>`:''}<p class="muted">${fmt(last.date)}</p>`:'<p class="muted">Inserisci la prima giornata per iniziare.</p>'}</section>
   ${patientDiaryCalorieSummary()}
-  ${visitHtml}${goalHtml}
-  ${(()=>{const pm=mainPlanMeta();return pm?`<section class="card plan-card"><div class="section-head"><h2>Il mio piano alimentare</h2><span class="pill">PDF</span></div><p><b>${escapeHtml(pm.filename||'Piano alimentare')}</b></p><p class="muted">${pm.planDate?'Piano del '+fmtShort(pm.planDate):'Documento pubblicato dal professionista'}</p><button class="secondary" onclick="openPatientPlan()">Apri PDF</button></section>`:''})()}
-  ${bloodUploadCard()}
+  <div class="patient-dashboard-care-grid">
+    <div class="patient-dashboard-goal">${goalHtml}</div>
+    <div class="patient-dashboard-secondary">
+      <div class="patient-dashboard-plan">${(()=>{const pm=mainPlanMeta();return pm?`<section class="card plan-card plan-card-current"><div class="plan-card-icon">📄</div><div class="plan-card-copy"><div class="plan-card-kicker">PIANO ALIMENTARE IN VIGORE</div><h2>Il mio piano alimentare</h2><b class="plan-card-file">${escapeHtml(pm.filename||'Piano alimentare')}</b><span class="plan-card-date">${pm.planDate?'Dal '+fmtShort(pm.planDate):'Pubblicato dal professionista'}</span></div><button class="secondary plan-card-open" onclick="openPatientPlan()">Apri PDF</button></section>`:''})()}</div>
+      <div class="patient-dashboard-visit">${visitHtml}</div>
+    </div>
+  </div>
   <section class="card chart-card"><div class="section-head"><h2>Ultimi 7 giorni</h2><span class="pill">Peso</span></div>${chart(w,7)}</section>
   <div class="grid actions"><button class="primary" onclick="newDay()">＋ Aggiungi giornata</button><button class="secondary" onclick="go('trend')">📈 Andamento</button></div>`;
 }
@@ -1941,12 +1942,14 @@ function markPatientDocumentsRead(){
   items.forEach(d=>{if(d.patientId===activePatientId()&&d.unreadForPatient===true){d.unreadForPatient=false;changed=true}});
   if(changed)saveDocumentMetaList(items);
 }
-function patientDocuments(){
+function patientDocuments(subCategory='other'){
   const pid=activePatientId();
   return documentMetaList()
-    .filter(d=>d.patientId===pid&&d.category==='health'&&d.subCategory==='other')
+    .filter(d=>d.patientId===pid&&d.category==='health'&&d.subCategory===subCategory)
     .sort((a,b)=>String(b.documentDate||b.uploadedAt).localeCompare(String(a.documentDate||a.uploadedAt)));
 }
+function patientBloodTestDocuments(){return patientDocuments('blood_test')}
+function patientOtherHealthDocuments(){return patientDocuments('other')}
 function documentTitleFromFile(name=''){
   return String(name).replace(/\.[^.]+$/,'').replace(/[_-]+/g,' ').replace(/\s+/g,' ').trim();
 }
@@ -1986,62 +1989,52 @@ async function openStoredDocument(id){
   setTimeout(()=>URL.revokeObjectURL(url),120000);
 }
 function documentsPage(){
-  const docs=patientDocuments();
+  const blood=patientBloodTestDocuments(),other=patientOtherHealthDocuments();
+  const row=d=>`<div class="document-row ${d.unreadForPatient===true?'document-row-unread':''}"><div><b>${escapeHtml(d.title)}${d.unreadForPatient===true?'<span class="document-new-badge">NUOVO</span>':''}</b><span>${d.documentDate?fmtShort(d.documentDate):'Data non indicata'} · ${escapeHtml(d.fileName||'Documento')}</span></div><button class="secondary compact" data-open-patient-document="${d.id}">Apri</button></div>`;
   return `<div class="page-title"><button class="back" onclick="go('home')">‹</button><div><div class="eyebrow">ARCHIVIO PAZIENTE</div><h1>Documenti</h1></div></div>
-  <section class="card document-upload-card">
-    <div class="section-head"><h2>Documenti sanitari</h2><span class="pill">Demo locale</span></div>
-    <p class="muted">Carica un documento sanitario da File/iCloud. Dopo il caricamento resta consultabile nella cartella del paziente e nell’Area Professionista.</p>
-    <input id="patientDocumentFile" type="file" accept=".pdf,application/pdf,image/*" hidden>
-    <button class="primary" id="choosePatientDocument">＋ Carica documento</button>
-    <div id="patientDocumentForm" class="document-form" hidden>
-      <label>File</label><div class="document-file-name" id="patientDocumentFileName"></div>
-      <label>Titolo documento</label><input id="patientDocumentTitle">
-      <label>Data documento</label><div class="date-entry"><input id="patientDocumentDate" inputmode="numeric" placeholder="GG-MM-AAAA" value="${isoToItalianDate(isoToday())}"><label class="date-picker-btn">📅<input id="patientDocumentDatePicker" type="date" value="${isoToday()}"></label></div>
-      <div class="form-actions"><button class="primary" id="savePatientDocument">Salva documento</button><button class="secondary" id="cancelPatientDocument">Annulla</button></div>
-    </div>
-  </section>
-  <section class="card">
-    <div class="section-head"><h2>Archivio sanitario</h2><span class="pill">${docs.length}</span></div>
-    ${docs.length?`<div class="document-list">${docs.map(d=>`<div class="document-row ${d.unreadForPatient===true?'document-row-unread':''}"><div><b>${escapeHtml(d.title)}${d.unreadForPatient===true?'<span class="document-new-badge">NUOVO</span>':''}</b><span>${d.documentDate?fmtShort(d.documentDate):'Data non indicata'} · ${escapeHtml(d.fileName||'Documento')}</span></div><button class="secondary compact" data-open-patient-document="${d.id}">Apri</button></div>`).join('')}</div>`:'<p class="muted">Nessun documento sanitario caricato.</p>'}
-  </section>`;
+  <section class="card"><div class="section-head"><h2>Analisi del sangue</h2><span class="pill">${blood.length}</span></div><p class="muted">Carica il referto PDF delle analisi. Il professionista lo ritroverà anche nella sezione Esami.</p><button class="primary" id="chooseBloodTestDocument">＋ Carica analisi</button>${blood.length?`<div class="document-list">${blood.map(row).join('')}</div>`:'<p class="muted">Nessun referto analisi caricato.</p>'}</section>
+  <section class="card"><div class="section-head"><h2>Altri documenti sanitari</h2><span class="pill">${other.length}</span></div><p class="muted">Referti o documenti sanitari senza elaborazione specifica.</p><button class="secondary" id="chooseOtherHealthDocument">＋ Carica documento</button>${other.length?`<div class="document-list">${other.map(row).join('')}</div>`:'<p class="muted">Nessun altro documento sanitario caricato.</p>'}</section>
+  <input id="patientDocumentFile" type="file" accept=".pdf,application/pdf,image/*" hidden>
+  <section class="card document-form-card" id="patientDocumentForm" hidden><div class="section-head"><h2 id="patientDocumentFormHeading">Nuovo documento</h2></div><label>File</label><div class="document-file-name" id="patientDocumentFileName"></div><label>Titolo documento</label><input id="patientDocumentTitle"><label>Data documento</label><div class="date-entry"><input id="patientDocumentDate" inputmode="numeric" placeholder="GG-MM-AAAA" value="${isoToItalianDate(isoToday())}"><label class="date-picker-btn">📅<input id="patientDocumentDatePicker" type="date" value="${isoToday()}"></label></div><div class="form-actions"><button class="primary" id="savePatientDocument">Salva documento</button><button class="secondary" id="cancelPatientDocument">Annulla</button></div></section>`;
 }
 function bindDocumentsPage(){
-  const choose=$('#choosePatientDocument'),input=$('#patientDocumentFile'),form=$('#patientDocumentForm');
-  let selectedFile=null;
-  if(choose&&input)choose.onclick=()=>input.click();
+  const input=$('#patientDocumentFile'),form=$('#patientDocumentForm');
+  let selectedFile=null,selectedSubCategory='other';
+  const startUpload=subCategory=>{selectedSubCategory=subCategory;input.value='';input.click()};
+  $('#chooseBloodTestDocument')?.addEventListener('click',()=>startUpload('blood_test'));
+  $('#chooseOtherHealthDocument')?.addEventListener('click',()=>startUpload('other'));
   if(input)input.onchange=()=>{
     const f=input.files?.[0];if(!f)return;
     if(f.size>DOCUMENT_MAX_BYTES){input.value='';return alert('Il documento supera il limite di 10 MB previsto per la demo.')}
-    selectedFile=f;
-    $('#patientDocumentFileName').textContent=f.name;
-    $('#patientDocumentTitle').value=documentTitleFromFile(f.name);
-    form.hidden=false;choose.hidden=true;
+    selectedFile=f;$('#patientDocumentFileName').textContent=f.name;$('#patientDocumentTitle').value=documentTitleFromFile(f.name);$('#patientDocumentFormHeading').textContent=selectedSubCategory==='blood_test'?'Nuove analisi del sangue':'Nuovo documento sanitario';form.hidden=false;form.scrollIntoView({behavior:'smooth',block:'start'});
   };
-  const picker=$('#patientDocumentDatePicker');
-  if(picker)picker.onchange=()=>{$('#patientDocumentDate').value=isoToItalianDate(picker.value)};
-  $('#cancelPatientDocument')?.addEventListener('click',()=>{input.value='';selectedFile=null;form.hidden=true;choose.hidden=false});
+  const picker=$('#patientDocumentDatePicker');if(picker)picker.onchange=()=>{$('#patientDocumentDate').value=isoToItalianDate(picker.value)};
+  $('#cancelPatientDocument')?.addEventListener('click',()=>{input.value='';selectedFile=null;form.hidden=true});
   $('#savePatientDocument')?.addEventListener('click',async()=>{
     if(!selectedFile)return alert('Seleziona un file.');
-    const title=($('#patientDocumentTitle').value||'').trim();
-    const date=italianDateToIso($('#patientDocumentDate').value||'');
-    if(!title)return alert('Inserisci il titolo del documento.');
-    if(!date)return alert('Inserisci la data nel formato GG-MM-AAAA.');
+    const title=($('#patientDocumentTitle').value||'').trim(),date=italianDateToIso($('#patientDocumentDate').value||'');
+    if(!title)return alert('Inserisci il titolo del documento.');if(!date)return alert('Inserisci la data nel formato GG-MM-AAAA.');
     const id=documentId(),fileId=documentId('file');
-    try{
-      await writeDocumentBlob(fileId,selectedFile);
-      const items=documentMetaList();
-      items.push({id,patientId:activePatientId(),category:'health',subCategory:'other',title,documentDate:date,fileId,fileName:selectedFile.name,mimeType:selectedFile.type||'application/octet-stream',fileSize:selectedFile.size,uploadedBy:'patient',uploadedAt:new Date().toISOString(),unreadForProfessional:true,unreadForPatient:false,documentNumber:null,validFrom:null});
-      saveDocumentMetaList(items);render();
-    }catch(e){console.error(e);alert('Non riesco a salvare il documento.')}
+    try{await writeDocumentBlob(fileId,selectedFile);const items=documentMetaList();items.push({id,patientId:activePatientId(),category:'health',subCategory:selectedSubCategory,title,documentDate:date,fileId,fileName:selectedFile.name,mimeType:selectedFile.type||'application/octet-stream',fileSize:selectedFile.size,uploadedBy:'patient',uploadedAt:new Date().toISOString(),unreadForProfessional:true,unreadForPatient:false,documentNumber:null,validFrom:null});saveDocumentMetaList(items);if(selectedSubCategory==='blood_test')await queueBloodTestForReview(selectedFile,{documentId:id,patientId:activePatientId(),documentDate:date});render()}catch(e){console.error(e);alert('Non riesco a salvare il documento.')}
   });
   document.querySelectorAll('[data-open-patient-document]').forEach(b=>b.onclick=()=>openStoredDocument(b.dataset.openPatientDocument));
 }
-
 function loginPage(){const hasAccounts=Object.keys(accountMap()).length>0;return `<div class="login-shell"><section class="card login-card"><div class="login-brand-mark"><img src="assets/nubemo-brand-clean-v2.png" alt=""><div><b>NUBEMO</b><span>Area Paziente · Demo</span></div></div><div class="eyebrow">ACCESSO PAZIENTE</div><h1>Il tuo percorso inizia qui.</h1><p class="muted">${hasAccounts?'Usa le credenziali create dal professionista.':'Prima crea le credenziali dalla scheda paziente nell’Area Professionista.'}</p><label>Username</label><input id="loginUser" autocomplete="username" ${hasAccounts?'':'disabled'}><label>Password</label><input id="loginPass" type="password" autocomplete="current-password" ${hasAccounts?'':'disabled'}><button class="primary" onclick="patientLogin()" ${hasAccounts?'':'disabled'}>Accedi a NUBEMO</button></section></div>`}
 window.patientLogin=()=>{const u=($('#loginUser')?.value||'').trim().toLowerCase(),pw=$('#loginPass')?.value||'';const f=Object.entries(accountMap()).find(([id,a])=>a&&a.active!==false&&String(a.username||'').toLowerCase()===u&&String(a.password||'')===pw);if(!f)return alert('Credenziali non valide.');localStorage.setItem(ACTIVE_PATIENT_KEY,f[0]);page='home';render()};
 window.patientLogout=()=>{localStorage.removeItem(ACTIVE_PATIENT_KEY);page='home';render()};
 
+function syncAndroidLandscapeClass(){
+ const ua=navigator.userAgent||'';
+ const android=/Android/i.test(ua);
+ const landscape=window.matchMedia&&window.matchMedia('(orientation: landscape)').matches;
+ const phoneLike=Math.min(window.screen?.width||innerWidth,window.screen?.height||innerHeight)<=600;
+ document.body.classList.toggle('android-phone-landscape',android&&landscape&&phoneLike);
+}
+window.addEventListener('resize',syncAndroidLandscapeClass,{passive:true});
+window.addEventListener('orientationchange',()=>setTimeout(syncAndroidLandscapeClass,80),{passive:true});
+
 function render(){
+  syncAndroidLandscapeClass();
   document.body.dataset.page=page;
   const ac=accountMap(),id=activePatientId();const logoutBtn=document.getElementById('patientLogoutBtn');if(!id||!ac[id]||ac[id].active===false){if(logoutBtn)logoutBtn.style.display='none';document.body.dataset.page='login';$('#app').innerHTML=loginPage();return}
   if(logoutBtn)logoutBtn.style.display='inline-flex';

@@ -41,14 +41,25 @@ async function openProfessionalDocument(id){
  setTimeout(()=>URL.revokeObjectURL(url),120000);
 }
 
+function professionalDocuments(patientId,subCategory='other'){
+ return documentMetaList().filter(d=>d.patientId===patientId&&d.category==='health'&&d.subCategory===subCategory).sort((a,b)=>String(b.documentDate||b.uploadedAt).localeCompare(String(a.documentDate||a.uploadedAt)));
+}
+function professionalBloodTestDocuments(patientId){return professionalDocuments(patientId,'blood_test')}
+function professionalOtherHealthDocuments(patientId){return professionalDocuments(patientId,'other')}
+function hasUnreadProfessionalDocuments(patientId){
+ return professionalOtherHealthDocuments(patientId).some(d=>d.unreadForProfessional===true);
+}
+function hasUnreadProfessionalBloodTests(patientId){
+ return professionalBloodTestDocuments(patientId).some(d=>d.unreadForProfessional===true);
+}
+function hasUnreadProfessionalActivity(patientId){
+ return hasUnreadProfessionalDocuments(patientId)||hasUnreadProfessionalBloodTests(patientId);
+}
 function patientsWithUnreadDocuments(){
  return patients().filter(p=>hasUnreadProfessionalDocuments(p.id));
 }
 function hasAnyUnreadProfessionalDocuments(){
  return patientsWithUnreadDocuments().length>0;
-}
-function hasUnreadProfessionalDocuments(patientId){
- return documentMetaList().some(d=>d.patientId===patientId&&d.unreadForProfessional===true);
 }
 function markProfessionalDocumentsRead(patientId){
  const items=documentMetaList();let changed=false;
@@ -56,7 +67,7 @@ function markProfessionalDocumentsRead(patientId){
  if(changed)saveDocumentMetaList(items);
 }
 function proDocuments(p){
- const docs=documentMetaList().filter(d=>d.patientId===p.id&&d.category==='health'&&d.subCategory==='other').sort((a,b)=>String(b.documentDate||b.uploadedAt).localeCompare(String(a.documentDate||a.uploadedAt)));
+ const docs=professionalOtherHealthDocuments(p.id);
  return `<div class="section-head"><h2>Documenti sanitari</h2><span class="pill">${docs.length}</span></div>
  <p class="muted">Archivio documentale condiviso della demo. I documenti caricati dal paziente sono consultabili qui; l’eliminazione è riservata al professionista.</p>
  <input id="proDocumentFile" type="file" accept=".pdf,application/pdf,image/*" hidden>
@@ -90,12 +101,6 @@ function bindProDocuments(){
      const items=documentMetaList();items.push({id,patientId:selected,category:'health',subCategory:'other',title,documentDate:date,fileId,fileName:selectedFile.name,mimeType:selectedFile.type||'application/octet-stream',fileSize:selectedFile.size,uploadedBy:'professional',uploadedAt:new Date().toISOString(),unreadForProfessional:false,unreadForPatient:true,documentNumber:null,validFrom:null});
      saveDocumentMetaList(items);render();
    }catch(e){console.error(e);alert('Non riesco a salvare il documento.')}
- });
- document.querySelectorAll('[data-open-pro-document]').forEach(b=>b.onclick=()=>openProfessionalDocument(b.dataset.openProDocument));
- document.querySelectorAll('[data-delete-pro-document]').forEach(b=>b.onclick=async()=>{
-   const id=b.dataset.deleteProDocument,items=documentMetaList(),d=items.find(x=>x.id===id&&x.patientId===selected);if(!d)return;
-   if(!confirm(`Eliminare "${d.title}" dalla cartella del paziente?`))return;
-   try{await deleteDocumentBlob(d.fileId);saveDocumentMetaList(items.filter(x=>x.id!==id));render()}catch(e){console.error(e);alert('Non riesco a eliminare il documento.')}
  });
 }
 
@@ -343,15 +348,15 @@ function proDrawer(){
  const patientBranch=p?`
    <div class="drawer-group open ${drawerPatientExpanded?'expanded':''}">
      <button class="drawer-node drawer-patient-name" data-drawer-patient="${p.id}" aria-expanded="${drawerPatientExpanded?'true':'false'}">
-       <span class="drawer-chevron">${drawerPatientExpanded?'⌃':'⌄'}</span><strong>${esc(p.name)}${hasUnreadProfessionalDocuments(p.id)?'<span class="document-alert-inline">!</span>':''}</strong>
+       <span class="drawer-chevron">${drawerPatientExpanded?'⌃':'⌄'}</span><strong>${esc(p.name)}${hasUnreadProfessionalActivity(p.id)?'<span class="document-alert-inline">!</span>':''}</strong>
      </button>
      <div class="drawer-sub">
        ${[
          ['summary','Riepilogo'],
          ['anamnesis','Anamnesi'],
-         ['labs','Esami'],
+         ['labs',`Esami${hasUnreadProfessionalBloodTests(p.id)?'<span class="document-alert-inline">!</span>':''}`],
          ['plan','Piano'],
-         ['documents',`Documenti${hasUnreadProfessionalDocuments(p.id)?' !':''}`],
+         ['documents',`Documenti${hasUnreadProfessionalDocuments(p.id)?'<span class="document-alert-inline">!</span>':''}`],
          ['privacy','Privacy'],
          ['account','Account'],
          ['diary','Diario'],
@@ -506,7 +511,7 @@ function dashboard(){
  const todays=appointments().filter(a=>a.date===today());
  const first=todays.filter(a=>a.type==='first').length;
  const controls=todays.filter(a=>a.type==='control').length;
- return `${top('Dashboard')}${nav()}${hasAnyUnreadProfessionalDocuments()?`<button class="document-dashboard-alert" id="openUnreadPatients"><span class="document-alert-dot">!</span><span>Alcuni tuoi pazienti hanno pubblicato nuovi documenti</span><b>Apri pazienti ›</b></button>`:''}
+ return `${top('Dashboard')}${nav()}${patients().some(p=>hasUnreadProfessionalBloodTests(p.id))?`<button class="document-dashboard-alert analysis-dashboard-alert" id="openUnreadLabPatients"><span class="document-alert-dot">!</span><span>Alcuni tuoi pazienti hanno pubblicato nuove analisi del sangue</span><b>Apri pazienti ›</b></button>`:''}${hasAnyUnreadProfessionalDocuments()?`<button class="document-dashboard-alert" id="openUnreadPatients"><span class="document-alert-dot">!</span><span>Alcuni tuoi pazienti hanno pubblicato nuovi documenti</span><b>Apri pazienti ›</b></button>`:''}
  <div class="pro3-kpis">
    <div><span>Pazienti attivi</span><b>${ps.length}</b></div>
    <div><span>Appuntamenti oggi</span><b>${todays.filter(a=>a.type!=='personal').length}</b></div>
@@ -521,8 +526,7 @@ function dashboard(){
    ${studioSummaryChart()}
   </section>
  </div>
- ${bmiPieCard()}
- ${(()=>{const q=Object.values(pendingLabs()).filter(x=>x.status==='Da verificare');return q.length?`<section class="card alert-card"><div class="section-head"><h2>Analisi da verificare</h2><span class="pill">${q.length}</span></div>${q.map(x=>{const pp=patient(x.patientId);return `<button class="pro3-patient" data-review-lab="${x.key}" style="width:100%;margin-top:7px"><div class="patient-avatar">🧪</div><div><b>${esc(pp?.name||'Paziente')}</b><span>${esc(x.filename||'Referto PDF')}</span></div><strong>Verifica</strong></button>`}).join('')}</section>`:''})()}`;
+ ${bmiPieCard()}`;
 }
 function eventRow(a){
  const p=a.patientId?patient(a.patientId):null;
@@ -577,7 +581,7 @@ function patientsPage(){
    return `<button data-patient="${p.id}" class="pro3-patient" style="font-weight:400">
      <div class="patient-avatar">${p.name.split(' ').map(x=>x[0]).slice(0,2).join('')}</div>
      <div>
-       <span style="display:block;font-size:15px;font-weight:700;color:#34484f">${esc(p.name)}${hasUnreadProfessionalDocuments(p.id)?'<span class="document-alert-inline">!</span>':''}</span>
+       <span style="display:block;font-size:15px;font-weight:700;color:#34484f">${esc(p.name)}${hasUnreadProfessionalActivity(p.id)?'<span class="document-alert-inline">!</span>':''}</span>
        <span style="display:block;margin-top:3px;font-size:12px;color:#7b898f">${p.last!=null?'Ultimo peso '+p.last.toFixed(1).replace('.',',')+' kg':'Dati non disponibili'}</span>
      </div>
      <span style="font-size:12px;font-weight:600;color:${p.delta<0?'#3d8b69':p.delta>0?'#a66a45':'#7b898f'}">${delta}</span>
@@ -1592,14 +1596,14 @@ function details(){
  </div>
  <div class="patient-desktop-tabs">
    ${[
-     ['summary','Riepilogo'],['anamnesis','Anamnesi'],['labs','Esami'],['plan','Piano'],['documents',`Documenti${hasUnreadProfessionalDocuments(p.id)?' !':''}`],
+     ['summary','Riepilogo'],['anamnesis','Anamnesi'],['labs',`Esami${hasUnreadProfessionalBloodTests(p.id)?'<span class="document-alert-inline">!</span>':''}`],['plan','Piano'],['documents',`Documenti${hasUnreadProfessionalDocuments(p.id)?'<span class="document-alert-inline">!</span>':''}`],
      ['privacy','Privacy'],['account','Account'],['diary','Diario'],['trend','Andamento'],
      ['measures','Misure'],['visits','Visite'],['notes','Note']
    ].map(([k,l])=>`<button data-patient-tab="${k}" class="${tab===k?'active':''}">${l}</button>`).join('')}
  </div>
  <section class="card patient-content-card">
    <div class="patient-section-head patient-section-head-clean">
-     <div><h2>${[['summary','Riepilogo'],['anamnesis','Anamnesi'],['labs','Esami'],['plan','Piano'],['documents',`Documenti${hasUnreadProfessionalDocuments(p.id)?' !':''}`],['privacy','Privacy'],['account','Account'],['diary','Diario'],['trend','Andamento'],['measures','Misure'],['visits','Visite'],['notes','Note']].find(x=>x[0]===tab)?.[1]||'Riepilogo'}</h2></div>
+     <div><h2>${[['summary','Riepilogo'],['anamnesis','Anamnesi'],['labs',`Esami${hasUnreadProfessionalBloodTests(p.id)?'<span class="document-alert-inline">!</span>':''}`],['plan','Piano'],['documents',`Documenti${hasUnreadProfessionalDocuments(p.id)?'<span class="document-alert-inline">!</span>':''}`],['privacy','Privacy'],['account','Account'],['diary','Diario'],['trend','Andamento'],['measures','Misure'],['visits','Visite'],['notes','Note']].find(x=>x[0]===tab)?.[1]||'Riepilogo'}</h2></div>
      ${tab==='summary'?`<div class="patient-summary-actions">
        <button class="secondary patient-edit-btn" id="editPatientProfileTop">Modifica scheda</button>
        <button class="primary desktop-clinical-pdf" id="desktopClinicalPdf">↓ Cartella PDF</button>
@@ -2702,7 +2706,9 @@ function proSummary2(p){
   <div><span>Piano alimentare</span><b>${planMetaFor(p.id)?'Disponibile':'Non caricato'}</b></div>
  </div>`;
 }
-function proAnamnesis(p){return `<div class="section-head"><h2>Anamnesi</h2></div><details class="pro-accordion" open><summary>Dati e stile di vita</summary><div class="pro-read-grid"><div><span>Diagnosi / motivo</span><b>${esc(p.diagnosis||'—')}</b></div><div><span>Peso teorico</span><b>${p.theoreticalWeight?p.theoreticalWeight+' kg':'—'}</b></div><div><span>Lavoro</span><b>${esc(p.work||'—')}</b></div><div><span>Attività fisica</span><b>${esc(p.activity||'—')}</b></div><div><span>Alvo</span><b>${esc(p.bowel||'—')}</b></div><div><span>Fumo</span><b>${esc(p.smoking||'—')}</b></div><div><span>Alcol</span><b>${esc(p.alcohol||'—')}</b></div><div><span>Metabolismo basale</span><b>${esc(p.metabolism||'—')}</b></div><div><span>FEEG</span><b>${esc(p.feeg||'—')}</b></div><div><span>Impedenziometria</span><b>${esc(p.impedance||'—')}</b></div></div></details><details class="pro-accordion"><summary>Familiarità</summary><div class="pro-read-grid"><div><span>Obesità</span><b>${p.famObesity?'Sì':'No'}</b></div><div><span>Diabete</span><b>${p.famDiabetes?'Sì':'No'}</b></div><div><span>Ipertensione</span><b>${p.famHypertension?'Sì':'No'}</b></div><div><span>Cardiovascolare</span><b>${p.famCardiovascular?'Sì':'No'}</b></div><div><span>Dislipidemie</span><b>${p.famDyslipidemia?'Sì':'No'}</b></div><div><span>Tiroide</span><b>${p.famThyroid?'Sì':'No'}</b></div></div></details><details class="pro-accordion"><summary>Anamnesi patologica</summary><div class="pro-read-grid"><div><span>Diete pregresse</span><b>${esc(p.previousDiets||'—')}</b></div><div><span>Allergie</span><b>${esc(p.allergies||'—')}</b></div><div><span>Farmaci</span><b>${esc(p.medications||'—')}</b></div><div><span>Disturbi GI</span><b>${esc(p.giIssues||'—')}</b></div><div><span>Patologie / interventi</span><b>${esc(p.pastConditions||'—')}</b></div><div><span>Osservazioni</span><b>${esc(p.observations||'—')}</b></div><div><span>Obiettivi</span><b>${esc(p.objectives||'—')}</b></div></div></details>`}function proLabs(p){const r=labsFor(p.id),f=[['glucose','Glicemia'],['cholesterol','Colesterolo'],['hdl','HDL'],['ldl','LDL'],['triglycerides','Trigliceridi'],['got','GOT'],['gpt','GPT'],['uricAcid','Acido urico'],['creatinine','Creatinina'],['ggt','γGT']];return `<div class="section-head"><h2>Esami ematici</h2><button class="mini" id="newLab">＋ Aggiungi esami</button></div>${r.length?`<div class="labs-table-desktop"><table class="labs-table"><thead><tr><th>Data</th>${f.map(x=>`<th>${x[1]}</th>`).join('')}<th></th></tr></thead><tbody>${r.slice().sort((a,b)=>b.date.localeCompare(a.date)).map(x=>`<tr><td>${fmt(x.date)}</td>${f.map(y=>`<td>${esc(x[y[0]]||'—')}</td>`).join('')}<td><button class="mini" data-edit-lab="${x.id}">Modifica</button></td></tr>`).join('')}</tbody></table></div><div class="labs-cards-mobile">${r.map(x=>`<div class="lab-card"><div class="section-head"><b>${fmt(x.date)}</b><button class="mini" data-edit-lab="${x.id}">Modifica</button></div><div class="lab-values">${f.map(y=>`<div><span>${y[1]}</span><b>${esc(x[y[0]]||'—')}</b></div>`).join('')}</div></div>`).join('')}</div>`:'<p class="muted">Nessun esame registrato.</p>'}`}function proPlan(p){const m=planMetaFor(p.id);return `<div class="section-head"><h2>Piano alimentare</h2><span class="pill">${m?'Attivo':'Non caricato'}</span></div><div class="plan-pro-card">${m?`<b>${esc(m.filename)}</b><div class="plan-actions"><button class="secondary" id="openProPlan">Apri PDF</button><button class="mini" id="replacePlan">Sostituisci</button><button class="mini danger-text" id="deletePlan">Elimina</button></div>`:`<p class="muted">Il professionista carica il PDF; il paziente può solo consultarlo.</p><button class="primary" id="uploadPlan">Carica PDF dieta</button>`}<input id="planFile" type="file" accept=".pdf,application/pdf" style="display:none"><label>Data piano</label>${proDateControl('planDate',m?.planDate||today())}</div>`}
+function proAnamnesis(p){return `<div class="section-head"><h2>Anamnesi</h2></div><details class="pro-accordion" open><summary>Dati e stile di vita</summary><div class="pro-read-grid"><div><span>Diagnosi / motivo</span><b>${esc(p.diagnosis||'—')}</b></div><div><span>Peso teorico</span><b>${p.theoreticalWeight?p.theoreticalWeight+' kg':'—'}</b></div><div><span>Lavoro</span><b>${esc(p.work||'—')}</b></div><div><span>Attività fisica</span><b>${esc(p.activity||'—')}</b></div><div><span>Alvo</span><b>${esc(p.bowel||'—')}</b></div><div><span>Fumo</span><b>${esc(p.smoking||'—')}</b></div><div><span>Alcol</span><b>${esc(p.alcohol||'—')}</b></div><div><span>Metabolismo basale</span><b>${esc(p.metabolism||'—')}</b></div><div><span>FEEG</span><b>${esc(p.feeg||'—')}</b></div><div><span>Impedenziometria</span><b>${esc(p.impedance||'—')}</b></div></div></details><details class="pro-accordion"><summary>Familiarità</summary><div class="pro-read-grid"><div><span>Obesità</span><b>${p.famObesity?'Sì':'No'}</b></div><div><span>Diabete</span><b>${p.famDiabetes?'Sì':'No'}</b></div><div><span>Ipertensione</span><b>${p.famHypertension?'Sì':'No'}</b></div><div><span>Cardiovascolare</span><b>${p.famCardiovascular?'Sì':'No'}</b></div><div><span>Dislipidemie</span><b>${p.famDyslipidemia?'Sì':'No'}</b></div><div><span>Tiroide</span><b>${p.famThyroid?'Sì':'No'}</b></div></div></details><details class="pro-accordion"><summary>Anamnesi patologica</summary><div class="pro-read-grid"><div><span>Diete pregresse</span><b>${esc(p.previousDiets||'—')}</b></div><div><span>Allergie</span><b>${esc(p.allergies||'—')}</b></div><div><span>Farmaci</span><b>${esc(p.medications||'—')}</b></div><div><span>Disturbi GI</span><b>${esc(p.giIssues||'—')}</b></div><div><span>Patologie / interventi</span><b>${esc(p.pastConditions||'—')}</b></div><div><span>Osservazioni</span><b>${esc(p.observations||'—')}</b></div><div><span>Obiettivi</span><b>${esc(p.objectives||'—')}</b></div></div></details>`}function proLabs(p){const r=labsFor(p.id),f=[['glucose','Glicemia'],['cholesterol','Colesterolo'],['hdl','HDL'],['ldl','LDL'],['triglycerides','Trigliceridi'],['got','GOT'],['gpt','GPT'],['uricAcid','Acido urico'],['creatinine','Creatinina'],['ggt','γGT']]; const bloodDocs=professionalBloodTestDocuments(p.id);
+ const bloodDocsHtml=bloodDocs.length?`<div class="document-list">${bloodDocs.map(d=>`<div class="document-row ${d.unreadForProfessional===true?'document-row-unread':''}"><div><b>${esc(d.title)}${d.unreadForProfessional===true?'<span class="document-new-badge">NUOVO</span>':''}</b><span>${d.documentDate?fmt(d.documentDate):'Data non indicata'} · ${esc(d.fileName||'Documento')} · ${d.uploadedBy==='patient'?'Caricato dal paziente':'Caricato dal professionista'}</span></div><div class="document-row-actions">${pendingLabForDocument(d.id)?`<button class="primary compact" data-review-document-lab="${d.id}">Verifica valori</button>`:''}<button class="secondary compact" data-open-pro-document="${d.id}">Apri PDF</button><button class="mini danger-text" data-delete-pro-document="${d.id}">Elimina</button></div></div>`).join('')}</div>`:'<p class="muted">Nessun referto analisi caricato.</p>';
+return `<div class="section-head"><h2>Esami ematici</h2><button class="mini" id="newLab">＋ Aggiungi esami</button></div><section class="labs-document-panel"><div class="subsection-title">Referti allegati</div>${bloodDocsHtml}</section>${r.length?`<div class="labs-table-desktop"><table class="labs-table"><thead><tr><th>Data</th>${f.map(x=>`<th>${x[1]}</th>`).join('')}<th></th></tr></thead><tbody>${r.slice().sort((a,b)=>b.date.localeCompare(a.date)).map(x=>`<tr><td>${fmt(x.date)}</td>${f.map(y=>`<td>${esc(x[y[0]]||'—')}</td>`).join('')}<td><button class="mini" data-edit-lab="${x.id}">Modifica</button></td></tr>`).join('')}</tbody></table></div><div class="labs-cards-mobile">${r.map(x=>`<div class="lab-card"><div class="section-head"><b>${fmt(x.date)}</b><button class="mini" data-edit-lab="${x.id}">Modifica</button></div><div class="lab-values">${f.map(y=>`<div><span>${y[1]}</span><b>${esc(x[y[0]]||'—')}</b></div>`).join('')}</div></div>`).join('')}</div>`:'<p class="muted">Nessun esame registrato.</p>'}`}function proPlan(p){const m=planMetaFor(p.id);return `<div class="section-head"><h2>Piano alimentare</h2><span class="pill">${m?'Attivo':'Non caricato'}</span></div><div class="plan-pro-card">${m?`<b>${esc(m.filename)}</b><div class="plan-actions"><button class="secondary" id="openProPlan">Apri PDF</button><button class="mini" id="replacePlan">Sostituisci</button><button class="mini danger-text" id="deletePlan">Elimina</button></div>`:`<p class="muted">Il professionista carica il PDF; il paziente può solo consultarlo.</p><button class="primary" id="uploadPlan">Carica PDF dieta</button>`}<input id="planFile" type="file" accept=".pdf,application/pdf" style="display:none"><label>Data piano</label>${proDateControl('planDate',m?.planDate||today())}</div>`}
 
 function proAccount(p){const a=accountFor(p.id);return `<div class="section-head"><h2>Account paziente</h2><span class="pill">${a?'Attivo':'Non attivo'}</span></div><p class="muted">Credenziali demo locali. Dopo averle salvate, vai in Area Paziente e premi <b>Esci</b>: comparirà la schermata login dove puoi provare username e password.</p><label>Username</label><input id="accUser" value="${esc(a?.username||'')}"><label>Password demo</label><input id="accPass" value="${esc(a?.password||'')}"><div class="pro3-actions"><button class="primary" id="savePatientAccount">${a?'Aggiorna account':'Crea account'}</button>${a?'<button class="secondary" id="deletePatientAccount">Disattiva account</button>':''}</div>`}
 function privacyPdfBlob(p){const lines=['INFORMATIVA E CONSENSO - DEMO','',`Paziente: ${p.name||''}`,`Data di nascita: ${p.birth?fmt(p.birth):''}`,`Diagnosi/motivo: ${p.diagnosis||''}`,'','Modulo dimostrativo precompilato con i dati della scheda.','Il testo privacy definitivo dovra essere validato per il prodotto reale.','','Firma paziente: ______________________________','Data: __________________'];const ep=s=>String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^\x20-\x7E]/g,' ').replace(/\\/g,'\\\\').replace(/\(/g,'\\(').replace(/\)/g,'\\)');let st='BT /F1 11 Tf 50 800 Td '+lines.map((l,i)=>`${i?'0 -24 Td ':''}(${ep(l)}) Tj`).join('\n')+' ET\n',o=['<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>'];const add=x=>(o.push(x),o.length),pages=add('P'),content=add(`<< /Length ${st.length} >>\nstream\n${st}endstream`),page=add(`<< /Type /Page /Parent ${pages} 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 1 0 R >> >> /Contents ${content} 0 R >>`);o[pages-1]=`<< /Type /Pages /Count 1 /Kids [${page} 0 R] >>`;const cat=add(`<< /Type /Catalog /Pages ${pages} 0 R >>`);let pdf='%PDF-1.4\n',off=[0];o.forEach((x,i)=>{off[i+1]=pdf.length;pdf+=`${i+1} 0 obj\n${x}\nendobj\n`});const xr=pdf.length;pdf+=`xref\n0 ${o.length+1}\n0000000000 65535 f \n`;for(let i=1;i<=o.length;i++)pdf+=String(off[i]).padStart(10,'0')+' 00000 n \n';pdf+=`trailer\n<< /Size ${o.length+1} /Root ${cat} 0 R >>\nstartxref\n${xr}\n%%EOF`;return new Blob([pdf],{type:'application/pdf'})}
@@ -2710,6 +2716,37 @@ async function storePrivacyPdf(id,b){const db=await openPlanDb();return new Prom
 async function readPrivacyPdf(id){const db=await openPlanDb();return new Promise((res,rej)=>{const r=db.transaction('privacy','readonly').objectStore('privacy').get(id);r.onsuccess=()=>res(r.result||null);r.onerror=()=>rej(r.error)})}
 function proPrivacy(p){const m=privacyMetaFor(p.id);return `<div class="section-head"><h2>Privacy</h2><span class="pill">${m?'PDF firmato presente':'Da completare'}</span></div><div class="pro-read-grid"><div><span>Paziente</span><b>${esc(p.name||'—')}</b></div><div><span>Data di nascita</span><b>${p.birth?fmt(p.birth):'—'}</b></div><div><span>Diagnosi / motivo</span><b>${esc(p.diagnosis||'—')}</b></div></div><p class="muted">Modulo demo precompilato. Il testo legale definitivo dovrà essere validato.</p><div class="pro3-actions"><button class="secondary" id="downloadPrivacyForm">↓ Scarica modulo PDF</button><button class="secondary" id="uploadSignedPrivacy">↑ Carica PDF firmato</button>${m?'<button class="secondary" id="openSignedPrivacy">Apri firmato</button>':''}</div><input id="signedPrivacyFile" type="file" accept="application/pdf,.pdf" style="display:none">`}
 
+function pendingLabForDocument(documentId){
+ return Object.values(pendingLabs()).find(x=>x.documentId===documentId&&x.status==='Da verificare')||null;
+}
+async function readPendingLabPdf(item){
+ if(item?.documentId){
+   const meta=documentMetaList().find(d=>d.id===item.documentId);
+   if(!meta)return null;
+   const blob=await readDocumentBlob(meta.fileId);
+   return blob?await blob.arrayBuffer():null;
+ }
+ return item?.key?readLabUploadPdf(item.key):null;
+}
+async function deletePendingLabSource(item){
+ if(item?.documentId){
+   const items=documentMetaList(),meta=items.find(d=>d.id===item.documentId);
+   if(meta){
+     await deleteDocumentBlob(meta.fileId);
+     saveDocumentMetaList(items.filter(d=>d.id!==meta.id));
+   }
+   return;
+ }
+ if(item?.key)await deleteLabUploadPdf(item.key);
+}
+function markBloodTestDocumentRead(documentId){
+ if(!documentId)return;
+ const items=documentMetaList(),d=items.find(x=>x.id===documentId);
+ if(d&&d.unreadForProfessional===true){
+   d.unreadForProfessional=false;
+   saveDocumentMetaList(items);
+ }
+}
 async function readLabUploadPdf(key){const db=await openPlanDb();return new Promise((res,rej)=>{const r=db.transaction('labUploads','readonly').objectStore('labUploads').get(key);r.onsuccess=()=>res(r.result||null);r.onerror=()=>rej(r.error)})}
 async function deleteLabUploadPdf(key){const db=await openPlanDb();return new Promise((res,rej)=>{const tx=db.transaction('labUploads','readwrite');tx.objectStore('labUploads').delete(key);tx.oncomplete=res;tx.onerror=()=>rej(tx.error)})}
 function labReview(){const item=pendingLabs()[window.reviewLabKey];if(!item)return `${top('Referto non trovato')}`;const p=patient(item.patientId);selected=item.patientId;const f=(id,l)=>`<label>${l}<input id="rev${id}" value="${esc(item.values?.[id]||'')}"></label>`;return `${top('Verifica analisi')}<section class="card"><div class="section-head"><h2>${esc(p?.name||'Paziente')}</h2><span class="pill">Da verificare</span></div><p class="muted">${esc(item.filename||'')} · ${esc(item.note||'Controlla i valori estratti.')}</p><div class="form-grid"><label>Data${proDateControl('revDate',item.values?.date||today())}</label>${f('glucose','Glicemia')}${f('cholesterol','Colesterolo')}${f('hdl','HDL')}${f('ldl','LDL')}${f('triglycerides','Trigliceridi')}${f('got','GOT')}${f('gpt','GPT')}${f('uricAcid','Acido urico')}${f('creatinine','Creatinina')}${f('ggt','γGT')}</div><div class="pro3-actions lab-review-actions"><button class="secondary" id="openLabReviewPdf">Apri PDF</button><button class="danger-soft" id="deleteLabReview">Elimina</button><button class="secondary" id="cancelLabReview">Annulla</button><button class="primary" id="confirmLabReview">Conferma e inserisci</button></div></section>`}
@@ -3345,6 +3382,22 @@ function render(){
 }
 
 function bind(){
+ document.querySelectorAll('[data-review-document-lab]').forEach(b=>b.onclick=()=>{
+   const item=pendingLabForDocument(b.dataset.reviewDocumentLab);
+   if(!item)return alert('Valori già verificati o referto non disponibile.');
+   markBloodTestDocumentRead(item.documentId);
+   window.reviewLabKey=item.key;
+   view='labReview';
+   render();
+ });
+ document.querySelectorAll('[data-open-pro-document]').forEach(b=>b.onclick=()=>openProfessionalDocument(b.dataset.openProDocument));
+ document.querySelectorAll('[data-delete-pro-document]').forEach(b=>b.onclick=async()=>{const id=b.dataset.deleteProDocument,items=documentMetaList(),d=items.find(x=>x.id===id&&x.patientId===selected);if(!d)return;if(!confirm(`Eliminare "${d.title}" dalla cartella del paziente?`))return;try{await deleteDocumentBlob(d.fileId);saveDocumentMetaList(items.filter(x=>x.id!==id));if(d.subCategory==='blood_test'){const m=pendingLabs();Object.keys(m).forEach(k=>{if(m[k]?.documentId===id)delete m[k]});savePendingLabs(m)}render()}catch(e){console.error(e);alert('Non riesco a eliminare il documento.')}});
+
+ el('openUnreadLabPatients')?.addEventListener('click',()=>{
+   view='patients';
+   render();
+   scrollTo(0,0);
+ });
  el('openUnreadPatients')?.addEventListener('click',()=>{
    view='patients';
    render();
@@ -3401,13 +3454,13 @@ function bind(){
  el('signedPrivacyFile')?.addEventListener('change',async e=>{const f=e.target.files?.[0];if(!f)return;if(f.type!=='application/pdf'&&!f.name.toLowerCase().endsWith('.pdf'))return alert('Seleziona un PDF.');await storePrivacyPdf(selected,await f.arrayBuffer());savePrivacyMeta(selected,{filename:f.name,uploadedAt:new Date().toISOString()});render()});
  el('openSignedPrivacy')?.addEventListener('click',async()=>{const d=await readPrivacyPdf(selected);if(!d)return alert('PDF firmato non disponibile.');const w=window.open('about:blank','_blank'),u=URL.createObjectURL(new Blob([d],{type:'application/pdf'}));if(w)w.location.href=u;else location.href=u;setTimeout(()=>URL.revokeObjectURL(u),60000)});
  document.querySelectorAll('[data-review-lab]').forEach(b=>b.addEventListener('click',()=>{window.reviewLabKey=b.dataset.reviewLab;view='labReview';render()}));
- el('openLabReviewPdf')?.addEventListener('click',async()=>{const item=pendingLabs()[window.reviewLabKey];if(!item)return;try{const d=await readLabUploadPdf(item.key);if(!d)return alert('PDF non disponibile.');const w=window.open('about:blank','_blank'),u=URL.createObjectURL(new Blob([d],{type:'application/pdf'}));if(w)w.location.href=u;else location.href=u;setTimeout(()=>URL.revokeObjectURL(u),60000)}catch(e){alert('Non riesco ad aprire il PDF.')}});
+ el('openLabReviewPdf')?.addEventListener('click',async()=>{const item=pendingLabs()[window.reviewLabKey];if(!item)return;try{const d=await readPendingLabPdf(item);if(!d)return alert('PDF non disponibile.');markBloodTestDocumentRead(item.documentId);const u=URL.createObjectURL(new Blob([d],{type:'application/pdf'}));location.href=u;setTimeout(()=>URL.revokeObjectURL(u),120000)}catch(e){alert('Non riesco ad aprire il PDF.')}});
  el('cancelLabReview')?.addEventListener('click',()=>{view='dashboard';render()});
  el('deleteLabReview')?.addEventListener('click',async()=>{
  const item=pendingLabs()[window.reviewLabKey];
  if(!item)return;
  if(!confirm(`Eliminare le analisi "${item.filename}"?\n\nIl file verrà rimosso anche dall'attesa del paziente.`))return;
- try{await deleteLabUploadPdf(item.key)}catch(e){console.warn('PDF cleanup',e)}
+ try{await deletePendingLabSource(item)}catch(e){console.warn('PDF cleanup',e)}
  const m=pendingLabs();
  delete m[window.reviewLabKey];
  savePendingLabs(m);
@@ -3415,7 +3468,7 @@ function bind(){
  view='dashboard';
  render();
 });
- el('confirmLabReview')?.addEventListener('click',()=>{const item=pendingLabs()[window.reviewLabKey];if(!item)return;const ids=['glucose','cholesterol','hdl','ldl','triglycerides','got','gpt','uricAcid','creatinine','ggt'],obj={id:'lab-'+Date.now(),date:readProDate('revDate')||today()};ids.forEach(k=>obj[k]=(el('rev'+k)?.value||'').trim());const rows=labsFor(item.patientId);rows.push(obj);saveLabsFor(item.patientId,rows);const m=pendingLabs();m[window.reviewLabKey]={...item,status:'Confermato'};savePendingLabs(m);selected=item.patientId;tab='labs';view='details';render()});
+ el('confirmLabReview')?.addEventListener('click',()=>{const item=pendingLabs()[window.reviewLabKey];if(!item)return;markBloodTestDocumentRead(item.documentId);const ids=['glucose','cholesterol','hdl','ldl','triglycerides','got','gpt','uricAcid','creatinine','ggt'],obj={id:'lab-'+Date.now(),date:readProDate('revDate')||today()};ids.forEach(k=>obj[k]=(el('rev'+k)?.value||'').trim());const rows=labsFor(item.patientId);rows.push(obj);saveLabsFor(item.patientId,rows);const m=pendingLabs();m[window.reviewLabKey]={...item,status:'Confermato'};savePendingLabs(m);selected=item.patientId;tab='labs';view='details';render()});
 el('newLab')?.addEventListener('click',()=>{window.editLabId='';view='labForm';render()});document.querySelectorAll('[data-edit-lab]').forEach(b=>b.addEventListener('click',()=>{window.editLabId=b.dataset.editLab;view='labForm';render()}));el('cancelLab')?.addEventListener('click',()=>{view='details';tab='labs';render()});el('saveLab')?.addEventListener('click',saveLab);el('deleteLab')?.addEventListener('click',deleteLab);const upload=()=>el('planFile')?.click();el('uploadPlan')?.addEventListener('click',upload);el('replacePlan')?.addEventListener('click',upload);el('planFile')?.addEventListener('change',async e=>{const f=e.target.files?.[0];if(!f)return;if(!f.name.toLowerCase().endsWith('.pdf'))return alert('Seleziona un PDF.');if(f.size>8*1024*1024)return alert('Per la demo usa un PDF inferiore a 8 MB.');await writePlanPdf(selected,await f.arrayBuffer());savePlanMeta(selected,{filename:f.name,planDate:readProDate('planDate')||today()});render()});el('openProPlan')?.addEventListener('click',async()=>{const d=await readPlanPdf(selected);if(!d)return alert('PDF non disponibile.');const u=URL.createObjectURL(new Blob([d],{type:'application/pdf'}));window.open(u,'_blank');setTimeout(()=>URL.revokeObjectURL(u),60000)});el('deletePlan')?.addEventListener('click',async()=>{if(!confirm('Eliminare il piano alimentare?'))return;await deletePlanPdf(selected);savePlanMeta(selected,null);render()});
  el('exportProDiaryPdf')?.addEventListener('click',exportProDiaryPdf);
  document.querySelectorAll('[data-pro-diary-day]').forEach(b=>b.addEventListener('click',()=>{

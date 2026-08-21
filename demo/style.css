@@ -2972,3 +2972,80 @@ body.android-phone-landscape:not(.landing-body):not(.pro-body) .card{
 /* NUBEMO 3.70 — Documenti contabili */
 .document-pro-section+.document-pro-section{margin-top:28px;padding-top:24px;border-top:1px solid #e3eaec}
 .accounting-documents-section .document-form{margin-bottom:16px}
+
+/* NUBEMO 3.71 — Pensiero del giorno */
+.daily-quote{
+  grid-column:1/-1;
+  position:relative;
+  margin:0;
+  padding:13px 18px 14px;
+  border-left:3px solid #8fb85b;
+  border-radius:0 14px 14px 0;
+  background:linear-gradient(90deg,rgba(143,184,91,.10),rgba(143,184,91,.025));
+}
+.daily-quote-label{
+  display:block;
+  margin-bottom:4px;
+  font-size:9px;
+  font-weight:900;
+  letter-spacing:.11em;
+  color:#6c8e42;
+}
+.daily-quote p{
+  margin:0;
+  font-size:15px;
+  line-height:1.42;
+  font-weight:650;
+  color:#29413b;
+}
+@media(max-width:600px){
+  .daily-quote{padding:11px 14px 12px}
+  .daily-quote p{font-size:14px}
+}
+
+
+/* NUBEMO 3.74 — fix chirurgico Dashboard paziente */
+@media(min-width:900px){
+  body[data-page=home] main#app>.patient-dashboard-daily-row{
+    grid-column:1/-1;
+    width:100%;
+    min-width:0;
+  }
+}
+.patient-dashboard-daily-row{
+  display:grid;
+  grid-template-columns:minmax(0,7fr) minmax(0,5fr);
+  gap:16px;
+  width:100%;
+  min-width:0;
+  align-items:stretch;
+}
+.patient-dashboard-daily-row>.highlight,
+.patient-dashboard-summary-wrap{
+  min-width:0;
+  width:100%;
+  margin:0;
+  box-sizing:border-box;
+}
+.patient-dashboard-summary-wrap{
+  display:flex;
+}
+.patient-dashboard-summary-wrap>*{
+  flex:1 1 auto;
+  width:100%;
+  max-width:none!important;
+  min-width:0;
+  margin:0!important;
+  box-sizing:border-box;
+}
+@media(max-width:899px){
+  .patient-dashboard-daily-row{
+    grid-template-columns:1fr 1fr;
+    gap:14px;
+  }
+}
+@media(max-width:720px){
+  .patient-dashboard-daily-row{
+    grid-template-columns:1fr;
+  }
+}

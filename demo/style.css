@@ -3049,3 +3049,11 @@ body.android-phone-landscape:not(.landing-body):not(.pro-body) .card{
     grid-template-columns:1fr;
   }
 }
+
+
+/* NUBEMO 3.75 — più spazio sotto il Pensiero del giorno su iPhone/iPad verticali */
+@media (orientation:portrait) and (max-width:1024px){
+  body[data-page=home] .daily-quote{
+    margin-bottom:22px;
+  }
+}

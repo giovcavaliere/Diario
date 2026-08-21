@@ -46,6 +46,9 @@ function professionalDocuments(patientId,subCategory='other'){
 }
 function professionalBloodTestDocuments(patientId){return professionalDocuments(patientId,'blood_test')}
 function professionalOtherHealthDocuments(patientId){return professionalDocuments(patientId,'other')}
+function professionalAccountingDocuments(patientId){
+ return documentMetaList().filter(d=>d.patientId===patientId&&d.category==='accounting').sort((a,b)=>String(b.documentDate||b.uploadedAt).localeCompare(String(a.documentDate||a.uploadedAt)));
+}
 function hasUnreadProfessionalDocuments(patientId){
  return professionalOtherHealthDocuments(patientId).some(d=>d.unreadForProfessional===true);
 }
@@ -67,18 +70,36 @@ function markProfessionalDocumentsRead(patientId){
  if(changed)saveDocumentMetaList(items);
 }
 function proDocuments(p){
- const docs=professionalOtherHealthDocuments(p.id);
- return `<div class="section-head"><h2>Documenti sanitari</h2><span class="pill">${docs.length}</span></div>
- <p class="muted">Archivio documentale condiviso della demo. I documenti caricati dal paziente sono consultabili qui; l’eliminazione è riservata al professionista.</p>
- <input id="proDocumentFile" type="file" accept=".pdf,application/pdf,image/*" hidden>
- <button class="primary document-pro-upload" id="chooseProDocument">＋ Carica documento sanitario</button>
- <div id="proDocumentForm" class="document-form" hidden>
-   <label>File</label><div class="document-file-name" id="proDocumentFileName"></div>
-   <label>Titolo documento</label><input id="proDocumentTitle">
-   <label>Data documento</label>${proDateControl('proDocumentDate',today())}
-   <div class="pro3-actions"><button class="primary" id="saveProDocument">Salva documento</button><button class="secondary" id="cancelProDocument">Annulla</button></div>
- </div>
- ${docs.length?`<div class="document-list">${docs.map(d=>`<div class="document-row ${d.unreadForProfessional===true?'document-row-unread':''}"><div><b>${esc(d.title)}${d.unreadForProfessional===true?'<span class="document-new-badge">NUOVO</span>':''}</b><span>${d.documentDate?fmt(d.documentDate):'Data non indicata'} · ${esc(d.fileName||'Documento')} · ${d.uploadedBy==='patient'?'Caricato dal paziente':'Caricato dal professionista'}</span></div><div class="document-row-actions"><button class="secondary compact" data-open-pro-document="${d.id}">Apri</button><button class="mini danger-text" data-delete-pro-document="${d.id}">Elimina</button></div></div>`).join('')}</div>`:'<p class="muted">Nessun documento sanitario caricato.</p>'}`;
+ const docs=professionalOtherHealthDocuments(p.id),accounting=professionalAccountingDocuments(p.id);
+ const healthRows=docs.length?`<div class="document-list">${docs.map(d=>`<div class="document-row ${d.unreadForProfessional===true?'document-row-unread':''}"><div><b>${esc(d.title)}${d.unreadForProfessional===true?'<span class="document-new-badge">NUOVO</span>':''}</b><span>${d.documentDate?fmt(d.documentDate):'Data non indicata'} · ${esc(d.fileName||'Documento')} · ${d.uploadedBy==='patient'?'Caricato dal paziente':'Caricato dal professionista'}</span></div><div class="document-row-actions"><button class="secondary compact" data-open-pro-document="${d.id}">Apri</button><button class="mini danger-text" data-delete-pro-document="${d.id}">Elimina</button></div></div>`).join('')}</div>`:'<p class="muted">Nessun documento sanitario caricato.</p>';
+ const accountingRows=accounting.length?`<div class="document-list">${accounting.map(d=>`<div class="document-row"><div><b>${esc(d.title)}</b><span>${d.documentNumber?'N. '+esc(d.documentNumber)+' · ':''}${d.documentDate?fmt(d.documentDate):'Data non indicata'} · ${esc(d.fileName||'Documento')}</span></div><div class="document-row-actions"><button class="secondary compact" data-open-pro-document="${d.id}">Apri</button><button class="mini danger-text" data-delete-pro-document="${d.id}">Elimina</button></div></div>`).join('')}</div>`:'<p class="muted">Nessun documento contabile caricato.</p>';
+ return `<section class="document-pro-section">
+   <div class="section-head"><h2>Documenti sanitari</h2><span class="pill">${docs.length}</span></div>
+   <p class="muted">I documenti caricati dal paziente sono consultabili qui; l’eliminazione è riservata al professionista.</p>
+   <input id="proDocumentFile" type="file" accept=".pdf,application/pdf,image/*" hidden>
+   <button class="primary document-pro-upload" id="chooseProDocument">＋ Carica documento sanitario</button>
+   <div id="proDocumentForm" class="document-form" hidden>
+     <label>File</label><div class="document-file-name" id="proDocumentFileName"></div>
+     <label>Titolo documento</label><input id="proDocumentTitle">
+     <label>Data documento</label>${proDateControl('proDocumentDate',today())}
+     <div class="pro3-actions"><button class="primary" id="saveProDocument">Salva documento</button><button class="secondary" id="cancelProDocument">Annulla</button></div>
+   </div>
+   ${healthRows}
+ </section>
+ <section class="document-pro-section accounting-documents-section">
+   <div class="section-head"><h2>Documenti contabili</h2><span class="pill">${accounting.length}</span></div>
+   <p class="muted">Fatture e documenti contabili del paziente. La pubblicazione e l’eliminazione sono gestite dal professionista.</p>
+   <input id="proAccountingFile" type="file" accept=".pdf,application/pdf,image/*" hidden>
+   <button class="primary document-pro-upload" id="chooseProAccounting">＋ Carica documento contabile</button>
+   <div id="proAccountingForm" class="document-form" hidden>
+     <label>File</label><div class="document-file-name" id="proAccountingFileName"></div>
+     <label>Titolo documento</label><input id="proAccountingTitle">
+     <label>Numero documento</label><input id="proAccountingNumber" placeholder="Es. 125/2026">
+     <label>Data documento</label>${proDateControl('proAccountingDate',today())}
+     <div class="pro3-actions"><button class="primary" id="saveProAccounting">Pubblica documento</button><button class="secondary" id="cancelProAccounting">Annulla</button></div>
+   </div>
+   ${accountingRows}
+ </section>`;
 }
 function bindProDocuments(){
  let selectedFile=null;
@@ -102,6 +123,40 @@ function bindProDocuments(){
      saveDocumentMetaList(items);render();
    }catch(e){console.error(e);alert('Non riesco a salvare il documento.')}
  });
+ let accountingFile=null;
+ const accountingChoose=el('chooseProAccounting'),accountingInput=el('proAccountingFile'),accountingForm=el('proAccountingForm');
+ if(accountingChoose&&accountingInput)accountingChoose.onclick=()=>accountingInput.click();
+ if(accountingInput)accountingInput.onchange=()=>{
+   const f=accountingInput.files?.[0];if(!f)return;
+   if(f.size>DOCUMENT_MAX_BYTES){accountingInput.value='';return alert('Il documento supera il limite di 10 MB previsto per la demo.')}
+   accountingFile=f;
+   el('proAccountingFileName').textContent=f.name;
+   el('proAccountingTitle').value=documentTitleFromFile(f.name);
+   accountingForm.hidden=false;accountingChoose.hidden=true;
+ };
+ el('cancelProAccounting')?.addEventListener('click',()=>{
+   if(accountingInput)accountingInput.value='';
+   accountingFile=null;
+   if(accountingForm)accountingForm.hidden=true;
+   if(accountingChoose)accountingChoose.hidden=false;
+ });
+ el('saveProAccounting')?.addEventListener('click',async()=>{
+   if(!accountingFile)return alert('Seleziona un file.');
+   const title=(el('proAccountingTitle')?.value||'').trim();
+   const number=(el('proAccountingNumber')?.value||'').trim();
+   const date=readProDate('proAccountingDate');
+   if(!title)return alert('Inserisci il titolo del documento.');
+   if(!number)return alert('Inserisci il numero del documento.');
+   if(!date)return alert('Inserisci una data valida.');
+   const id=documentId('accounting'),fileId=documentId('file');
+   try{
+     await writeDocumentBlob(fileId,accountingFile);
+     const items=documentMetaList();
+     items.push({id,patientId:selected,category:'accounting',subCategory:'accounting',title,documentNumber:number,documentDate:date,fileId,fileName:accountingFile.name,mimeType:accountingFile.type||'application/octet-stream',fileSize:accountingFile.size,uploadedBy:'professional',uploadedAt:new Date().toISOString(),unreadForProfessional:false,unreadForPatient:true,validFrom:null});
+     saveDocumentMetaList(items);render();
+   }catch(err){console.error(err);alert('Non riesco a pubblicare il documento contabile.')}
+ });
+
 }
 
 const el=id=>document.getElementById(id);

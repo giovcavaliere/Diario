@@ -1969,6 +1969,12 @@ function patientDocuments(subCategory='other'){
 }
 function patientBloodTestDocuments(){return patientDocuments('blood_test')}
 function patientOtherHealthDocuments(){return patientDocuments('other')}
+function patientAccountingDocuments(){
+  const pid=activePatientId();
+  return documentMetaList()
+    .filter(d=>d.patientId===pid&&d.category==='accounting')
+    .sort((a,b)=>String(b.documentDate||b.uploadedAt).localeCompare(String(a.documentDate||a.uploadedAt)));
+}
 function documentTitleFromFile(name=''){
   return String(name).replace(/\.[^.]+$/,'').replace(/[_-]+/g,' ').replace(/\s+/g,' ').trim();
 }
@@ -2008,12 +2014,13 @@ async function openStoredDocument(id){
   setTimeout(()=>URL.revokeObjectURL(url),120000);
 }
 function documentsPage(){
-  const blood=patientBloodTestDocuments(),other=patientOtherHealthDocuments();
+  const blood=patientBloodTestDocuments(),other=patientOtherHealthDocuments(),accounting=patientAccountingDocuments();
   const legacy=legacyPatientPlanMeta(),plans=patientPlanDocuments(),planRows=[...plans],current=mainPlanMeta();
   if(legacy&&!plans.some(x=>x.filename===legacy.filename&&x.validFrom===legacy.validFrom))planRows.push(legacy);
   planRows.sort((a,b)=>String(b.validFrom||'').localeCompare(String(a.validFrom||'')));
   const row=d=>`<div class="document-row ${d.unreadForPatient===true?'document-row-unread':''}"><div><b>${escapeHtml(d.title)}${d.unreadForPatient===true?'<span class="document-new-badge">NUOVO</span>':''}</b><span>${d.documentDate?fmtShort(d.documentDate):'Data non indicata'} · ${escapeHtml(d.fileName||'Documento')}</span></div><button class="secondary compact" data-open-patient-document="${d.id}">Apri</button></div>`;
   return `<div class="page-title"><button class="back" onclick="go('home')">‹</button><div><div class="eyebrow">ARCHIVIO PAZIENTE</div><h1>Documenti</h1></div></div>
+  <section class="card"><div class="section-head"><h2>Documenti contabili</h2><span class="pill">${accounting.length}</span></div><p class="muted">Fatture e documenti contabili pubblicati dal professionista. Sono disponibili in sola consultazione.</p>${accounting.length?`<div class="document-list">${accounting.map(d=>`<div class="document-row ${d.unreadForPatient===true?'document-row-unread':''}"><div><b>${escapeHtml(d.title)}${d.unreadForPatient===true?'<span class="document-new-badge">NUOVO</span>':''}</b><span>${d.documentNumber?'N. '+escapeHtml(d.documentNumber)+' · ':''}${d.documentDate?fmtShort(d.documentDate):'Data non indicata'} · ${escapeHtml(d.fileName||'Documento')}</span></div><button class="secondary compact" data-open-patient-document="${d.id}">Apri</button></div>`).join('')}</div>`:'<p class="muted">Nessun documento contabile pubblicato.</p>'}</section>
   <section class="card"><div class="section-head"><h2>Piani alimentari</h2><span class="pill">${planRows.length}</span></div><p class="muted">Il piano in vigore resta disponibile anche in Dashboard. Qui trovi lo storico pubblicato dal professionista.</p>${planRows.length?`<div class="document-list">${planRows.map(d=>`<div class="document-row ${d.unreadForPatient===true?'document-row-unread':''}"><div><b>${escapeHtml(d.title||documentTitleFromFile(d.filename||'Piano alimentare'))}${d.unreadForPatient===true?'<span class="document-new-badge">NUOVO</span>':''}${current&&d.id===current.id?'<span class="plan-status-badge">IN VIGORE</span>':''}</b><span>${d.validFrom?'Valido dal '+fmtShort(d.validFrom):'Decorrenza non indicata'} · ${escapeHtml(d.fileName||d.filename||'Piano alimentare')}</span></div><button class="secondary compact" data-open-patient-plan="${d.id}">Apri</button></div>`).join('')}</div>`:'<p class="muted">Nessun piano alimentare pubblicato.</p>'}</section>
   <section class="card"><div class="section-head"><h2>Analisi del sangue</h2><span class="pill">${blood.length}</span></div><p class="muted">Carica il referto PDF delle analisi. Il professionista lo ritroverà anche nella sezione Esami.</p><button class="primary" id="chooseBloodTestDocument">＋ Carica analisi</button>${blood.length?`<div class="document-list">${blood.map(row).join('')}</div>`:'<p class="muted">Nessun referto analisi caricato.</p>'}</section>
   <section class="card"><div class="section-head"><h2>Altri documenti sanitari</h2><span class="pill">${other.length}</span></div><p class="muted">Referti o documenti sanitari senza elaborazione specifica.</p><button class="secondary" id="chooseOtherHealthDocument">＋ Carica documento</button>${other.length?`<div class="document-list">${other.map(row).join('')}</div>`:'<p class="muted">Nessun altro documento sanitario caricato.</p>'}</section>

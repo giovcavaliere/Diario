@@ -2968,3 +2968,7 @@ body.android-phone-landscape:not(.landing-body):not(.pro-body) .card{
 .plan-status-badge,.plan-future-badge{display:inline-flex;align-items:center;margin-left:8px;padding:2px 7px;border-radius:999px;font-size:9px;font-weight:900;line-height:1.4;vertical-align:middle}
 .plan-status-badge{background:#e7f5de;color:#3d7614}.plan-future-badge{background:#eef2f6;color:#536372}
 @media(max-width:600px){.plan-current-summary{align-items:flex-start;flex-direction:column}.plan-current-summary button{width:100%}}
+
+/* NUBEMO 3.70 — Documenti contabili */
+.document-pro-section+.document-pro-section{margin-top:28px;padding-top:24px;border-top:1px solid #e3eaec}
+.accounting-documents-section .document-form{margin-bottom:16px}

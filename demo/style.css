@@ -2730,3 +2730,29 @@ body.pro-body.ipad-layout .drawer-logout strong{
 /* NUBEMO 3.56 — PDF: pagina 2 tabellare + diario tabellare per giorno */
 
 /* NUBEMO 3.57 — PDF: sezioni stabili, misure tabellari, dettaglio settimanale, diario più leggibile */
+
+
+/* NUBEMO 3.60 — Documents Core */
+.document-form{margin-top:16px;padding-top:16px;border-top:1px solid #e3ebe1}
+.document-file-name{padding:12px 14px;border:1px solid #dce7d8;border-radius:14px;background:#f7faf5;color:#40564c;font-weight:700;overflow-wrap:anywhere}
+.document-list{display:flex;flex-direction:column;margin-top:12px}
+.document-row{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px 2px;border-top:1px solid #e7eee4}
+.document-row:first-child{border-top:0}
+.document-row>div:first-child{min-width:0}
+.document-row b,.document-row span{display:block}
+.document-row b{color:#073f38;overflow-wrap:anywhere}
+.document-row span{margin-top:4px;color:#718078;font-size:12px;overflow-wrap:anywhere}
+.document-row-actions{display:flex;gap:7px;flex:0 0 auto}
+.document-pro-upload{max-width:310px;margin:10px 0 4px}
+@media(max-width:600px){
+ .document-row{align-items:flex-start;flex-direction:column}
+ .document-row-actions{width:100%}
+ .document-row-actions button{flex:1}
+}
+body[data-page=documents] nav button[data-page=documents]{background:#e9f5e3!important;color:#064b43!important}
+body[data-page=documents] nav button[data-page=documents] i{color:#55a90a!important}
+@media(min-width:900px){
+ body[data-page=documents] main#app{max-width:980px}
+}
+
+@media(max-width:520px){body:not(.pro-body) nav button{font-size:9px!important;padding-left:2px!important;padding-right:2px!important}}

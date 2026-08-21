@@ -16,6 +16,63 @@ const DELETED_PATIENTS_KEY='diario-pro-deleted-patients-v1';
 const LABS_KEY='diario-pro-labs-v1',PLAN_META_KEY='diario-pro-plan-meta-v1',PLAN_DB='diario-pro-documents-v1',PLAN_STORE='plans',ACCOUNT_KEY='diario-pro-accounts-v1',PRIVACY_META_KEY='diario-pro-privacy-meta-v1',PENDING_LABS_KEY='diario-pro-pending-labs-v1';
 const PRO_LOGIN_KEY='monubi-pro-login-v1',PRO_SESSION_KEY='monubi-pro-session-v1';
 
+const DOCUMENT_META_KEY='nubemo-documents-meta-v1',DOCUMENT_STORE='documents',DOCUMENT_MAX_BYTES=10*1024*1024;
+function documentMetaList(){try{return JSON.parse(localStorage.getItem(DOCUMENT_META_KEY)||'[]')||[]}catch(e){return []}}
+function saveDocumentMetaList(items){localStorage.setItem(DOCUMENT_META_KEY,JSON.stringify(items))}
+function documentTitleFromFile(name=''){return String(name).replace(/\.[^.]+$/,'').replace(/[_-]+/g,' ').replace(/\s+/g,' ').trim()}
+function documentId(prefix='doc'){return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2,8)}`}
+async function writeDocumentBlob(fileId,file){const db=await openPlanDb();return new Promise((res,rej)=>{const tx=db.transaction(DOCUMENT_STORE,'readwrite');tx.objectStore(DOCUMENT_STORE).put(file,fileId);tx.oncomplete=()=>res();tx.onerror=()=>rej(tx.error)})}
+async function readDocumentBlob(fileId){const db=await openPlanDb();return new Promise((res,rej)=>{const r=db.transaction(DOCUMENT_STORE,'readonly').objectStore(DOCUMENT_STORE).get(fileId);r.onsuccess=()=>res(r.result||null);r.onerror=()=>rej(r.error)})}
+async function deleteDocumentBlob(fileId){const db=await openPlanDb();return new Promise((res,rej)=>{const tx=db.transaction(DOCUMENT_STORE,'readwrite');tx.objectStore(DOCUMENT_STORE).delete(fileId);tx.oncomplete=()=>res();tx.onerror=()=>rej(tx.error)})}
+async function openProfessionalDocument(id){
+ const d=documentMetaList().find(x=>x.id===id&&x.patientId===selected);if(!d)return alert('Documento non trovato.');
+ const blob=await readDocumentBlob(d.fileId);if(!blob)return alert('File non disponibile.');
+ const url=URL.createObjectURL(blob);window.open(url,'_blank');setTimeout(()=>URL.revokeObjectURL(url),60000);
+}
+function proDocuments(p){
+ const docs=documentMetaList().filter(d=>d.patientId===p.id&&d.category==='health'&&d.subCategory==='other').sort((a,b)=>String(b.documentDate||b.uploadedAt).localeCompare(String(a.documentDate||a.uploadedAt)));
+ return `<div class="section-head"><h2>Documenti sanitari</h2><span class="pill">${docs.length}</span></div>
+ <p class="muted">Archivio documentale condiviso della demo. I documenti caricati dal paziente sono consultabili qui; l’eliminazione è riservata al professionista.</p>
+ <input id="proDocumentFile" type="file" accept=".pdf,application/pdf,image/*" hidden>
+ <button class="primary document-pro-upload" id="chooseProDocument">＋ Carica documento sanitario</button>
+ <div id="proDocumentForm" class="document-form" hidden>
+   <label>File</label><div class="document-file-name" id="proDocumentFileName"></div>
+   <label>Titolo documento</label><input id="proDocumentTitle">
+   <label>Data documento</label>${proDateControl('proDocumentDate',today())}
+   <div class="pro3-actions"><button class="primary" id="saveProDocument">Salva documento</button><button class="secondary" id="cancelProDocument">Annulla</button></div>
+ </div>
+ ${docs.length?`<div class="document-list">${docs.map(d=>`<div class="document-row"><div><b>${esc(d.title)}</b><span>${d.documentDate?fmt(d.documentDate):'Data non indicata'} · ${esc(d.fileName||'Documento')} · ${d.uploadedBy==='patient'?'Caricato dal paziente':'Caricato dal professionista'}</span></div><div class="document-row-actions"><button class="secondary compact" data-open-pro-document="${d.id}">Apri</button><button class="mini danger-text" data-delete-pro-document="${d.id}">Elimina</button></div></div>`).join('')}</div>`:'<p class="muted">Nessun documento sanitario caricato.</p>'}`;
+}
+function bindProDocuments(){
+ let selectedFile=null;
+ const choose=el('chooseProDocument'),input=el('proDocumentFile'),form=el('proDocumentForm');
+ if(choose&&input)choose.onclick=()=>input.click();
+ if(input)input.onchange=()=>{
+   const f=input.files?.[0];if(!f)return;
+   if(f.size>DOCUMENT_MAX_BYTES){input.value='';return alert('Il documento supera il limite di 10 MB previsto per la demo.')}
+   selectedFile=f;el('proDocumentFileName').textContent=f.name;el('proDocumentTitle').value=documentTitleFromFile(f.name);form.hidden=false;choose.hidden=true;
+ };
+ el('cancelProDocument')?.addEventListener('click',()=>{input.value='';selectedFile=null;form.hidden=true;choose.hidden=false});
+ el('saveProDocument')?.addEventListener('click',async()=>{
+   if(!selectedFile)return alert('Seleziona un file.');
+   const title=(el('proDocumentTitle').value||'').trim(),date=readProDate('proDocumentDate');
+   if(!title)return alert('Inserisci il titolo del documento.');
+   if(!date)return alert('Inserisci una data valida.');
+   const id=documentId(),fileId=documentId('file');
+   try{
+     await writeDocumentBlob(fileId,selectedFile);
+     const items=documentMetaList();items.push({id,patientId:selected,category:'health',subCategory:'other',title,documentDate:date,fileId,fileName:selectedFile.name,mimeType:selectedFile.type||'application/octet-stream',fileSize:selectedFile.size,uploadedBy:'professional',uploadedAt:new Date().toISOString(),documentNumber:null,validFrom:null});
+     saveDocumentMetaList(items);render();
+   }catch(e){console.error(e);alert('Non riesco a salvare il documento.')}
+ });
+ document.querySelectorAll('[data-open-pro-document]').forEach(b=>b.onclick=()=>openProfessionalDocument(b.dataset.openProDocument));
+ document.querySelectorAll('[data-delete-pro-document]').forEach(b=>b.onclick=async()=>{
+   const id=b.dataset.deleteProDocument,items=documentMetaList(),d=items.find(x=>x.id===id&&x.patientId===selected);if(!d)return;
+   if(!confirm(`Eliminare "${d.title}" dalla cartella del paziente?`))return;
+   try{await deleteDocumentBlob(d.fileId);saveDocumentMetaList(items.filter(x=>x.id!==id));render()}catch(e){console.error(e);alert('Non riesco a eliminare il documento.')}
+ });
+}
+
 const el=id=>document.getElementById(id);
 const load=(k,d)=>{try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}};
 const save=(k,v)=>localStorage.setItem(k,JSON.stringify(v));
@@ -171,7 +228,7 @@ function appointments(){
   return a;
 }
 
-function labsFor(id){const m=load(LABS_KEY,{});return Array.isArray(m[id])?m[id]:[]}function saveLabsFor(id,r){const m=load(LABS_KEY,{});m[id]=r;save(LABS_KEY,m)}function planMetaFor(id){return load(PLAN_META_KEY,{})[id]||null}function savePlanMeta(id,v){const m=load(PLAN_META_KEY,{});if(v)m[id]=v;else delete m[id];save(PLAN_META_KEY,m)}function openPlanDb(){return new Promise((res,rej)=>{const r=indexedDB.open(PLAN_DB,2);r.onupgradeneeded=()=>{if(!r.result.objectStoreNames.contains(PLAN_STORE))r.result.createObjectStore(PLAN_STORE);if(!r.result.objectStoreNames.contains('privacy'))r.result.createObjectStore('privacy');if(!r.result.objectStoreNames.contains('labUploads'))r.result.createObjectStore('labUploads')};r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)})}async function writePlanPdf(id,b){const db=await openPlanDb();return new Promise((res,rej)=>{const tx=db.transaction(PLAN_STORE,'readwrite');tx.objectStore(PLAN_STORE).put(b,id);tx.oncomplete=res;tx.onerror=()=>rej(tx.error)})}async function readPlanPdf(id){const db=await openPlanDb();return new Promise((res,rej)=>{const r=db.transaction(PLAN_STORE,'readonly').objectStore(PLAN_STORE).get(id);r.onsuccess=()=>res(r.result||null);r.onerror=()=>rej(r.error)})}async function deletePlanPdf(id){const db=await openPlanDb();return new Promise((res,rej)=>{const tx=db.transaction(PLAN_STORE,'readwrite');tx.objectStore(PLAN_STORE).delete(id);tx.oncomplete=res;tx.onerror=()=>rej(tx.error)})}
+function labsFor(id){const m=load(LABS_KEY,{});return Array.isArray(m[id])?m[id]:[]}function saveLabsFor(id,r){const m=load(LABS_KEY,{});m[id]=r;save(LABS_KEY,m)}function planMetaFor(id){return load(PLAN_META_KEY,{})[id]||null}function savePlanMeta(id,v){const m=load(PLAN_META_KEY,{});if(v)m[id]=v;else delete m[id];save(PLAN_META_KEY,m)}function openPlanDb(){return new Promise((res,rej)=>{const r=indexedDB.open(PLAN_DB,3);r.onupgradeneeded=()=>{if(!r.result.objectStoreNames.contains(PLAN_STORE))r.result.createObjectStore(PLAN_STORE);if(!r.result.objectStoreNames.contains('privacy'))r.result.createObjectStore('privacy');if(!r.result.objectStoreNames.contains('documents'))r.result.createObjectStore('documents');if(!r.result.objectStoreNames.contains('labUploads'))r.result.createObjectStore('labUploads')};r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)})}async function writePlanPdf(id,b){const db=await openPlanDb();return new Promise((res,rej)=>{const tx=db.transaction(PLAN_STORE,'readwrite');tx.objectStore(PLAN_STORE).put(b,id);tx.oncomplete=res;tx.onerror=()=>rej(tx.error)})}async function readPlanPdf(id){const db=await openPlanDb();return new Promise((res,rej)=>{const r=db.transaction(PLAN_STORE,'readonly').objectStore(PLAN_STORE).get(id);r.onsuccess=()=>res(r.result||null);r.onerror=()=>rej(r.error)})}async function deletePlanPdf(id){const db=await openPlanDb();return new Promise((res,rej)=>{const tx=db.transaction(PLAN_STORE,'readwrite');tx.objectStore(PLAN_STORE).delete(id);tx.oncomplete=res;tx.onerror=()=>rej(tx.error)})}
 function extraPatients(){
  return load(EXTRA_PATIENTS_KEY,[]);
 }
@@ -268,6 +325,7 @@ function proDrawer(){
          ['anamnesis','Anamnesi'],
          ['labs','Esami'],
          ['plan','Piano'],
+         ['documents','Documenti'],
          ['privacy','Privacy'],
          ['account','Account'],
          ['diary','Diario'],
@@ -1508,14 +1566,14 @@ function details(){
  </div>
  <div class="patient-desktop-tabs">
    ${[
-     ['summary','Riepilogo'],['anamnesis','Anamnesi'],['labs','Esami'],['plan','Piano'],
+     ['summary','Riepilogo'],['anamnesis','Anamnesi'],['labs','Esami'],['plan','Piano'],['documents','Documenti'],
      ['privacy','Privacy'],['account','Account'],['diary','Diario'],['trend','Andamento'],
      ['measures','Misure'],['visits','Visite'],['notes','Note']
    ].map(([k,l])=>`<button data-patient-tab="${k}" class="${tab===k?'active':''}">${l}</button>`).join('')}
  </div>
  <section class="card patient-content-card">
    <div class="patient-section-head patient-section-head-clean">
-     <div><h2>${[['summary','Riepilogo'],['anamnesis','Anamnesi'],['labs','Esami'],['plan','Piano'],['privacy','Privacy'],['account','Account'],['diary','Diario'],['trend','Andamento'],['measures','Misure'],['visits','Visite'],['notes','Note']].find(x=>x[0]===tab)?.[1]||'Riepilogo'}</h2></div>
+     <div><h2>${[['summary','Riepilogo'],['anamnesis','Anamnesi'],['labs','Esami'],['plan','Piano'],['documents','Documenti'],['privacy','Privacy'],['account','Account'],['diary','Diario'],['trend','Andamento'],['measures','Misure'],['visits','Visite'],['notes','Note']].find(x=>x[0]===tab)?.[1]||'Riepilogo'}</h2></div>
      ${tab==='summary'?`<div class="patient-summary-actions">
        <button class="secondary patient-edit-btn" id="editPatientProfileTop">Modifica scheda</button>
        <button class="primary desktop-clinical-pdf" id="desktopClinicalPdf">↓ Cartella PDF</button>
@@ -2635,6 +2693,7 @@ function tabContent(p){
  if(tab==='anamnesis')return proAnamnesis(p);
  if(tab==='labs')return proLabs(p);
  if(tab==='plan')return proPlan(p);
+ if(tab==='documents')return proDocuments(p);
  if(tab==='privacy')return proPrivacy(p);
  if(tab==='account')return proAccount(p);
  if(tab==='diary')return proDiaryHistory(p);
@@ -3260,6 +3319,7 @@ function render(){
 }
 
 function bind(){
+ if(view==='details'&&tab==='documents')bindProDocuments();
  el('editPatientProfileTop')?.addEventListener('click',()=>{
    view='editProfile';render();scrollTo(0,0);
  });

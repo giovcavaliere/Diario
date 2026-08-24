@@ -48,7 +48,8 @@ const isoToItalianDate=v=>{if(!/^\d{4}-\d{2}-\d{2}$/.test(String(v||'')))return 
 const italianDateToIso=v=>{const s=String(v||'').trim();let m=s.match(/^(\d{1,2})[-\/.](\d{1,2})[-\/.](\d{4})$/);if(!m)return /^\d{4}-\d{2}-\d{2}$/.test(s)?s:'';const d=String(m[1]).padStart(2,'0'),mo=String(m[2]).padStart(2,'0'),y=m[3],iso=`${y}-${mo}-${d}`,dt=new Date(iso+'T12:00:00');return !Number.isNaN(dt.getTime())&&dt.getFullYear()==+y&&dt.getMonth()+1==+mo&&dt.getDate()==+d?iso:''};
 function dateControl(id,isoValue,onchangeFn=''){
  const picker=id+'Picker';
- return `<div class="date-entry"><input id="${id}" inputmode="numeric" placeholder="GG-MM-AAAA" value="${isoToItalianDate(isoValue||'')}"><label class="date-picker-btn" aria-label="Apri calendario">📅<input id="${picker}" type="date" value="${isoValue||''}" onchange="document.getElementById('${id}').value=isoToItalianDate(this.value);${onchangeFn?onchangeFn+'(this.value);':''}"></label></div>`;
+ const manual=onchangeFn?` onblur="const d=italianDateToIso(this.value);if(d&&d!=='${isoValue||''}')${onchangeFn}(d)"`:'';
+ return `<div class="date-entry"><input id="${id}" inputmode="numeric" placeholder="GG-MM-AAAA" value="${isoToItalianDate(isoValue||'')}"${manual}><label class="date-picker-btn" aria-label="Apri calendario">📅<input id="${picker}" type="date" value="${isoValue||''}" onchange="document.getElementById('${id}').value=isoToItalianDate(this.value);${onchangeFn?onchangeFn+'(this.value);':''}"></label></div>`;
 }
 
 const fmt=d=>new Date(d+'T12:00:00').toLocaleDateString('it-IT',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
@@ -1258,7 +1259,7 @@ function home(){
 function formDataFromDOM(){
   let weight=$('#weight')?.value.trim().replace(',','.')??'';
   return {
-    date:$('#date')?.value||editDate||isoToday(),
+    date:italianDateToIso($('#dateText')?.value)||$('#dateTextPicker')?.value||editDate||isoToday(),
     weight:weight===''?'':Number(weight),
     coffee,
     ...Object.fromEntries(['sweetener','breakfast','snack1','lunch','snack2','dinner','notes'].map(k=>[k,$('#'+k)?.value.trim()||'']))

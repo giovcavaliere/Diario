@@ -37,7 +37,7 @@ const loadProfile=()=>{
  const num=k=>p[k]===undefined||p[k]===null||p[k]===''?'':Number(p[k]);
  let first=p.firstName||p.name||'',surname=p.surname||'';
  if(id&&id!=='main'&&!p.firstName&&p.name){const parts=String(p.name).trim().split(/\s+/);first=parts.shift()||'';surname=surname||parts.join(' ')}
- return {name:first,surname,birth:p.birth||'',height:num('height'),sex:p.sex||'',goal:num('goal'),nextVisit:p.nextVisit||'',minWeight:num('minWeight'),maxWeight:num('maxWeight'),reasonableWeight:num('reasonableWeight'),work:p.work||'',activity:p.activity||'',activityFactor:p.activityFactor||'',smoking:p.smoking||'',alcohol:p.alcohol||'',diagnosis:p.diagnosis||'',theoreticalWeight:num('theoreticalWeight'),bowel:p.bowel||'',metabolism:p.metabolism||'',feeg:p.feeg||'',impedance:p.impedance||'',famObesity:!!p.famObesity,famDiabetes:!!p.famDiabetes,famHypertension:!!p.famHypertension,famCardiovascular:!!p.famCardiovascular,famDyslipidemia:!!p.famDyslipidemia,famThyroid:!!p.famThyroid,famGestational:!!p.famGestational,previousDiets:p.previousDiets||'',allergies:p.allergies||'',medications:p.medications||'',giIssues:p.giIssues||'',pastConditions:p.pastConditions||'',observations:p.observations||'',objectives:p.objectives||''};
+ return {name:first,surname,birth:p.birth||'',height:num('height'),sex:p.sex||'',goal:num('goal'),nextVisit:p.nextVisit||'',minWeight:num('minWeight'),maxWeight:num('maxWeight'),reasonableWeight:num('reasonableWeight'),work:p.work||'',activity:p.activity||'',activityFactor:p.activityFactor||'',smoking:p.smoking||'',alcohol:p.alcohol||'',diagnosis:p.diagnosis||'',theoreticalWeight:num('theoreticalWeight'),bowel:p.bowel||'',metabolism:p.metabolism||'',feeg:p.feeg||'',impedance:p.impedance||'',famObesity:!!p.famObesity,famDiabetes:!!p.famDiabetes,famHypertension:!!p.famHypertension,famCardiovascular:!!p.famCardiovascular,famDyslipidemia:!!p.famDyslipidemia,famThyroid:!!p.famThyroid,famGestational:!!p.famGestational,previousDiets:p.previousDiets||'',allergies:p.allergies||'',medications:p.medications||'',giIssues:p.giIssues||'',pastConditions:p.pastConditions||'',observations:p.observations||'',objectives:p.objectives||'',showEnergyValues:p.showEnergyValues!==false};
 };
 const loadMeasures=()=>{const id=activePatientId();if(id&&id!=='main'){const p=activeExtraPatient();return Array.isArray(p?.measures)?JSON.parse(JSON.stringify(p.measures)):[]}try{return JSON.parse(localStorage.getItem(MEASURE_KEY)||'[]')}catch(e){return []}};
 const saveMeasures=d=>{const id=activePatientId();if(id&&id!=='main'){const arr=rawExtraPatients(),i=arr.findIndex(p=>p.id===id);if(i<0)return;arr[i]={...arr[i],measures:d};localStorage.setItem(EXTRA_PATIENTS_KEY,JSON.stringify(arr));return}localStorage.setItem(MEASURE_KEY,JSON.stringify(d))};
@@ -1416,7 +1416,7 @@ function home(){
   </section>
   <div class="patient-dashboard-daily-row">
     <section class="card highlight"><div class="muted caps">ULTIMA RILEVAZIONE</div>${last?`<div class="weight">${(+last.weight).toFixed(1).replace('.',',')} <small>kg</small></div><div class="delta ${deltaClass}">${delta>0?'+':''}${delta.toFixed(1).replace('.',',')} kg dall'inizio</div>${currentBmi?`<div class="bmi-now"><span>BMI</span><b>${currentBmi.toFixed(1).replace('.',',')}</b><small>${bmiLabel(currentBmi)}</small></div>`:''}<p class="muted">${fmt(last.date)}</p>`:'<p class="muted">Inserisci la prima giornata per iniziare.</p>'}</section>
-    <div class="patient-dashboard-summary-wrap">${patientDiaryCalorieSummary()}</div>
+    <div class="patient-dashboard-summary-wrap">${patientEnergyValuesVisible()?patientDiaryCalorieSummary():''}</div>
   </div>
   <div class="patient-dashboard-care-grid">
     <div class="patient-dashboard-goal">${goalHtml}</div>
@@ -1450,7 +1450,7 @@ function add(){
   return `<div class="page-title"><button class="back" onclick="cancelEdit()">‹</button><div><div class="eyebrow">${duplicateDraft?'COPIA RAPIDA':isEdit?'REGISTRAZIONE':'NUOVA REGISTRAZIONE'}</div><h1>${duplicateDraft?'Duplica giornata':isEdit?'Modifica giornata':'Aggiungi giornata'}</h1></div>${isEdit?'<button class="mini danger-text" onclick="deleteDay()">Elimina</button>':''}</div>
   ${duplicateDraft?`<div class="notice">Stai copiando <b>${fmtShort(duplicateSource)}</b>. Peso escluso: modifica quello che vuoi e salva con una nuova data.</div>`:''}
   <section class="card form-card"><label>Data</label><div class="date-entry"><input id="dateText" type="text" inputmode="numeric" placeholder="GG-MM-AAAA" value="${isoToItalianDate(targetDate)}" onblur="manualDateChanged(this.value)"><label class="date-picker-btn" title="Apri calendario">📅<input id="datePicker" type="date" value="${targetDate}" onchange="pickerDateChanged(this.value)"></label></div>${targetExists?'<div class="warning">Questa data è già registrata. Scegline un’altra per evitare duplicati.</div>':''}
-  ${(()=>{
+  ${patientEnergyValuesVisible()?(()=>{
     const ce=calorieEstimateDay(data);
     const bmr=patientBmr();
     return `<div class="diary-top-metrics">
@@ -1466,7 +1466,7 @@ function add(){
       </div>
     </div>
     <p class="calorie-writing-tip-single">Per una stima più accurata indica <b>quantità + alimento</b>, separandoli con <b>+</b> o andando a capo. Esempio: <b>150 g yogurt greco + 45 g biscotti</b>.</p>`;
-  })()}
+  })():''}
   <label>Peso (kg)</label><input id="weight" inputmode="decimal" placeholder="es. 115,6" value="${data.weight??''}">
   <div class="water-entry">
     <div class="water-entry-icon">💧</div>
@@ -1478,6 +1478,56 @@ function add(){
 }
 
 
+function nubemoDeviceInfo(){
+ const ua=navigator.userAgent||'';
+ let device=/iPhone/i.test(ua)?'iPhone':/iPad/i.test(ua)?'iPad':/Android/i.test(ua)?'Android':/Windows/i.test(ua)?'Windows PC':/Macintosh/i.test(ua)?'Mac':'Dispositivo non identificato';
+ let browser=/Edg\//.test(ua)?'Edge':/CriOS\//.test(ua)?'Chrome iOS':/Chrome\//.test(ua)?'Chrome':/FxiOS\//.test(ua)?'Firefox iOS':/Firefox\//.test(ua)?'Firefox':/Safari\//.test(ua)?'Safari':'Browser non identificato';
+ return `${device} · ${browser} · ${innerWidth}×${innerHeight}`;
+}
+function patientSupportPage(){
+ return `<div class="page-title"><button class="back" onclick="go('profile')">‹</button><div><div class="eyebrow">SUPPORTO TECNICO</div><h1>Assistenza NUBEMO</h1></div></div>
+ <section class="card support-card">
+   <h2>Segnala un problema</h2>
+   <p>Hai riscontrato un problema tecnico nell'app? Descrivilo qui sotto: NUBEMO preparerà una mail per l'assistenza con alcune informazioni tecniche utili.</p>
+   <div class="support-tech-info"><span>Area</span><b>Paziente</b><span>Versione</span><b>3.89</b><span>Dispositivo</span><b>${escapeHtml(nubemoDeviceInfo())}</b></div>
+   <label>Area dell'app</label>
+   <select id="patientSupportArea">
+     <option value="Dashboard">Dashboard</option>
+     <option value="Aggiungi giornata">Aggiungi giornata</option>
+     <option value="Andamento">Andamento</option>
+     <option value="Misure">Misure</option>
+     <option value="Documenti">Documenti</option>
+     <option value="Profilo">Profilo</option>
+     <option value="Altro">Altro</option>
+   </select>
+   <label>Descrivi cosa è successo</label>
+   <textarea id="patientSupportMessage" rows="6" placeholder="Es. Ho aperto la giornata del 21/08, ho premuto Duplica..."></textarea>
+   <button class="primary support-send" type="button" onclick="sendPatientSupport()">Prepara email all'assistenza</button>
+   <p class="muted support-privacy">Vengono inserite nella mail solo informazioni tecniche e il testo che scrivi. Peso, diario, dati clinici e documenti non vengono allegati automaticamente.</p>
+ </section>
+ <section class="card support-care-note"><b>Per questioni sul tuo percorso alimentare</b><p>Contatta direttamente il tuo professionista. Questa sezione è dedicata esclusivamente ai problemi tecnici di NUBEMO.</p></section>`;
+}
+window.sendPatientSupport=()=>{
+ const msg=($('#patientSupportMessage')?.value||'').trim();
+ if(!msg)return alert('Descrivi brevemente il problema prima di continuare.');
+ const supportArea=$('#patientSupportArea')?.value||'Altro';
+ const subject='NUBEMO - Segnalazione problema Area Paziente';
+ const body=`Segnalazione problema NUBEMO
+
+Versione: 3.89
+Area: Paziente
+Sezione selezionata: ${supportArea}
+Pagina tecnica: ${page}
+Dispositivo / browser: ${nubemoDeviceInfo()}
+
+Descrizione:
+${msg}
+
+---
+Messaggio generato da NUBEMO. Nessun dato clinico è stato allegato automaticamente.`;
+ location.href=`mailto:giov.cavaliere@gmail.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+};
+
 function profilePage(){
   const p=loadProfile();
   const last=weighted().at(-1);
@@ -1485,6 +1535,11 @@ function profilePage(){
   const sexLabel=p.sex==='M'?'Maschile':p.sex==='F'?'Femminile':p.sex==='X'?'Altro / preferisco non specificare':'—';
 
   return `<div class="page-title"><button class="back" onclick="go('home')">‹</button><div><div class="eyebrow">DATI PERSONALI</div><h1>Profilo</h1></div></div>
+
+  <section class="card support-entry-card">
+    <div><div class="eyebrow">SUPPORTO TECNICO</div><h2>Assistenza NUBEMO</h2><p class="muted">Problemi con l'app? Segnalali direttamente al servizio NUBEMO, senza passare dal professionista.</p></div>
+    <button class="secondary" type="button" onclick="go('support')">Segnala un problema</button>
+  </section>
 
   <section class="card">
     <div class="section-head"><h2>Profilo gestito dal professionista</h2></div>
@@ -1746,6 +1801,8 @@ window.exportMeasuresPDF=()=>{
 };
 
 
+function patientEnergyValuesVisible(){return loadProfile().showEnergyValues!==false}
+
 function patientAgeYears(birth){
   if(!birth)return null;
   const b=new Date(birth+'T12:00:00'),n=new Date();
@@ -1783,7 +1840,7 @@ function trend(){
   <section class="card chart-card"><div class="section-head"><h2>BMI</h2>${currentBmi?`<span class="pill">${currentBmi.toFixed(1).replace('.',',')} · ${bmiLabel(currentBmi)}</span>`:'<span class="pill">Profilo</span>'}</div><div class="tabs">${[[7,'7 giorni'],[30,'30 giorni'],[90,'3 mesi'],[0,'Tutto']].map(([n,l])=>`<button class="${bmiDays===n?'active':''}" onclick="bmiDays=${n};render()">${l}</button>`).join('')}</div>${bmiChart(all,bmiDays)}</section>
   <section class="card"><div class="section-head"><h2>Storico</h2><div class="head-actions"><button class="mini" onclick="showImport()">↑ Importa storico</button><button class="mini" onclick="exportBackup()">↓ Backup</button><button class="mini" onclick="document.getElementById('backupFile').click()">↑ Ripristina</button><input id="backupFile" type="file" accept=".json,application/json" style="display:none" onchange="restoreBackup(event)"><button class="mini" onclick="exportPDF()">↓ Esporta PDF</button></div></div>
   <div class="search-wrap"><input id="historySearch" type="search" placeholder="Cerca nello storico…" value="${escapeHtml(historySearch)}" oninput="historySearch=this.value;renderPreserveSearch()"></div>
-  ${history.map(x=>`<div class="listitem" onclick="edit('${x.date}')"><span><b>${fmtShort(x.date)}</b><small>${fmt(x.date).split(' ')[0]}</small></span><div class="history-right"><b>${kg(x.weight)}</b>${x.water!==''&&x.water!=null?`<small>💧 ${Number(x.water).toFixed(1).replace('.',',')} L acqua</small>`:''}${p.height&&x.weight!==''?`<small>BMI ${bmiFor(x.weight,p.height).toFixed(1).replace('.',',')}</small>`:''}${(()=>{const ce=calorieEstimateDay(x);return (ce.calculated+ce.genericQuantity)>0?`<small>${ce.calories} kcal · stima ${ce.qualityLabel.toLowerCase()}</small>`:''})()}</div></div>`).join('')||'<p class="muted">Nessuna giornata trovata.</p>'}</section>`;
+  ${history.map(x=>`<div class="listitem" onclick="edit('${x.date}')"><span><b>${fmtShort(x.date)}</b><small>${fmt(x.date).split(' ')[0]}</small></span><div class="history-right"><b>${kg(x.weight)}</b>${x.water!==''&&x.water!=null?`<small>💧 ${Number(x.water).toFixed(1).replace('.',',')} L acqua</small>`:''}${p.height&&x.weight!==''?`<small>BMI ${bmiFor(x.weight,p.height).toFixed(1).replace('.',',')}</small>`:''}${patientEnergyValuesVisible()?(()=>{const ce=calorieEstimateDay(x);return (ce.calculated+ce.genericQuantity)>0?`<small>${ce.calories} kcal · stima ${ce.qualityLabel.toLowerCase()}</small>`:''})():''}</div></div>`).join('')||'<p class="muted">Nessuna giornata trovata.</p>'}</section>`;
 }
 window.renderPreserveSearch=()=>{
   const pos=document.scrollingElement?.scrollTop||0;
@@ -2083,7 +2140,7 @@ function render(){
   document.body.dataset.page=page;
   const ac=accountMap(),id=activePatientId();const logoutBtn=document.getElementById('patientLogoutBtn');if(!id||!ac[id]||ac[id].active===false){if(logoutBtn)logoutBtn.style.display='none';document.body.dataset.page='login';$('#app').innerHTML=loginPage();return}
   if(logoutBtn)logoutBtn.style.display='inline-flex';
-  $('#app').innerHTML=page==='home'?home():page==='add'?add():page==='import'?importPage():page==='profile'?profilePage():page==='measures'?measuresPage():page==='documents'?documentsPage():trend();
+  $('#app').innerHTML=page==='home'?home():page==='add'?add():page==='import'?importPage():page==='profile'?profilePage():page==='support'?patientSupportPage():page==='measures'?measuresPage():page==='documents'?documentsPage():trend();
   const appRoot=$('#app');
   if(!document.getElementById('patient-profile-read-style')){
     const st=document.createElement('style');
@@ -2216,8 +2273,9 @@ window.saveDay=()=>{
    editDate=null;duplicateDraft=null;duplicateSource=null;page='home';render();
  };
 
- // Se ci sono pasti compilati mostriamo sempre il controllo prima del salvataggio.
- if(estimate.total)showCalorieSaveReview(estimate,register);
+ // Il controllo degli alimenti riconosciuti è visibile solo se il professionista
+ // ha abilitato calorie e valori energetici per il paziente.
+ if(patientEnergyValuesVisible()&&estimate.total)showCalorieSaveReview(estimate,register);
  else register();
 };
 

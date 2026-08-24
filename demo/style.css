@@ -3057,3 +3057,297 @@ body.android-phone-landscape:not(.landing-body):not(.pro-body) .card{
     margin-bottom:22px;
   }
 }
+
+
+/* NUBEMO 3.76 — posizione Elimina in Modifica giornata su iPad */
+@media (min-width:521px) and (max-width:1180px){
+  body[data-page=add] .page-title > .danger-text{
+    margin-left:auto!important;
+    flex:0 0 auto;
+  }
+}
+
+
+/* NUBEMO 3.77 — Agenda: ricerca paziente + creazione rapida */
+.agenda-patient-picker{display:grid;gap:10px}
+.agenda-patient-picker>input[type=search]{margin:0}
+.agenda-patient-results{
+  display:grid;
+  gap:6px;
+  max-height:230px;
+  overflow:auto;
+  padding:4px;
+  border:1px solid rgba(8,77,64,.10);
+  border-radius:16px;
+  background:rgba(247,250,248,.78);
+}
+.agenda-patient-option{
+  width:100%;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  padding:11px 13px;
+  border:1px solid transparent;
+  border-radius:12px;
+  background:#fff;
+  color:var(--ink);
+  text-align:left;
+  box-shadow:none;
+}
+.agenda-patient-option:hover{border-color:rgba(22,125,137,.25)}
+.agenda-patient-option.selected{
+  border-color:var(--accent);
+  background:var(--soft);
+  box-shadow:inset 3px 0 0 var(--accent);
+}
+.agenda-patient-option span{font-weight:800;min-width:0}
+.agenda-patient-option small{color:var(--muted);white-space:nowrap}
+.agenda-new-patient-toggle{justify-self:start;margin:0!important}
+.agenda-quick-patient{
+  padding:16px;
+  border:1px solid rgba(8,77,64,.12);
+  border-radius:18px;
+  background:rgba(255,255,255,.86);
+}
+.agenda-quick-patient[hidden]{display:none!important}
+.agenda-quick-patient h3{margin:0;font-size:17px}
+.agenda-quick-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(max-width:600px){
+  .agenda-quick-grid{grid-template-columns:1fr}
+  .agenda-patient-option{align-items:flex-start;flex-direction:column;gap:2px}
+  .agenda-patient-results{max-height:210px}
+}
+
+
+/* NUBEMO 3.78 — fix filtro ricerca pazienti Agenda */
+.agenda-patient-option[hidden]{
+  display:none!important;
+}
+
+
+/* NUBEMO 3.79 — Data inizio percorso */
+.patient-start-date-help{
+  margin:7px 0 2px;
+  font-size:12px;
+  line-height:1.45;
+}
+
+
+/* NUBEMO 3.81 — nota interna per piano alimentare */
+.plan-private-note-help{
+  margin:6px 0 2px;
+  font-size:12px;
+}
+.plan-history-copy{
+  min-width:0;
+  flex:1;
+}
+.plan-professional-note{
+  margin-top:8px;
+  padding:8px 10px;
+  border-left:3px solid #9dbf73;
+  border-radius:0 10px 10px 0;
+  background:#f6faef;
+}
+.plan-professional-note strong{
+  display:block;
+  margin-bottom:2px;
+  font-size:10px;
+  letter-spacing:.07em;
+  text-transform:uppercase;
+  color:#66863f;
+}
+.plan-professional-note p{
+  margin:0;
+  font-size:13px;
+  line-height:1.4;
+  color:#33463f;
+}
+.plan-professional-note.empty{
+  opacity:.7;
+  background:#f8faf8;
+}
+.plan-note-editor{
+  margin-top:9px;
+  padding:10px;
+  border:1px solid rgba(8,77,64,.12);
+  border-radius:13px;
+  background:#fff;
+}
+.plan-note-editor[hidden]{display:none!important}
+.plan-note-editor textarea{margin:0}
+.plan-note-editor .pro3-actions{margin-top:8px}
+@media(max-width:700px){
+  .plan-history-row{
+    align-items:flex-start;
+  }
+  .plan-history-row .document-row-actions{
+    width:100%;
+    flex-wrap:wrap;
+  }
+}
+
+
+/* NUBEMO 3.82 — scelta periodo PDF diario */
+.diary-export-modal{max-width:520px}
+.diary-period-options{display:grid;gap:9px;margin-top:16px}
+.diary-period-options button{
+  display:flex;flex-direction:column;align-items:flex-start;gap:3px;
+  width:100%;padding:14px 16px;border:1px solid rgba(8,77,64,.13);
+  border-radius:15px;background:#f8fbf7;color:var(--ink);text-align:left;
+}
+.diary-period-options button:hover{border-color:var(--accent);background:var(--soft)}
+.diary-period-options b{font-size:15px}
+.diary-period-options span{font-size:12px;color:var(--muted);font-weight:500}
+
+
+/* NUBEMO 3.83 — filtro pazienti con documenti da leggere */
+.patient-list-tools{display:grid;gap:10px;margin-bottom:12px}
+.patient-list-tools #searchPatient{margin:0}
+.patient-unread-filter{
+  display:flex;align-items:center;gap:9px;width:max-content;max-width:100%;
+  padding:9px 12px;border:1px solid rgba(8,77,64,.13);border-radius:13px;
+  background:#f8fbf9;cursor:pointer;font-size:13px;font-weight:700;color:#42575d;
+}
+.patient-unread-filter input{width:17px;height:17px;margin:0;accent-color:var(--accent)}
+.patient-unread-filter b{
+  min-width:22px;padding:2px 7px;border-radius:999px;background:#fff;
+  text-align:center;font-size:11px;color:var(--accent);
+}
+.patient-filter-empty{
+  display:flex;flex-direction:column;gap:4px;padding:22px 16px;
+  border:1px dashed rgba(8,77,64,.18);border-radius:15px;text-align:center;color:#53666c;
+}
+.patient-filter-empty span{font-size:12px;color:var(--muted)}
+@media(max-width:600px){
+ .patient-unread-filter{width:100%;box-sizing:border-box}
+}
+
+
+/* NUBEMO 3.86 — Modifica scheda globale nella testata paziente */
+.patient-global-head{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:20px;
+  margin-bottom:14px;
+}
+.patient-global-title{
+  flex:1 1 auto;
+  min-width:0;
+}
+.patient-global-title .pro3-top{
+  margin-bottom:0;
+}
+.patient-global-edit{
+  flex:0 0 auto;
+  width:auto!important;
+  min-width:160px!important;
+  margin-top:24px;
+  padding:11px 18px!important;
+  white-space:nowrap;
+}
+@media(max-width:899px){
+  .patient-global-head{
+    align-items:center;
+    gap:12px;
+  }
+  .patient-global-edit{
+    margin-top:8px;
+    min-width:auto!important;
+    padding:10px 14px!important;
+  }
+}
+@media(max-width:600px){
+  .patient-global-head{
+    display:grid;
+    grid-template-columns:minmax(0,1fr);
+    gap:8px;
+  }
+  .patient-global-edit{
+    margin-top:0;
+    width:100%!important;
+    justify-self:stretch;
+  }
+}
+
+
+/* NUBEMO 3.87 — allineamento Modifica scheda su iPhone landscape */
+@media (orientation:landscape) and (max-width:950px){
+  .iphone-landscape .patient-global-head{
+    align-items:flex-start!important;
+  }
+  .iphone-landscape .patient-global-edit{
+    margin-top:0!important;
+    align-self:flex-start!important;
+  }
+}
+
+
+/* NUBEMO 3.88 — Assistenza NUBEMO */
+.support-entry-card{
+  display:flex;align-items:center;justify-content:space-between;gap:18px;
+}
+.support-entry-card h2{margin:2px 0 5px}
+.support-entry-card p{margin:0}
+.support-entry-card button{flex:0 0 auto;width:auto}
+.support-card{max-width:760px}
+.support-card>p{line-height:1.55}
+.support-tech-info{
+  display:grid;grid-template-columns:max-content minmax(0,1fr);
+  gap:7px 14px;margin:16px 0;padding:14px 16px;
+  border:1px solid rgba(8,77,64,.12);border-radius:15px;background:#f8fbf9;
+}
+.support-tech-info span{font-size:12px;color:var(--muted)}
+.support-tech-info b{font-size:13px;overflow-wrap:anywhere}
+.support-send{margin-top:12px}
+.support-privacy{margin:10px 0 0!important;font-size:12px;line-height:1.45!important}
+.support-care-note b{display:block;margin-bottom:5px}
+.support-care-note p{margin:0;color:var(--muted);line-height:1.5}
+@media(max-width:600px){
+ .support-entry-card{display:grid;grid-template-columns:1fr}
+ .support-entry-card button{width:100%}
+ .support-tech-info{grid-template-columns:1fr;gap:3px}
+ .support-tech-info b{margin-bottom:7px}
+}
+
+
+/* NUBEMO 3.89 — Assistenza: layout + selezione area */
+.support-care-note{
+  max-width:760px;
+}
+.support-card select{
+  width:100%;
+  margin-bottom:14px;
+}
+@media(max-width:600px){
+  .support-care-note{
+    max-width:none;
+  }
+}
+
+
+/* NUBEMO 3.92 — icona Assistenza NUBEMO */
+.support-menu-icon{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  flex:0 0 18px;
+  width:18px;
+  height:18px;
+  font-weight:900;
+  line-height:1;
+}
+
+
+/* NUBEMO 3.93 — controllo calorie e valori energetici */
+.patient-energy-setting{
+  margin-top:22px;
+  padding:16px;
+  border:1px solid rgba(8,77,64,.12);
+  border-radius:16px;
+  background:#f8fbf9;
+}
+.patient-energy-setting h2{margin:0 0 14px}
+.patient-energy-setting p{margin:8px 0 0;line-height:1.5}

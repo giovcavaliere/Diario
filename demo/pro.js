@@ -4058,8 +4058,17 @@ el('filterUnreadPatients')?.addEventListener('change',e=>{
    selectAgendaPatient(id);
    if(el('ePatientSearch'))el('ePatientSearch').value=p?.name||'';
    document.querySelectorAll('[data-agenda-patient]').forEach(b=>b.hidden=false);
+
+   // Un paziente creato direttamente dall'Agenda è un nuovo paziente:
+   // l'appuntamento viene quindi proposto automaticamente come Prima visita.
+   const typeSelect=el('eType');
+   if(typeSelect){
+     typeSelect.value='first';
+     typeSelect.dispatchEvent(new Event('change'));
+   }
+
    const box=el('agendaQuickPatient');if(box)box.hidden=true;
-   alert('Paziente creato e selezionato per l’appuntamento.');
+   alert('Paziente creato e selezionato. Appuntamento impostato come Prima visita.');
  });
  el('eType')?.addEventListener('change',()=>{const t=el('eType').value,s=settings();el('patientBox').style.display=t==='personal'?'none':'block';el('titleBox').style.display=t==='personal'?'block':'none';if(t==='first')el('eDuration').value=s.first;if(t==='control')el('eDuration').value=s.control});
  el('cancelEvent')?.addEventListener('click',()=>{

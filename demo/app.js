@@ -39,6 +39,19 @@ const loadProfile=()=>{
  if(id&&id!=='main'&&!p.firstName&&p.name){const parts=String(p.name).trim().split(/\s+/);first=parts.shift()||'';surname=surname||parts.join(' ')}
  return {name:first,surname,birth:p.birth||'',height:num('height'),sex:p.sex||'',goal:num('goal'),nextVisit:p.nextVisit||'',minWeight:num('minWeight'),maxWeight:num('maxWeight'),reasonableWeight:num('reasonableWeight'),work:p.work||'',activity:p.activity||'',activityFactor:p.activityFactor||'',smoking:p.smoking||'',alcohol:p.alcohol||'',diagnosis:p.diagnosis||'',theoreticalWeight:num('theoreticalWeight'),bowel:p.bowel||'',metabolism:p.metabolism||'',feeg:p.feeg||'',impedance:p.impedance||'',famObesity:!!p.famObesity,famDiabetes:!!p.famDiabetes,famHypertension:!!p.famHypertension,famCardiovascular:!!p.famCardiovascular,famDyslipidemia:!!p.famDyslipidemia,famThyroid:!!p.famThyroid,famGestational:!!p.famGestational,previousDiets:p.previousDiets||'',allergies:p.allergies||'',medications:p.medications||'',giIssues:p.giIssues||'',pastConditions:p.pastConditions||'',observations:p.observations||'',objectives:p.objectives||'',showEnergyValues:p.showEnergyValues!==false,readOnly:!!p.readOnly};
 };
+const saveProfile=p=>{
+ const clean={...(p||{})}; delete clean.nextVisit;
+ const id=activePatientId();
+ if(id&&id!=='main'){
+   const arr=rawExtraPatients(),i=arr.findIndex(x=>x.id===id);if(i<0)return;
+   arr[i]={...arr[i],...clean,firstName:clean.name??arr[i].firstName??'',surname:clean.surname??arr[i].surname??''};
+   arr[i].name=[arr[i].firstName,arr[i].surname].filter(Boolean).join(' ');delete arr[i].nextVisit;
+   localStorage.setItem(EXTRA_PATIENTS_KEY,JSON.stringify(arr));return;
+ }
+ let current={};try{current=JSON.parse(localStorage.getItem(PROFILE_KEY)||'{}')||{}}catch(e){}
+ const merged={...current,...clean};delete merged.nextVisit;
+ localStorage.setItem(PROFILE_KEY,JSON.stringify(merged));
+};
 const loadMeasures=()=>{const id=activePatientId();if(id&&id!=='main'){const p=activeExtraPatient();return Array.isArray(p?.measures)?JSON.parse(JSON.stringify(p.measures)):[]}try{return JSON.parse(localStorage.getItem(MEASURE_KEY)||'[]')}catch(e){return []}};
 const saveMeasures=d=>{const id=activePatientId();if(id&&id!=='main'){const arr=rawExtraPatients(),i=arr.findIndex(p=>p.id===id);if(i<0)return;arr[i]={...arr[i],measures:d};localStorage.setItem(EXTRA_PATIENTS_KEY,JSON.stringify(arr));return}localStorage.setItem(MEASURE_KEY,JSON.stringify(d))};
 const isoToday=()=>{let d=new Date(),z=d.getTimezoneOffset()*60000;return new Date(d-z).toISOString().slice(0,10)};
@@ -1968,7 +1981,7 @@ function exportBackup(){
     app:"Diario",
     version:1,
     exportedAt:new Date().toISOString(),
-    profile:loadProfile(),
+    profile:(()=>{const p={...loadProfile()};delete p.nextVisit;return p;})(),
     measurements:loadMeasures(),
     entries:entries
   };

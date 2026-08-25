@@ -397,7 +397,7 @@ function ensureImportedFriendPatient(){
  if(deleted.has(id))return;
  const arr=extraPatients();
  if(arr.some(x=>x.id===id))return;
- arr.push({"id":"patient-gianluca-real","name":"Gianluca","firstName":"Gianluca","surname":"","birth":"1984-07-23","height":180,"sex":"M","goal":95,"nextVisit":"2026-09-09","minWeight":"","maxWeight":"","reasonableWeight":"","work":"","activity":"","smoking":"No","alcohol":"Raramente","weights":[["2026-01-22",124.5],["2026-02-26",120],["2026-04-16",114.5],["2026-06-18",110],["2026-08-10",110.5]],"diary":[{"date":"2026-01-22","weight":124.5,"coffee":0,"sweetener":"","breakfast":"","snack1":"","lunch":"","snack2":"","dinner":"","notes":""},{"date":"2026-02-26","weight":120,"coffee":0,"sweetener":"","breakfast":"","snack1":"","lunch":"","snack2":"","dinner":"","notes":""},{"date":"2026-04-16","weight":114.5,"coffee":0,"sweetener":"","breakfast":"","snack1":"","lunch":"","snack2":"","dinner":"","notes":""},{"date":"2026-06-18","weight":110,"coffee":0,"sweetener":"","breakfast":"","snack1":"","lunch":"","snack2":"","dinner":"","notes":""},{"date":"2026-08-10","weight":110.5,"coffee":0,"sweetener":"","breakfast":"Cereali 50\nZymil 225","snack1":"Barretta cereali","lunch":"Pasta 100 gr\nPasta pomodoro\nCirca 10 gr olio\n149 gr piselli","snack2":"Pezzo di crostata ciccolato","dinner":"3 fette di melone\n70 gr di prosciutto\n80 gr di pane","notes":""},{"date":"2026-08-11","weight":"","coffee":3,"sweetener":"","breakfast":"50 gr cereali\n225 gr zymil","snack1":"1 barretta","lunch":"1 barretta","snack2":"1 banana\n1 succo di frutta bricco","dinner":"","notes":""}],"measures":[],"real":true,"importedBackup":true});
+ arr.push({"id":"patient-gianluca-real","name":"Gianluca","firstName":"Gianluca","surname":"","birth":"1984-07-23","height":180,"sex":"M","goal":95,"minWeight":"","maxWeight":"","reasonableWeight":"","work":"","activity":"","smoking":"No","alcohol":"Raramente","weights":[["2026-01-22",124.5],["2026-02-26",120],["2026-04-16",114.5],["2026-06-18",110],["2026-08-10",110.5]],"diary":[{"date":"2026-01-22","weight":124.5,"coffee":0,"sweetener":"","breakfast":"","snack1":"","lunch":"","snack2":"","dinner":"","notes":""},{"date":"2026-02-26","weight":120,"coffee":0,"sweetener":"","breakfast":"","snack1":"","lunch":"","snack2":"","dinner":"","notes":""},{"date":"2026-04-16","weight":114.5,"coffee":0,"sweetener":"","breakfast":"","snack1":"","lunch":"","snack2":"","dinner":"","notes":""},{"date":"2026-06-18","weight":110,"coffee":0,"sweetener":"","breakfast":"","snack1":"","lunch":"","snack2":"","dinner":"","notes":""},{"date":"2026-08-10","weight":110.5,"coffee":0,"sweetener":"","breakfast":"Cereali 50\nZymil 225","snack1":"Barretta cereali","lunch":"Pasta 100 gr\nPasta pomodoro\nCirca 10 gr olio\n149 gr piselli","snack2":"Pezzo di crostata ciccolato","dinner":"3 fette di melone\n70 gr di prosciutto\n80 gr di pane","notes":""},{"date":"2026-08-11","weight":"","coffee":3,"sweetener":"","breakfast":"50 gr cereali\n225 gr zymil","snack1":"1 barretta","lunch":"1 barretta","snack2":"1 banana\n1 succo di frutta bricco","dinner":"","notes":""}],"measures":[],"real":true,"importedBackup":true});
  saveExtraPatients(arr);
 }
 
@@ -417,7 +417,6 @@ function mainPatient(){
    sex:profile.sex||'',
    height:profile.height||'',
    goal:profile.goal||'',
-   nextVisit:profile.nextVisit||'',
    minWeight:profile.minWeight||'',
    maxWeight:profile.maxWeight||'',
    reasonableWeight:profile.reasonableWeight||'',
@@ -3340,55 +3339,53 @@ function agenda(){
 }
 
 
-function proBackupData(){
- return {
-   app:'Diario Pro Demo',
-   version:1,
-   exportedAt:new Date().toISOString(),
-   data:{
-     mainProfile:load(PROFILE_KEY,{}),
-     mainEntries:load(KEY,[]),
-     mainMeasures:load(MEASURE_KEY,[]),
-     extraPatients:load(EXTRA_PATIENTS_KEY,[]),
-     demoMeasures:load(DEMO_MEASURES_KEY,{}),
-     deletedPatients:load(DELETED_PATIENTS_KEY,[]),
-     labs:load(LABS_KEY,{}),
-     notes:load(NOTES_KEY,{}),
-     appointments:load(APPT_KEY,[]),
-     settings:load(SETTINGS_KEY,{}),accounts:load(ACCOUNT_KEY,{}),privacyMeta:load(PRIVACY_META_KEY,{}),pendingLabs:load(PENDING_LABS_KEY,{})
-   }
- };
+function backupCleanProfile(v){const x=v&&typeof v==='object'?JSON.parse(JSON.stringify(v)):{};delete x.nextVisit;return x}
+function backupCleanExtraPatients(items){return (Array.isArray(items)?items:[]).map(p=>{const x=JSON.parse(JSON.stringify(p));delete x.nextVisit;return x})}
+function blobToBackupData(blob){return new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res({type:blob.type||'application/octet-stream',data:String(r.result||'').split(',')[1]||''});r.onerror=()=>rej(r.error);r.readAsDataURL(blob)})}
+function backupDataToBlob(item){const bin=atob(item?.data||''),bytes=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)bytes[i]=bin.charCodeAt(i);return new Blob([bytes],{type:item?.type||'application/octet-stream'})}
+async function exportIndexedDbStore(storeName){
+ const db=await openPlanDb();
+ const rows=await new Promise((res,rej)=>{const tx=db.transaction(storeName,'readonly'),st=tx.objectStore(storeName),out=[],r=st.openCursor();r.onsuccess=()=>{const c=r.result;if(!c)return res(out);out.push([c.key,c.value]);c.continue()};r.onerror=()=>rej(r.error)});
+ const out=[];for(const [key,value] of rows)if(value instanceof Blob)out.push({key,value:await blobToBackupData(value)});return out;
 }
-function downloadProBackup(){
- const payload=proBackupData();
- const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});
- const url=URL.createObjectURL(blob),a=document.createElement('a');
- a.href=url;a.download=`diario-pro-backup-${today()}.json`;
- document.body.appendChild(a);a.click();a.remove();
- setTimeout(()=>URL.revokeObjectURL(url),1200);
+async function restoreIndexedDbStore(storeName,items){
+ const db=await openPlanDb();
+ await new Promise((res,rej)=>{const tx=db.transaction(storeName,'readwrite'),st=tx.objectStore(storeName);st.clear();for(const item of (Array.isArray(items)?items:[]))st.put(backupDataToBlob(item.value),item.key);tx.oncomplete=()=>res();tx.onerror=()=>rej(tx.error)});
 }
-function validateProBackup(obj){
- return obj&&obj.app==='Diario Pro Demo'&&obj.data&&typeof obj.data==='object';
+async function proBackupData(){
+ const indexedDb={};for(const store of [PLAN_STORE,'privacy','documents','labUploads'])indexedDb[store]=await exportIndexedDbStore(store);
+ return {app:'Diario Pro Demo',version:2,exportedAt:new Date().toISOString(),data:{
+  mainProfile:backupCleanProfile(load(PROFILE_KEY,{})),mainEntries:load(KEY,[]),mainMeasures:load(MEASURE_KEY,[]),
+  extraPatients:backupCleanExtraPatients(load(EXTRA_PATIENTS_KEY,[])),demoMeasures:load(DEMO_MEASURES_KEY,{}),
+  deletedPatients:load(DELETED_PATIENTS_KEY,[]),labs:load(LABS_KEY,{}),notes:load(NOTES_KEY,{}),appointments:load(APPT_KEY,[]),
+  settings:load(SETTINGS_KEY,{}),accounts:load(ACCOUNT_KEY,{}),privacyMeta:load(PRIVACY_META_KEY,{}),pendingLabs:load(PENDING_LABS_KEY,{}),
+  planMeta:load(PLAN_META_KEY,{}),documentMeta:documentMetaList(),patientStartDates:load(PATIENT_START_DATE_KEY,{}),indexedDb
+ }};
 }
+async function downloadProBackup(){
+ try{const payload=await proBackupData(),blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=`nubemo-backup-completo-${today()}.json`;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1200)}
+ catch(e){alert('Impossibile creare il backup completo: '+e.message)}
+}
+function validateProBackup(obj){return obj&&obj.app==='Diario Pro Demo'&&obj.data&&typeof obj.data==='object'}
 async function importProBackupFile(file){
- let obj;
- try{obj=JSON.parse(await file.text())}catch(e){return alert('Il file selezionato non è un JSON valido.')}
+ let obj;try{obj=JSON.parse(await file.text())}catch(e){return alert('Il file selezionato non è un JSON valido.')}
  if(!validateProBackup(obj))return alert('Il file non è un backup valido di Diario Pro Demo.');
- if(!confirm('Caricare questo backup? I dati locali dei pazienti della demo verranno sostituiti.'))return;
+ if(!confirm('Caricare questo backup? I dati locali di NUBEMO verranno sostituiti con quelli contenuti nel file.'))return;
  const d=obj.data;
- save(PROFILE_KEY,d.mainProfile||{});
- save(KEY,Array.isArray(d.mainEntries)?d.mainEntries:[]);
- save(MEASURE_KEY,Array.isArray(d.mainMeasures)?d.mainMeasures:[]);
- save(EXTRA_PATIENTS_KEY,Array.isArray(d.extraPatients)?d.extraPatients:[]);
- save(DEMO_MEASURES_KEY,d.demoMeasures&&typeof d.demoMeasures==='object'?d.demoMeasures:{});
- save(DELETED_PATIENTS_KEY,Array.isArray(d.deletedPatients)?d.deletedPatients:[]);
- save(LABS_KEY,d.labs&&typeof d.labs==='object'?d.labs:{});
- save(NOTES_KEY,d.notes&&typeof d.notes==='object'?d.notes:{});
- save(APPT_KEY,Array.isArray(d.appointments)?d.appointments:[]);
- save(SETTINGS_KEY,d.settings&&typeof d.settings==='object'?d.settings:{});save(ACCOUNT_KEY,d.accounts&&typeof d.accounts==='object'?d.accounts:{});save(PRIVACY_META_KEY,d.privacyMeta&&typeof d.privacyMeta==='object'?d.privacyMeta:{});save(PENDING_LABS_KEY,d.pendingLabs&&typeof d.pendingLabs==='object'?d.pendingLabs:{});
- selected='main';tab='summary';view='dashboard';
- alert('Backup caricato correttamente.');
- render();
+ try{
+  save(PROFILE_KEY,backupCleanProfile(d.mainProfile||{}));save(KEY,Array.isArray(d.mainEntries)?d.mainEntries:[]);save(MEASURE_KEY,Array.isArray(d.mainMeasures)?d.mainMeasures:[]);
+  save(EXTRA_PATIENTS_KEY,backupCleanExtraPatients(d.extraPatients));save(DEMO_MEASURES_KEY,d.demoMeasures&&typeof d.demoMeasures==='object'?d.demoMeasures:{});
+  save(DELETED_PATIENTS_KEY,Array.isArray(d.deletedPatients)?d.deletedPatients:[]);save(LABS_KEY,d.labs&&typeof d.labs==='object'?d.labs:{});
+  save(NOTES_KEY,d.notes&&typeof d.notes==='object'?d.notes:{});save(APPT_KEY,Array.isArray(d.appointments)?d.appointments:[]);
+  save(SETTINGS_KEY,d.settings&&typeof d.settings==='object'?d.settings:{});save(ACCOUNT_KEY,d.accounts&&typeof d.accounts==='object'?d.accounts:{});
+  save(PRIVACY_META_KEY,d.privacyMeta&&typeof d.privacyMeta==='object'?d.privacyMeta:{});save(PENDING_LABS_KEY,d.pendingLabs&&typeof d.pendingLabs==='object'?d.pendingLabs:{});
+  if(Object.prototype.hasOwnProperty.call(d,'planMeta'))save(PLAN_META_KEY,d.planMeta&&typeof d.planMeta==='object'?d.planMeta:{});
+  if(Object.prototype.hasOwnProperty.call(d,'documentMeta'))saveDocumentMetaList(Array.isArray(d.documentMeta)?d.documentMeta:[]);
+  if(Object.prototype.hasOwnProperty.call(d,'patientStartDates'))save(PATIENT_START_DATE_KEY,d.patientStartDates&&typeof d.patientStartDates==='object'?d.patientStartDates:{});
+  if(d.indexedDb&&typeof d.indexedDb==='object')for(const store of [PLAN_STORE,'privacy','documents','labUploads'])await restoreIndexedDbStore(store,d.indexedDb[store]||[]);
+  selected='main';tab='summary';view='dashboard';
+  alert(obj.version>=2?'Backup completo caricato correttamente.':'Backup precedente caricato correttamente. I file non inclusi nel vecchio formato sono stati lasciati invariati.');render();
+ }catch(e){alert('Impossibile completare il ripristino: '+e.message)}
 }
 
 function professionalDisplayName(s=settings()){
@@ -3578,7 +3575,7 @@ function createAgendaQuickPatient(){
    surname,
    phone,
    startDate:'',
-   birth:'',sex:'',height:'',goal:'',nextVisit:'',
+   birth:'',sex:'',height:'',goal:'',
    minWeight:'',maxWeight:'',reasonableWeight:'',
    work:'',activity:'',activityFactor:'',smoking:'',alcohol:'',
    diagnosis:'',theoreticalWeight:'',bowel:'',metabolism:'',feeg:'',impedance:'',

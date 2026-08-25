@@ -425,7 +425,7 @@ function mainPatient(){
    activity:profile.activity||'',
    activityFactor:profile.activityFactor||'',
    smoking:profile.smoking||'',
-   alcohol:profile.alcohol||'', showEnergyValues:profile.showEnergyValues!==false, diagnosis:profile.diagnosis||'', theoreticalWeight:profile.theoreticalWeight||'', bowel:profile.bowel||'', metabolism:profile.metabolism||'', feeg:profile.feeg||'', impedance:profile.impedance||'', famObesity:!!profile.famObesity, famDiabetes:!!profile.famDiabetes, famHypertension:!!profile.famHypertension, famCardiovascular:!!profile.famCardiovascular, famDyslipidemia:!!profile.famDyslipidemia, famThyroid:!!profile.famThyroid, famGestational:!!profile.famGestational, previousDiets:profile.previousDiets||'', allergies:profile.allergies||'', medications:profile.medications||'', giIssues:profile.giIssues||'', pastConditions:profile.pastConditions||'', observations:profile.observations||'', objectives:profile.objectives||'',
+   alcohol:profile.alcohol||'', showEnergyValues:profile.showEnergyValues!==false, readOnly:!!profile.readOnly, diagnosis:profile.diagnosis||'', theoreticalWeight:profile.theoreticalWeight||'', bowel:profile.bowel||'', metabolism:profile.metabolism||'', feeg:profile.feeg||'', impedance:profile.impedance||'', famObesity:!!profile.famObesity, famDiabetes:!!profile.famDiabetes, famHypertension:!!profile.famHypertension, famCardiovascular:!!profile.famCardiovascular, famDyslipidemia:!!profile.famDyslipidemia, famThyroid:!!profile.famThyroid, famGestational:!!profile.famGestational, previousDiets:profile.previousDiets||'', allergies:profile.allergies||'', medications:profile.medications||'', giIssues:profile.giIssues||'', pastConditions:profile.pastConditions||'', observations:profile.observations||'', objectives:profile.objectives||'',
    entries,measures,weights,first,last,
    delta:first!=null&&last!=null?last-first:null,
    real:true
@@ -2873,7 +2873,7 @@ function proSummary2(p){
   <div class="summary-hero"><span>Paziente</span><b>${esc(p.name||'—')}</b><small>${p.birth?fmt(p.birth)+' · '+ageFromBirth(p.birth)+' anni':'Età non disponibile'}</small></div>
   <div><span>Diagnosi / motivo</span><b>${esc(p.diagnosis||'—')}</b></div>
   <div><span>Data inizio percorso</span><b>${p.startDate?fmt(p.startDate):'—'}</b><small>${p.startDate?'Inizio reale del percorso con il professionista':'Non ancora indicata'}</small></div>
-  <div><span>Calorie e valori energetici</span><b>${p.showEnergyValues===false?'Nascosti al paziente':'Visibili al paziente'}</b><small>${p.showEnergyValues===false?'Il professionista mantiene le stime':'Visualizzazione paziente attiva'}</small></div>
+  <div><span>Calorie e valori energetici</span><b>${p.showEnergyValues===false?'Nascosti al paziente':'Visibili al paziente'}</b><small>${p.showEnergyValues===false?'Il professionista mantiene le stime':'Visualizzazione paziente attiva'}</small></div><div><span>Accesso NUBEMO</span><b>${p.readOnly?'Sola consultazione':'Completo'}</b><small>${p.readOnly?'Inserimento e modifica dati disabilitati':'Tutte le funzionalità paziente attive'}</small></div>
   <div><span>Ultimo peso</span><b>${currentPatientWeight(p)!=null?currentPatientWeight(p).toFixed(1).replace('.',',')+' kg':'—'}</b></div>
   <div><span>BMI</span><b>${currentPatientWeight(p)&&p.height?bmi(currentPatientWeight(p),p.height).toFixed(1).replace('.',','):'—'}</b></div>
   <div><span>Obiettivo</span><b>${p.goal?p.goal+' kg':'—'}</b></div>
@@ -2991,7 +2991,6 @@ function newPatientForm(){
    <input id="npGoal" type="number" min="30" max="300" step="0.1" placeholder="Facoltativo">
 
    <label>Data prossima visita</label>
-   ${proDateControl('npNextVisit','')}
 
    <h2 style="margin-top:22px">Storia del peso</h2>
    <label>Peso minimo storico (kg)</label>
@@ -3056,7 +3055,6 @@ function saveNewPatient(){
    sex:el('npSex')?.value||'',
    height,
    goal,
-   nextVisit:readProDate('npNextVisit')||'',
    startDate:'',
    minWeight,
    maxWeight,
@@ -3066,6 +3064,7 @@ function saveNewPatient(){
    smoking:(el('npSmoking')?.value||'').trim(),
    alcohol:(el('npAlcohol')?.value||'').trim(), diagnosis:(el('npDiagnosis')?.value||'').trim(), theoreticalWeight:num('npTheoreticalWeight'), bowel:(el('npBowel')?.value||'').trim(), metabolism:(el('npMetabolism')?.value||'').trim(), feeg:(el('npFeeg')?.value||'').trim(), impedance:(el('npImpedance')?.value||'').trim(), famObesity:!!el('npFamObesity')?.checked, famDiabetes:!!el('npFamDiabetes')?.checked, famHypertension:!!el('npFamHypertension')?.checked, famCardiovascular:!!el('npFamCardiovascular')?.checked, famDyslipidemia:!!el('npFamDyslipidemia')?.checked, famThyroid:!!el('npFamThyroid')?.checked, previousDiets:(el('npPreviousDiets')?.value||'').trim(), allergies:(el('npAllergies')?.value||'').trim(), medications:(el('npMedications')?.value||'').trim(), giIssues:(el('npGiIssues')?.value||'').trim(), pastConditions:(el('npPastConditions')?.value||'').trim(), observations:(el('npObservations')?.value||'').trim(), objectives:(el('npObjectives')?.value||'').trim(),
    showEnergyValues:true,
+   readOnly:false,
    weights:[],
    diary:[],
    measures:[]
@@ -3106,7 +3105,6 @@ function editPatientProfileForm(){
    </select>
    <label>Altezza (cm)</label><input id="epHeight" type="number" min="80" max="250" step="1" value="${p.height||''}">
    <label>Peso obiettivo (kg)</label><input id="epGoal" type="number" min="30" max="300" step="0.1" value="${p.goal||''}">
-   <label>Data prossima visita</label>${proDateControl('epNextVisit',p.nextVisit||'')}
    <label>Data inizio percorso</label>${proDateControl('epStartDate',p.startDate||'')}
    <p class="muted patient-start-date-help">Se il paziente era già seguito prima di NUBEMO, inserisci la data reale di inizio. Se resta vuota, la prima visita registrata può valorizzarla automaticamente.</p>
 
@@ -3117,7 +3115,7 @@ function editPatientProfileForm(){
        <option value="yes" ${p.showEnergyValues!==false?'selected':''}>Sì</option>
        <option value="no" ${p.showEnergyValues===false?'selected':''}>No</option>
      </select>
-     <p class="muted">Se impostato su No, il paziente non vedrà calorie stimate, BMR, informazioni energetiche né il controllo degli alimenti riconosciuti durante il salvataggio del diario. Il professionista continuerà a disporre delle stime.</p>
+     <p class="muted">Se impostato su No, il paziente non vedrà calorie stimate, BMR, informazioni energetiche né il controllo degli alimenti riconosciuti durante il salvataggio del diario. Il professionista continuerà a disporre delle stime.</p><label>NUBEMO in sola consultazione</label><select id="epReadOnly"><option value="no" ${!p.readOnly?'selected':''}>No</option><option value="yes" ${p.readOnly?'selected':''}>Sì</option></select><p class="muted">Se impostato su Sì, il paziente può consultare ed esportare lo storico, ma non può inserire, modificare, eliminare, importare o ripristinare dati.</p>
    </div>
 
    <h2 style="margin-top:22px">Storia del peso</h2>
@@ -3169,9 +3167,9 @@ function saveEditedPatientProfile(){
    sex:el('epSex')?.value||'',
    height,
    goal,
-   nextVisit:readProDate('epNextVisit')||'',
    startDate:readProDate('epStartDate')||'',
    showEnergyValues:(el('epShowEnergyValues')?.value||'yes')!=='no',
+   readOnly:(el('epReadOnly')?.value||'no')==='yes',
    minWeight,
    maxWeight,
    reasonableWeight,

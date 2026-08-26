@@ -874,87 +874,23 @@ function proDiaryPdfRows(p,period='all'){
 }
 function proDiaryPdfBlob(p,period='all'){
  const rows=proDiaryPdfRows(p,period);
- const headers=['Data','Peso','Acqua L','Caffe','Zucchero / dolc.','Colazione','Spuntino mattina','Pranzo','Spuntino pomeriggio','Cena','Sport / Note'];
- const widths=[42,34,36,28,62,82,70,86,70,86,98];
- const x0=22,pageW=842,pageH=595,top=548,bottom=28;
- const fontSize=6.5,lineH=8,pad=3;
- let pages=[],current=[],y=top;
-
- function prepareRow(cells,isHeader=false){
-   let wrapped=cells.map((c,i)=>proWrapCell(c,Math.max(4,Math.floor((widths[i]-pad*2)/(fontSize*.50)))));
-   let lines=Math.max(...wrapped.map(a=>a.length));
-   let h=Math.max(isHeader?22:18,lines*lineH+pad*2);
-   return {wrapped,h,isHeader};
- }
- const head=prepareRow(headers,true);
- function newPage(){
-   current=[];
-   pages.push(current);
-   y=top;
-   current.push({...head,y:y-head.h});
-   y-=head.h;
- }
- newPage();
- rows.forEach(row=>{
-   let pr=prepareRow(row,false);
-   if(y-pr.h<bottom)newPage();
-   current.push({...pr,y:y-pr.h});
-   y-=pr.h;
- });
-
- let objects=[];
- const add=o=>{objects.push(o);return objects.length};
- const fontRegular=add('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>');
- const fontBold=add('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>');
- const pagesObj=add('PAGES_PLACEHOLDER');
- let pageIds=[];
-
- pages.forEach((items,pageIndex)=>{
-   let stream='';
-   const title=`Diario alimentare - ${p.name||'Paziente'} - ${rows.length?rows[0][0]+' / '+rows.at(-1)[0]:'Nessun dato'}`;
-   stream+=`BT /F2 11 Tf 22 570 Td (${proPdfEscape(title)}) Tj ET\n`;
-   items.forEach(item=>{
-     let x=x0,yBottom=item.y;
-     item.wrapped.forEach((cellLines,i)=>{
-       let w=widths[i];
-       if(item.isHeader)stream+=`0.91 0.96 0.96 rg ${x} ${yBottom} ${w} ${item.h} re f 0 0 0 rg\n`;
-       stream+=`0.72 G 0.35 w ${x} ${yBottom} ${w} ${item.h} re S 0 G\n`;
-       cellLines.forEach((line,li)=>{
-         let ty=yBottom+item.h-pad-fontSize-li*lineH;
-         if(ty>yBottom+1)stream+=`BT /${item.isHeader?'F2':'F1'} ${fontSize} Tf ${x+pad} ${ty} Td (${proPdfEscape(line)}) Tj ET\n`;
-       });
-       x+=w;
-     });
-   });
-   stream+=`BT /F1 6 Tf 760 12 Td (Pagina ${pageIndex+1}/${pages.length}) Tj ET\n`;
-   let contentId=add(`<< /Length ${stream.length} >>\nstream\n${stream}endstream`);
-   let pageId=add(`<< /Type /Page /Parent ${pagesObj} 0 R /MediaBox [0 0 ${pageW} ${pageH}] /Resources << /Font << /F1 ${fontRegular} 0 R /F2 ${fontBold} 0 R >> >> /Contents ${contentId} 0 R >>`);
-   pageIds.push(pageId);
- });
-
- objects[pagesObj-1]=`<< /Type /Pages /Count ${pageIds.length} /Kids [${pageIds.map(id=>`${id} 0 R`).join(' ')}] >>`;
- const catalog=add(`<< /Type /Catalog /Pages ${pagesObj} 0 R >>`);
- let pdf='%PDF-1.4\n%Diary\n',offsets=[0];
- objects.forEach((obj,i)=>{offsets[i+1]=pdf.length;pdf+=`${i+1} 0 obj\n${obj}\nendobj\n`;});
- let xref=pdf.length;
- pdf+=`xref\n0 ${objects.length+1}\n0000000000 65535 f \n`;
- for(let i=1;i<=objects.length;i++)pdf+=String(offsets[i]).padStart(10,'0')+' 00000 n \n';
- pdf+=`trailer\n<< /Size ${objects.length+1} /Root ${catalog} 0 R >>\nstartxref\n${xref}\n%%EOF`;
- return new Blob([pdf],{type:'application/pdf'});
+ return window.NubemoDiaryPdf.create({rows,origin:'professional'});
 }
 function exportProDiaryPdf(period='all'){
  const p=patient(selected);
  if(!p || !(p.entries||[]).length)return alert('Non ci sono giornate da esportare.');
  const rows=proDiaryPdfRows(p,period);
  if(!rows.length)return alert('Non ci sono giornate registrate nel periodo selezionato.');
- const blob=proDiaryPdfBlob(p,period),url=URL.createObjectURL(blob),a=document.createElement('a');
- const safeName=String(p.name||'Paziente').replace(/[^A-Za-z0-9_-]+/g,'_');
- a.href=url;
- a.download=`Diario_${safeName}_${rows[0][0].replace(/-/g,'')}_${rows.at(-1)[0].replace(/-/g,'')}.pdf`;
- document.body.appendChild(a);
- a.click();
- a.remove();
- setTimeout(()=>URL.revokeObjectURL(url),1500);
+ try{
+  const blob=proDiaryPdfBlob(p,period),url=URL.createObjectURL(blob),a=document.createElement('a');
+  const safeName=String(p.name||'Paziente').replace(/[^A-Za-z0-9_-]+/g,'_');
+  a.href=url;
+  a.download=`Diario_${safeName}_${rows[0][0].replace(/-/g,'')}_${rows.at(-1)[0].replace(/-/g,'')}.pdf`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),1500);
+ }catch(err){console.error('PDF diario professionista',err);alert('Non riesco a generare il PDF del diario.');}
 }
 function openProDiaryExportDialog(){
  const p=patient(selected);if(!p)return;

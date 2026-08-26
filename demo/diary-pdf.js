@@ -2,10 +2,10 @@
   'use strict';
 
   const PAGE_W=842, PAGE_H=595;
-  const MARGIN=7;
+  const MARGIN=22.68; // 8 mm print-safe margin on all sides
   const TABLE_TOP=531;
   const HEADER_H=25;
-  const BODY_BOTTOM=24;
+  const BODY_BOTTOM=44; // keeps table body above the 8 mm-safe footer area
   const FONT_SIZE=5.85;
   const LINE_H=6.8;
   const PAD=3.2;
@@ -75,18 +75,19 @@
 
   function headerStream(period,origin){
     let s='';
-    s+=imageCmd(8,PAGE_H-47,36,36);
-    s+=color(COLORS.text)+textCmd('NUBEMO',48,PAGE_H-25,17,'F2');
-    s+=color(COLORS.dark)+textCmd('Il tuo percorso, ogni giorno.',48,PAGE_H-37,7,'F3');
-    s+=centeredTextCmd('DIARIO ALIMENTARE',PAGE_W/2,PAGE_H-23,16,'F2',true);
-    s+=`${num(COLORS.dark[0])} ${num(COLORS.dark[1])} ${num(COLORS.dark[2])} RG 0.8 w ${num(PAGE_W/2-102)} ${num(PAGE_H-48)} 204 17 re S\n`;
-    s+=centeredTextCmd(period,PAGE_W/2,PAGE_H-43,9,'F1');
-    s+=imageCmd(PAGE_W-120,PAGE_H-40,22,22);
+    const top=PAGE_H-MARGIN;
+    s+=imageCmd(MARGIN,top-36,36,36);
+    s+=color(COLORS.text)+textCmd('NUBEMO',MARGIN+40,top-14,17,'F2');
+    s+=color(COLORS.dark)+textCmd('Il tuo percorso, ogni giorno.',MARGIN+40,top-26,7,'F3');
+    s+=centeredTextCmd('DIARIO ALIMENTARE',PAGE_W/2,top-12,16,'F2',true);
+    s+=`${num(COLORS.dark[0])} ${num(COLORS.dark[1])} ${num(COLORS.dark[2])} RG 0.8 w ${num(PAGE_W/2-92)} ${num(top-32)} 184 13 re S\n`;
+    s+=centeredTextCmd(period,PAGE_W/2,top-28,8,'F1');
+    s+=imageCmd(PAGE_W-MARGIN-112,top-29,22,22);
     s+=color(COLORS.text);
     const who=origin==='professional'?'professionista':'paziente';
-    s+=textCmd('Documento generato',PAGE_W-94,PAGE_H-27,6.5,'F1');
-    s+=textCmd(`dal ${who}`,PAGE_W-94,PAGE_H-36,6.5,'F1');
-    s+=color(COLORS.dark,true)+`1 w ${MARGIN} ${PAGE_H-58} m ${PAGE_W-MARGIN} ${PAGE_H-58} l S\n`;
+    s+=textCmd('Documento generato',PAGE_W-MARGIN-86,top-16,6.5,'F1');
+    s+=textCmd(`dal ${who}`,PAGE_W-MARGIN-86,top-25,6.5,'F1');
+    s+=color(COLORS.dark,true)+`1 w ${MARGIN} ${TABLE_TOP+6} m ${PAGE_W-MARGIN} ${TABLE_TOP+6} l S\n`;
     return s;
   }
 
@@ -134,11 +135,13 @@
   }
 
   function footerStream(pageNo,pageCount){
-    let s=color(COLORS.dark,true)+`0.8 w ${MARGIN} 19 m ${PAGE_W-MARGIN} 19 l S\n`;
-    s+=imageCmd(9,5.5,11,11);
-    s+=color(COLORS.text)+textCmd('NUBEMO',23,9,6.8,'F2');
-    s+=color(COLORS.dark)+centeredTextCmd('Il tuo percorso, ogni giorno.',PAGE_W/2,9,6.5,'F3',false,true);
-    s+=color(COLORS.text)+textCmd(`Pagina ${pageNo} di ${pageCount}`,PAGE_W-MARGIN-textWidth(`Pagina ${pageNo} di ${pageCount}`,6.5),9,6.5,'F1');
+    const lineY=MARGIN+14;
+    const textY=MARGIN+2;
+    let s=color(COLORS.dark,true)+`0.8 w ${MARGIN} ${num(lineY)} m ${PAGE_W-MARGIN} ${num(lineY)} l S\n`;
+    s+=imageCmd(MARGIN,textY-3,11,11);
+    s+=color(COLORS.text)+textCmd('NUBEMO',MARGIN+14,textY,6.8,'F2');
+    s+=color(COLORS.dark)+centeredTextCmd('Il tuo percorso, ogni giorno.',PAGE_W/2,textY,6.5,'F3',false,true);
+    s+=color(COLORS.text)+textCmd(`Pagina ${pageNo} di ${pageCount}`,PAGE_W-MARGIN-textWidth(`Pagina ${pageNo} di ${pageCount}`,6.5),textY,6.5,'F1');
     return s;
   }
 

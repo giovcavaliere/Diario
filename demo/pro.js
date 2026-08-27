@@ -1334,7 +1334,8 @@ function clinicalWeeklyWeightRows(weights){
  return [...groups.values()].map(g=>{
    const first=g.items[0],last=g.items[g.items.length-1],delta=Number(last.weight)-Number(first.weight);
    const inCourse=todayDate>=new Date(g.start.getFullYear(),g.start.getMonth(),g.start.getDate())&&todayDate<=new Date(g.end.getFullYear(),g.end.getMonth(),g.end.getDate());
-   return [labelRange(g.start,g.end)+(inCourse?' (in corso)':''),clinicalNumberText(first.weight,'kg'),clinicalNumberText(last.weight,'kg'),(delta>0?'+':'')+delta.toFixed(1).replace('.',',')+' kg'];
+   const trend=delta<0?'[[DOWN]]':delta>0?'[[UP]]':'[[EQ]]';
+   return [labelRange(g.start,g.end)+(inCourse?' (in corso)':''),clinicalNumberText(first.weight,'kg'),clinicalNumberText(last.weight,'kg'),trend+' '+(delta>0?'+':'')+delta.toFixed(1).replace('.',',')+' kg'];
  });
 }
 function clinicalMetricCard(x,y,w,h,label,value,accent='.02 .34 .29'){
@@ -1344,6 +1345,20 @@ function clinicalMetricCard(x,y,w,h,label,value,accent='.02 .34 .29'){
  c+=pdfTextCmd(x+13,y+h-24,label,7,'F1');
  c+=pdfTextCmd(x+13,y+19,value,17,'F2');
  return c;
+}
+function clinicalTrendMarkerCmd(x,y,kind){
+ let c='0.39 0.78 0.03 RG 1.15 w\n';
+ if(kind==='DOWN'){
+   c+=`${x} ${y+4} m ${x} ${y-3} l S\n`;
+   c+=`${x-3} ${y} m ${x} ${y-3} l ${x+3} ${y} l S\n`;
+ }else if(kind==='UP'){
+   c+=`${x} ${y-3} m ${x} ${y+4} l S\n`;
+   c+=`${x-3} ${y+1} m ${x} ${y+4} l ${x+3} ${y+1} l S\n`;
+ }else{
+   c+=`${x-3} ${y+1} m ${x+3} ${y+1} l S\n`;
+   c+=`${x-3} ${y-2} m ${x+3} ${y-2} l S\n`;
+ }
+ return c+'0 G\n';
 }
 function clinicalTablePage(title,headers,rows,widths){
  const pages=[];let cmd='',y=750,rowH=23,x0=42,rowIndex=0;
@@ -1362,14 +1377,18 @@ function clinicalTablePage(title,headers,rows,widths){
  };
  newPage();
  rows.forEach(r=>{
-   const wraps=r.map((c,i)=>clinicalWrap(c,Math.max(5,Math.floor((widths[i]-12)/4.4))));
+   const markers=r.map(c=>{const m=String(c||'').match(/^\[\[(DOWN|UP|EQ)\]\]\s*/);return m?m[1]:null;});
+   const clean=r.map(c=>String(c||'').replace(/^\[\[(DOWN|UP|EQ)\]\]\s*/,''));
+   const wraps=clean.map((c,i)=>clinicalWrap(c,Math.max(5,Math.floor((widths[i]-12-(markers[i]?22:0))/4.4))));
    const lines=Math.max(...wraps.map(a=>a.length)),h=Math.max(rowH,lines*10+10);
    if(y-h<60)newPage();
    let x=x0;
    if(rowIndex%2===0)cmd+=`0.97 0.985 0.965 rg ${x0} ${y-h} ${widths.reduce((a,b)=>a+b,0)} ${h} re f 0 0 0 rg\n`;
    wraps.forEach((ls,i)=>{
      cmd+=`0.88 G .3 w ${x} ${y-h} ${widths[i]} ${h} re S 0 G\n`;
-     ls.forEach((line,li)=>cmd+=pdfTextCmd(x+7,y-15-li*10,line,7.3,'F1'));
+     const textX=x+7+(markers[i]?22:0);
+     if(markers[i])cmd+=clinicalTrendMarkerCmd(x+12,y-12,markers[i]);
+     ls.forEach((line,li)=>cmd+=pdfTextCmd(textX,y-15-li*10,line,7.3,'F1'));
      x+=widths[i];
    });
    y-=h;rowIndex++;
@@ -1611,19 +1630,9 @@ async function exportClinicalPdf(p,opts={}){
    pages.push(pc);
  }
 
- if(weights.length&&p.height){
-   let bc=clinicalInnerHeader('Andamento BMI','Indice di massa corporea');
-   if(firstBmi&&currentBmi){
-     bc+=clinicalMetricCard(42,680,150,68,'BMI iniziale',firstBmi.toFixed(1).replace('.',','));
-     bc+=clinicalMetricCard(205,680,150,68,'BMI attuale',currentBmi.toFixed(1).replace('.',','));
-     bc+=clinicalMetricCard(368,680,150,68,'Categoria',clinicalAscii(proBmiLabel(currentBmi)),'.39 .78 .03');
-   }
-   chartRanges.forEach((r,i)=>{
-     const data=clinicalFilterDays(weights,r[1]).map(x=>({...x,bmi:bmi(x.weight,p.height)}));
-     bc+=clinicalPdfChart(data,x=>x.bmi,r[0],'BMI',42,470-i*185,511,155);
-   });
-   pages.push(bc);
- }
+
+ // Grafico BMI rimosso: il BMI resta disponibile come valore di sintesi,
+ // ma il suo andamento replica matematicamente quello del peso a parità di altezza.
 
  // -----------------------------------------------------------
  // 8. ALLEGATO OPZIONALE
@@ -2816,7 +2825,7 @@ function proSummary2(p){
   <div><span>BMR stimato</span><b>${bmrVal?Math.round(bmrVal)+' kcal/giorno':'—'}</b><small>${bmrVal?'Metabolismo basale, senza attività':'Servono peso, altezza, nascita e sesso'}</small></div>
   <div><span>Dispendio giornaliero indicativo</span><b>${daily?Math.round(daily)+' kcal/giorno':'—'}</b><small>${daily?'BMR × livello di attività':p.activityFactor?'Completa i dati necessari al BMR':'Imposta il livello di attività'}</small></div>
   <div><span>Calorie stimate dal diario</span><b>${food?food.calories+' kcal':'—'}</b><small>${food?fmt(food.date)+' · stima '+food.qualityLabel.toLowerCase():'Nessun pasto interpretabile'}</small></div>
-  <div><span>Piano alimentare</span><b>${planMetaFor(p.id)?'Disponibile':'Non caricato'}</b></div>
+  <div><span>Piano alimentare</span><b>${currentProfessionalPlan(p.id)?'Disponibile':'Non caricato'}</b></div>
  </div>`;
 }
 function proAnamnesis(p){return `<div class="section-head"><h2>Anamnesi</h2></div><details class="pro-accordion" open><summary>Dati e stile di vita</summary><div class="pro-read-grid"><div><span>Diagnosi / motivo</span><b>${esc(p.diagnosis||'—')}</b></div><div><span>Peso teorico</span><b>${p.theoreticalWeight?p.theoreticalWeight+' kg':'—'}</b></div><div><span>Lavoro</span><b>${esc(p.work||'—')}</b></div><div><span>Attività fisica</span><b>${esc(p.activity||'—')}</b></div><div><span>Alvo</span><b>${esc(p.bowel||'—')}</b></div><div><span>Fumo</span><b>${esc(p.smoking||'—')}</b></div><div><span>Alcol</span><b>${esc(p.alcohol||'—')}</b></div><div><span>Metabolismo basale</span><b>${esc(p.metabolism||'—')}</b></div><div><span>FEEG</span><b>${esc(p.feeg||'—')}</b></div><div><span>Impedenziometria</span><b>${esc(p.impedance||'—')}</b></div></div></details><details class="pro-accordion"><summary>Familiarità</summary><div class="pro-read-grid"><div><span>Obesità</span><b>${p.famObesity?'Sì':'No'}</b></div><div><span>Diabete</span><b>${p.famDiabetes?'Sì':'No'}</b></div><div><span>Ipertensione</span><b>${p.famHypertension?'Sì':'No'}</b></div><div><span>Cardiovascolare</span><b>${p.famCardiovascular?'Sì':'No'}</b></div><div><span>Dislipidemie</span><b>${p.famDyslipidemia?'Sì':'No'}</b></div><div><span>Tiroide</span><b>${p.famThyroid?'Sì':'No'}</b></div></div></details><details class="pro-accordion"><summary>Anamnesi patologica</summary><div class="pro-read-grid"><div><span>Diete pregresse</span><b>${esc(p.previousDiets||'—')}</b></div><div><span>Allergie</span><b>${esc(p.allergies||'—')}</b></div><div><span>Farmaci</span><b>${esc(p.medications||'—')}</b></div><div><span>Disturbi GI</span><b>${esc(p.giIssues||'—')}</b></div><div><span>Patologie / interventi</span><b>${esc(p.pastConditions||'—')}</b></div><div><span>Osservazioni</span><b>${esc(p.observations||'—')}</b></div><div><span>Obiettivi</span><b>${esc(p.objectives||'—')}</b></div></div></details>`}function proLabs(p){const r=labsFor(p.id),f=[['glucose','Glicemia'],['cholesterol','Colesterolo'],['hdl','HDL'],['ldl','LDL'],['triglycerides','Trigliceridi'],['got','GOT'],['gpt','GPT'],['uricAcid','Acido urico'],['creatinine','Creatinina'],['ggt','γGT']]; const bloodDocs=professionalBloodTestDocuments(p.id);

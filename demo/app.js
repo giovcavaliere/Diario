@@ -1033,9 +1033,32 @@ const PATIENT_CALORIE_FOODS=[
 function calorieNormalize(s){
  return String(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,' ').trim();
 }
+const PIZZA_STANDARD_GRAMS=300;
+const PIZZA_TOPPING_STANDARD_GRAMS={salsiccia:50};
 function calorieSegments(text){
- return String(text||'').replace(/\r/g,'').split(/\n|[;]+|\s+\+\s+/).map(x=>x.trim()).filter(Boolean);
+ const base=String(text||'').replace(/\r/g,'').split(/\n|[;]+/).map(x=>x.trim()).filter(Boolean);
+ const out=[];
+ let pizzaGroupSeq=0;
+ for(const rawSegment of base){
+   // First preserve the user's natural composition. A pizza written with
+   // "+" or "con" is one logical food for the review UI, while its parts
+   // remain separate internally for the calorie calculation.
+   const plusParts=rawSegment.split(/\s+\+\s+/).map(x=>x.trim()).filter(Boolean);
+   const hasPizza=plusParts.some(x=>calorieNormalize(x).includes('pizza')) || calorieNormalize(rawSegment).includes('pizza');
+   let parts=plusParts;
+   if(hasPizza && plusParts.length===1 && /\s+con\s+/i.test(rawSegment)){
+     parts=rawSegment.split(/\s+con\s+/i).map(x=>x.trim()).filter(Boolean);
+   }
+   if(hasPizza && parts.length>1){
+     const groupId=`pizza-${++pizzaGroupSeq}`;
+     parts.forEach((part,index)=>out.push({text:part,compositionGroup:groupId,compositionRole:index===0?'pizza':'topping'}));
+   }else{
+     parts.forEach(part=>out.push({text:part,compositionGroup:null,compositionRole:null}));
+   }
+ }
+ return out;
 }
+
 function findCalorieFood(segment){
  const s=calorieNormalize(segment);
  let matches=[];
@@ -1093,10 +1116,22 @@ function parseSegmentCalories(segment){
      return {segment,status:'calculated',calories:Math.round(qty*food.k100/100),label:food.matchedName,quantity:`${qty} g*`};
  }
 
+ // Pizza is normally recorded as a whole item, not weighed. When no
+ // quantity is supplied, use a transparent standard weight. Explicit grams
+ // above always take precedence.
+ if(food.names.some(name=>name.startsWith('pizza')) && food.k100){
+   return {segment,status:'genericQuantity',calories:Math.round(PIZZA_STANDARD_GRAMS*food.k100/100),label:food.matchedName,quantity:'1 pizza',assumedGrams:PIZZA_STANDARD_GRAMS};
+ }
+ // Standard topping quantity, currently used for natural pizza additions.
+ const toppingGrams=PIZZA_TOPPING_STANDARD_GRAMS[food.matchedName];
+ if(toppingGrams&&food.k100){
+   return {segment,status:'genericQuantity',calories:Math.round(toppingGrams*food.k100/100),label:food.matchedName,quantity:'1 aggiunta',assumedGrams:toppingGrams};
+ }
+
  return {segment,status:'missingQuantity',calories:0,label:food.matchedName};
 }
 function calorieEstimateText(text){
- const items=calorieSegments(text).map(parseSegmentCalories);
+ const items=calorieSegments(text).map(part=>({...parseSegmentCalories(part.text),compositionGroup:part.compositionGroup,compositionRole:part.compositionRole}));
  return {
    calories:items.reduce((s,x)=>s+x.calories,0),
    calculated:items.filter(x=>x.status==='calculated').length,
@@ -2232,10 +2267,27 @@ function calorieIssueLabels(items,status){
 function calorieReviewMessage(estimate){
  const missing=calorieIssueLabels(estimate.items,'missingQuantity');
  const unknown=calorieIssueLabels(estimate.items,'unknown');
- const generic=estimate.items.filter(x=>x.status==='genericQuantity').map(x=>`${x.label} — ${x.quantity}`).filter(Boolean);
+ const genericItems=estimate.items.filter(x=>x.status==='genericQuantity');
+ const usableItems=estimate.items.filter(x=>x.status==='calculated'||x.status==='genericQuantity');
+ const groupedPizzaIds=new Set(usableItems.filter(x=>x.compositionGroup&&x.compositionRole==='pizza').map(x=>x.compositionGroup));
+ const groupedItemSet=new Set(usableItems.filter(x=>x.compositionGroup&&groupedPizzaIds.has(x.compositionGroup)));
+ const standaloneGeneric=genericItems.filter(x=>!groupedItemSet.has(x));
+ const standalonePizza=standaloneGeneric.filter(x=>x.quantity==='1 pizza');
+ const generic=standaloneGeneric.filter(x=>x.quantity!=='1 pizza').map(x=>`${x.label} — ${x.quantity}`).filter(Boolean);
+ const pizzaEstimates=[...groupedPizzaIds].map(id=>{
+   const parts=usableItems.filter(x=>x.compositionGroup===id);
+   const pizza=parts.find(x=>x.compositionRole==='pizza');
+   const toppings=parts.filter(x=>x.compositionRole==='topping');
+   if(!pizza)return '';
+   const toppingText=toppings.map(x=>x.status==='calculated'?`${x.quantity} di ${x.label}`:`aggiunta di ${x.label}`);
+   return `${pizza.quantity} ${pizza.label}${toppingText.length?' + '+toppingText.join(' + '):''}`;
+ }).filter(Boolean);
+ pizzaEstimates.push(...standalonePizza.map(x=>`${x.quantity} ${x.label}`));
  const genericNo=estimate.items.filter(x=>x.status==='genericQuantityNoEstimate').map(x=>`${x.label} — ${x.quantity}`).filter(Boolean);
  const lines=[];
- const usable=estimate.calculated+estimate.genericQuantity;
+ const usableRaw=estimate.calculated+estimate.genericQuantity;
+ const groupedExtras=usableItems.filter(x=>x.compositionGroup&&x.compositionRole==='topping'&&groupedPizzaIds.has(x.compositionGroup)).length;
+ const usable=Math.max(0,usableRaw-groupedExtras);
 
  if(estimate.quality==='good'){
    lines.push(`Stima giornata: ${estimate.calories} kcal`,`✓ ${usable} alimenti calcolati`,'Qualità stima: buona');
@@ -2243,6 +2295,7 @@ function calorieReviewMessage(estimate){
    lines.push(`Stima parziale: ${estimate.calories} kcal`,`✓ ${usable} alimenti calcolati`);
    if(unknown.length)lines.push(`⚠️ Alimenti non riconosciuti: ${unknown.join(', ')}`);
    if(missing.length)lines.push(`⚠️ Senza quantità: ${missing.join(', ')}`);
+   if(pizzaEstimates.length)lines.push(`ℹ️ Quantità stimate: ${pizzaEstimates.join(', ')}`);
    if(generic.length)lines.push(`⚠️ Quantità generica: ${generic.join(', ')}`);
    if(genericNo.length)lines.push(`⚠️ Quantità generica non stimabile: ${genericNo.join(', ')}`);
  }else{
@@ -2253,6 +2306,7 @@ function calorieReviewMessage(estimate){
  }
  return lines.join('\n');
 }
+
 function showCalorieSaveReview(estimate,onRegister){
  const old=document.getElementById('calorieSaveReview');if(old)old.remove();
  const modal=document.createElement('div');
